@@ -1,0 +1,15 @@
+[Unit]
+Description=DevTools Scraper
+After=network.target
+
+[Service]
+Type=exec
+User=root
+WorkingDirectory=/root/devtoolscrape
+Environment=PATH=/root/devtoolscrape/venv/bin
+ExecStart=/root/devtoolscrape/venv/bin/gunicorn -c gunicorn.conf.py app:app
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target
