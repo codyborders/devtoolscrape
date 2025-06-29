@@ -7886,3 +7886,1491 @@ Checking Show HN: Show HN: PILF, The ultimate solution to catastroph... (score: 
 Checking Show HN: Show HN: Oasis – An open-source, 3D-printed smart ... (score: 141)
   -> Skipped (not devtools related)
 Checking Show HN: Show HN: Query your Rust codebase and generate typ... (score: 5)
+  -> Skipped (not devtools related)
+Checking Show HN: Show HN: Open-Source outcome- / usage-based billin... (score: 6)
+  -> Skipped (not devtools related)
+Checking Show HN: Show HN: Reactylon – Open-source framework for bui... (score: 7)
+  -> Skipped (not devtools related)
+Checking Show HN: Show HN: PRSS Site Creator – Create Blogs and Webs... (score: 25)
+  -> Skipped (not devtools related)
+Checking Show HN: Show HN: I built Hispi, an app to design custom je... (score: 15)
+  -> Skipped (not devtools related)
+Total Show HN devtools found: 1
+
+============================================================
+🔄 Product Hunt API
+============================================================
+✅ Product Hunt API response: 200
+Found 20 products
+Checking: StayZ...
+  -> Skipped (not devtools related)
+Checking: SalafiMatch...
+  -> Skipped (not devtools related)
+Checking: Mr. Nerd: AI Math Tutor for Kids...
+  -> Skipped (not devtools related)
+Checking: Tailwind Gradient Generator...
+  -> Skipped (not devtools related)
+Checking: LinkTrim...
+  -> Skipped (not devtools related)
+Checking: Craftr....
+  -> Skipped (not devtools related)
+Checking: Milo — Your freelance command center...
+  -> Skipped (not devtools related)
+Checking: Data Socket...
+  -> Skipped (not devtools related)
+Checking: Bull`s Eye AI...
+  -> Skipped (not devtools related)
+Checking: Ailoquence - Alpha 200 slots...
+  -> Skipped (not devtools related)
+Checking: OfferCraft: $100M Builder Map...
+  -> Skipped (not devtools related)
+Checking: AutoBillHQ...
+  -> Skipped (not devtools related)
+Checking: Mornden: AI Travel Planner...
+  -> Skipped (not devtools related)
+Checking: Zero to Dev...
+  -> Skipped (not devtools related)
+Checking: Legalite.ai...
+  -> Skipped (not devtools related)
+Checking: Note Cargo...
+  -> Skipped (not devtools related)
+Checking: Cuentos.uno...
+  -> Skipped (not devtools related)
+Checking: Wrytar...
+  -> Skipped (not devtools related)
+Checking: The CACulator by Flyweel...
+  -> Skipped (not devtools related)
+Checking: Quotify...
+  -> Skipped (not devtools related)
+Total devtools items found: 0
+
+============================================================
+✅ Scraping Complete!
+📊 Results: 3/3 scrapers successful
+📅 Finished at: 2025-06-29 18:38:53
+============================================================
+
+🌐 View your results at: http://localhost:8000
+💡 Run 'python app.py' to start the web interface
+🚀 Starting DevTools Scraper
+📅 Started at: 2025-06-29 18:39:01
+
+============================================================
+🔄 GitHub Trending Repositories
+============================================================
+Response status: 200
+Found 16 trending repositories
+Checking: twentyhq/twenty...
+  -> Skipped (not devtools related)
+Checking: GraphiteEditor/Graphite...
+  -> Skipped (not devtools related)
+Checking: octra-labs/wallet-gen...
+  -> Skipped (not devtools related)
+Checking: microsoft/generative-ai-for-beginners...
+  -> Skipped (not devtools related)
+Checking: x1xhlol/system-prompts-and-models-of-ai-tools...
+  -> Skipped (not devtools related)
+Checking: coleam00/ottomator-agents...
+  -> Skipped (not devtools related)
+Checking: stanford-oval/storm...
+  -> Skipped (not devtools related)
+Checking: jnsahaj/tweakcn...
+  -> Skipped (not devtools related)
+Checking: mendableai/firecrawl...
+  -> Skipped (not devtools related)
+Checking: ItzCrazyKns/Perplexica...
+  -> Skipped (not devtools related)
+Checking: adityachandelgit/BookLore...
+  -> Skipped (not devtools related)
+Checking: swisskyrepo/PayloadsAllTheThings...
+  -> Skipped (not devtools related)
+Checking: mikumifa/biliTickerBuy...
+  -> Skipped (not devtools related)
+Checking: m1k1o/neko...
+  -> Skipped (not devtools related)
+Checking: LMCache/LMCache...
+  -> Skipped (not devtools related)
+Checking: zyronon/typing-word...
+  -> Skipped (not devtools related)
+Total devtools items found: 0
+
+============================================================
+🔄 Hacker News & Show HN
+============================================================
+Found 50 top stories
+Checking: Personal care products disrupt the human oxidation... (score: 86)
+  -> Skipped (not devtools related)
+Checking: I made my VM think it has a CPU fan... (score: 259)
+  -> Skipped (not devtools related)
+Checking: Tools I love: mise(-en-place)... (score: 22)
+  -> Skipped (not devtools related)
+Checking: Show HN: Octelium – FOSS Alternative to Teleport, ... (score: 188)
+  -> Skipped (not devtools related)
+Checking: Bloom Filters by Example... (score: 120)
+  -> Skipped (not devtools related)
+Checking: Using the Internet without IPv4 connectivity... (score: 218)
+  -> Skipped (not devtools related)
+Checking: Loss of key US satellite data could send hurricane... (score: 32)
+  -> Skipped (not devtools related)
+Checking: 4-10x faster in-process pub/sub for Go... (score: 29)
+  -> SAVING (devtools related)
+Checking: The Medley Interlisp Project: Reviving a Historica... (score: 47)
+  -> Skipped (not devtools related)
+Checking: Web Numbers... (score: 12)
+  -> Skipped (not devtools related)
+Checking: Scientists Retrace 30k-Year-Old Sea Voyage, in a H... (score: 26)
+  -> Skipped (not devtools related)
+Checking: Brad Woods Digital Garden... (score: 23)
+  -> Skipped (not devtools related)
+Checking: America's Coming Smoke Epidemic... (score: 19)
+  -> Skipped (not devtools related)
+Checking: The Unsustainability of Moore's Law... (score: 114)
+  -> Skipped (not devtools related)
+Checking: More on Apple's Trust-Eroding 'F1 the Movie' Walle... (score: 658)
+  -> Skipped (not devtools related)
+Checking: MCP: An (Accidentally) Universal Plugin System... (score: 722)
+  -> Skipped (not devtools related)
+Checking: Why Go Rocks for Building a Lua Interpreter... (score: 17)
+  -> Skipped (not devtools related)
+Checking: Solving `Passport Application` with Haskell... (score: 263)
+  -> Skipped (not devtools related)
+Checking: Implementing fast TCP fingerprinting with eBPF... (score: 46)
+  -> SAVING (devtools related)
+Checking: Sequence and first differences together list all p... (score: 60)
+  -> Skipped (not devtools related)
+Checking: The Death of the Middle-Class Musician... (score: 238)
+  -> Skipped (not devtools related)
+Checking: Schizophrenia is the price we pay for minds poised... (score: 179)
+  -> Skipped (not devtools related)
+Checking: Public Lands Sell-Off Is Struck from the GOP Polic... (score: 18)
+  -> Skipped (not devtools related)
+Checking: Improving River Simulation... (score: 58)
+  -> Skipped (not devtools related)
+Checking: Engineered Addictions... (score: 626)
+  -> Skipped (not devtools related)
+Checking: BusyBeaver(6) Is Quite Large... (score: 254)
+  -> Skipped (not devtools related)
+Checking: What LLMs Know About Their Users... (score: 45)
+  -> Skipped (not devtools related)
+Checking: JavaScript Trademark Update... (score: 835)
+  -> Skipped (not devtools related)
+Checking: Magnetic Tape Storage Technology: usage, history, ... (score: 35)
+  -> Skipped (not devtools related)
+Checking: An Indoor Beehive in My Bedroom Wall... (score: 162)
+  -> Skipped (not devtools related)
+Checking: Show HN: SmartStepper – Multi-Step Form Library wi... (score: 13)
+  -> Skipped (not devtools related)
+Checking: Life of an inference request (vLLM V1): How LLMs a... (score: 162)
+  -> Skipped (not devtools related)
+Checking: 2025 ARRL Field Day... (score: 127)
+  -> Skipped (not devtools related)
+Checking: Is being bilingual good for your brain?... (score: 126)
+  -> Skipped (not devtools related)
+Checking: Europe approves first saliva-based contraceptive –... (score: 14)
+  -> Skipped (not devtools related)
+Checking: Sirius: A GPU-native SQL engine... (score: 130)
+  -> Skipped (not devtools related)
+Checking: Community Is Motivation on Tap... (score: 99)
+  -> Skipped (not devtools related)
+Checking: An Important New Study on Phones and Kids... (score: 13)
+  -> Skipped (not devtools related)
+Checking: The European wood pigeon helped me appreciate its ... (score: 38)
+  -> Skipped (not devtools related)
+Checking: Abusing copyright strings to trick SW into thinkin... (score: 62)
+  -> Skipped (not devtools related)
+Checking: Parsing JSON in Forty Lines of Awk... (score: 112)
+  -> Skipped (not devtools related)
+Checking: Show HN: AGL a toy language that compiles to Go... (score: 77)
+  -> Skipped (not devtools related)
+Checking: We ran a Unix-like OS on our home-built CPU with a... (score: 293)
+  -> Skipped (not devtools related)
+Checking: The Consciousness Gradient: When Machines Begin to... (score: 29)
+  -> Skipped (not devtools related)
+Checking: Blackwell: Nvidia's GPU... (score: 104)
+  -> Skipped (not devtools related)
+Checking: Memory Safe Languages: Reducing Vulnerabilities in... (score: 87)
+  -> Skipped (not devtools related)
+Total devtools items found: 2
+Found 30 Show HN stories
+Checking Show HN: Show HN: Octelium – FOSS Alternative to Teleport, ... (score: 188)
+  -> Skipped (not devtools related)
+Checking Show HN: Show HN: SmartStepper – Multi-Step Form Library wi... (score: 13)
+  -> Skipped (not devtools related)
+Checking Show HN: Show HN: AGL a toy language that compiles to Go... (score: 77)
+  -> Skipped (not devtools related)
+Checking Show HN: Show HN: Vet – A tool for safely running remote sh... (score: 73)
+  -> SAVING (devtools related)
+Checking Show HN: Show HN: I'm an airline pilot – I built interactiv... (score: 1467)
+  -> Skipped (not devtools related)
+Checking Show HN: Show HN: SVG Lined Tile Generator... (score: 25)
+  -> Skipped (not devtools related)
+Checking Show HN: Show HN: Sink – Sync any directory with any device... (score: 141)
+  -> Skipped (not devtools related)
+Checking Show HN: Show HN: Do you know RGB?... (score: 91)
+  -> Skipped (not devtools related)
+Checking Show HN: Show HN: Zenta – Mindfulness for Terminal Users... (score: 195)
+  -> Skipped (not devtools related)
+Checking Show HN: Show HN: Magnitude – Open-source AI browser automa... (score: 135)
+  -> Skipped (not devtools related)
+Checking Show HN: Show HN: I built an AI dataset generator... (score: 163)
+  -> Skipped (not devtools related)
+Checking Show HN: Show HN: Anti-Cluely – Detect virtual devices and ... (score: 6)
+  -> Skipped (not devtools related)
+Checking Show HN: Show HN: Clai - Vendor agnostic Claude Code/Gemini... (score: 7)
+  -> SAVING (devtools related)
+Checking Show HN: Show HN: PILF, The ultimate solution to catastroph... (score: 28)
+  -> Skipped (not devtools related)
+Checking Show HN: Show HN: Oasis – An open-source, 3D-printed smart ... (score: 141)
+  -> Skipped (not devtools related)
+Checking Show HN: Show HN: Query your Rust codebase and generate typ... (score: 5)
+  -> SAVING (devtools related)
+Checking Show HN: Show HN: Open-Source outcome- / usage-based billin... (score: 6)
+  -> Skipped (not devtools related)
+Checking Show HN: Show HN: Reactylon – Open-source framework for bui... (score: 7)
+  -> Skipped (not devtools related)
+Checking Show HN: Show HN: PRSS Site Creator – Create Blogs and Webs... (score: 25)
+  -> Skipped (not devtools related)
+Checking Show HN: Show HN: I built Hispi, an app to design custom je... (score: 15)
+  -> Skipped (not devtools related)
+Total Show HN devtools found: 3
+
+============================================================
+🔄 Product Hunt API
+============================================================
+✅ Product Hunt API response: 200
+Found 20 products
+Checking: StayZ...
+  -> Skipped (not devtools related)
+Checking: SalafiMatch...
+  -> Skipped (not devtools related)
+Checking: Mr. Nerd: AI Math Tutor for Kids...
+  -> Skipped (not devtools related)
+Checking: Tailwind Gradient Generator...
+  -> Skipped (not devtools related)
+Checking: LinkTrim...
+  -> Skipped (not devtools related)
+Checking: Craftr....
+  -> Skipped (not devtools related)
+Checking: Milo — Your freelance command center...
+  -> Skipped (not devtools related)
+Checking: Data Socket...
+  -> Skipped (not devtools related)
+Checking: Bull`s Eye AI...
+  -> Skipped (not devtools related)
+Checking: Ailoquence - Alpha 200 slots...
+  -> Skipped (not devtools related)
+Checking: OfferCraft: $100M Builder Map...
+  -> Skipped (not devtools related)
+Checking: AutoBillHQ...
+  -> Skipped (not devtools related)
+Checking: Mornden: AI Travel Planner...
+  -> Skipped (not devtools related)
+Checking: Zero to Dev...
+  -> Skipped (not devtools related)
+Checking: Legalite.ai...
+  -> Skipped (not devtools related)
+Checking: Note Cargo...
+  -> Skipped (not devtools related)
+Checking: Cuentos.uno...
+  -> Skipped (not devtools related)
+Checking: Wrytar...
+  -> Skipped (not devtools related)
+Checking: The CACulator by Flyweel...
+  -> Skipped (not devtools related)
+Checking: Quotify...
+  -> Skipped (not devtools related)
+Total devtools items found: 0
+
+============================================================
+✅ Scraping Complete!
+📊 Results: 3/3 scrapers successful
+📅 Finished at: 2025-06-29 18:39:50
+============================================================
+
+🌐 View your results at: http://localhost:8000
+💡 Run 'python app.py' to start the web interface
+🚀 Starting DevTools Scraper
+📅 Started at: 2025-06-29 18:40:01
+
+============================================================
+🔄 GitHub Trending Repositories
+============================================================
+Response status: 200
+Found 16 trending repositories
+Checking: twentyhq/twenty...
+  -> Skipped (not devtools related)
+Checking: GraphiteEditor/Graphite...
+  -> Skipped (not devtools related)
+Checking: octra-labs/wallet-gen...
+  -> Skipped (not devtools related)
+Checking: microsoft/generative-ai-for-beginners...
+  -> Skipped (not devtools related)
+Checking: x1xhlol/system-prompts-and-models-of-ai-tools...
+  -> Skipped (not devtools related)
+Checking: coleam00/ottomator-agents...
+  -> Skipped (not devtools related)
+Checking: stanford-oval/storm...
+  -> Skipped (not devtools related)
+Checking: jnsahaj/tweakcn...
+  -> Skipped (not devtools related)
+Checking: mendableai/firecrawl...
+  -> Skipped (not devtools related)
+Checking: ItzCrazyKns/Perplexica...
+  -> Skipped (not devtools related)
+Checking: adityachandelgit/BookLore...
+  -> Skipped (not devtools related)
+Checking: swisskyrepo/PayloadsAllTheThings...
+  -> Skipped (not devtools related)
+Checking: mikumifa/biliTickerBuy...
+  -> Skipped (not devtools related)
+Checking: m1k1o/neko...
+  -> Skipped (not devtools related)
+Checking: LMCache/LMCache...
+  -> Skipped (not devtools related)
+Checking: zyronon/typing-word...
+  -> Skipped (not devtools related)
+Total devtools items found: 0
+
+============================================================
+🔄 Hacker News & Show HN
+============================================================
+Found 50 top stories
+Checking: Personal care products disrupt the human oxidation... (score: 87)
+  -> Skipped (not devtools related)
+Checking: I made my VM think it has a CPU fan... (score: 260)
+  -> Skipped (not devtools related)
+Checking: Tools I love: mise(-en-place)... (score: 22)
+  -> Skipped (not devtools related)
+Checking: Show HN: Octelium – FOSS Alternative to Teleport, ... (score: 188)
+  -> Skipped (not devtools related)
+Checking: Bloom Filters by Example... (score: 120)
+  -> Skipped (not devtools related)
+Checking: Using the Internet without IPv4 connectivity... (score: 219)
+  -> Skipped (not devtools related)
+Checking: 4-10x faster in-process pub/sub for Go... (score: 30)
+  -> Skipped (not devtools related)
+Checking: Loss of key US satellite data could send hurricane... (score: 34)
+  -> Skipped (not devtools related)
+Checking: The Medley Interlisp Project: Reviving a Historica... (score: 47)
+  -> Skipped (not devtools related)
+Checking: Web Numbers... (score: 12)
+  -> Skipped (not devtools related)
+Checking: Scientists Retrace 30k-Year-Old Sea Voyage, in a H... (score: 26)
+  -> Skipped (not devtools related)
+Checking: America's Coming Smoke Epidemic... (score: 20)
+  -> Skipped (not devtools related)
+Checking: Brad Woods Digital Garden... (score: 23)
+  -> Skipped (not devtools related)
+Checking: The Unsustainability of Moore's Law... (score: 115)
+  -> Skipped (not devtools related)
+Checking: More on Apple's Trust-Eroding 'F1 the Movie' Walle... (score: 658)
+  -> Skipped (not devtools related)
+Checking: MCP: An (Accidentally) Universal Plugin System... (score: 722)
+  -> Skipped (not devtools related)
+Checking: Why Go Rocks for Building a Lua Interpreter... (score: 17)
+  -> Skipped (not devtools related)
+Checking: Solving `Passport Application` with Haskell... (score: 263)
+  -> Skipped (not devtools related)
+Checking: Implementing fast TCP fingerprinting with eBPF... (score: 46)
+  -> SAVING (devtools related)
+Checking: Sequence and first differences together list all p... (score: 61)
+  -> Skipped (not devtools related)
+Checking: The Death of the Middle-Class Musician... (score: 238)
+  -> Skipped (not devtools related)
+Checking: Schizophrenia is the price we pay for minds poised... (score: 179)
+  -> Skipped (not devtools related)
+Checking: Improving River Simulation... (score: 59)
+  -> Skipped (not devtools related)
+Checking: Engineered Addictions... (score: 626)
+  -> Skipped (not devtools related)
+Checking: BusyBeaver(6) Is Quite Large... (score: 254)
+  -> Skipped (not devtools related)
+Checking: What LLMs Know About Their Users... (score: 46)
+  -> Skipped (not devtools related)
+Checking: JavaScript Trademark Update... (score: 835)
+  -> Skipped (not devtools related)
+Checking: Magnetic Tape Storage Technology: usage, history, ... (score: 35)
+  -> Skipped (not devtools related)
+Checking: An Indoor Beehive in My Bedroom Wall... (score: 162)
+  -> Skipped (not devtools related)
+Checking: Show HN: SmartStepper – Multi-Step Form Library wi... (score: 13)
+  -> Skipped (not devtools related)
+Checking: Life of an inference request (vLLM V1): How LLMs a... (score: 162)
+  -> Skipped (not devtools related)
+Checking: 2025 ARRL Field Day... (score: 127)
+  -> Skipped (not devtools related)
+Checking: Is being bilingual good for your brain?... (score: 126)
+  -> Skipped (not devtools related)
+Checking: Europe approves first saliva-based contraceptive –... (score: 14)
+  -> Skipped (not devtools related)
+Checking: Sirius: A GPU-native SQL engine... (score: 130)
+  -> Skipped (not devtools related)
+Checking: Community Is Motivation on Tap... (score: 99)
+  -> Skipped (not devtools related)
+Checking: An Important New Study on Phones and Kids... (score: 13)
+  -> Skipped (not devtools related)
+Checking: The European wood pigeon helped me appreciate its ... (score: 38)
+  -> Skipped (not devtools related)
+Checking: Abusing copyright strings to trick SW into thinkin... (score: 62)
+  -> Skipped (not devtools related)
+Checking: Parsing JSON in Forty Lines of Awk... (score: 112)
+  -> Skipped (not devtools related)
+Checking: Show HN: AGL a toy language that compiles to Go... (score: 77)
+  -> Skipped (not devtools related)
+Checking: We ran a Unix-like OS on our home-built CPU with a... (score: 293)
+  -> Skipped (not devtools related)
+Checking: The Consciousness Gradient: When Machines Begin to... (score: 29)
+  -> Skipped (not devtools related)
+Checking: Blackwell: Nvidia's GPU... (score: 104)
+  -> Skipped (not devtools related)
+Checking: Memory Safe Languages: Reducing Vulnerabilities in... (score: 87)
+  -> Skipped (not devtools related)
+Checking: Performance Debugging with LLVM-mca: Simulating th... (score: 19)
+  -> SAVING (devtools related)
+Total devtools items found: 2
+Found 30 Show HN stories
+Checking Show HN: Show HN: Octelium – FOSS Alternative to Teleport, ... (score: 188)
+  -> Skipped (not devtools related)
+Checking Show HN: Show HN: SmartStepper – Multi-Step Form Library wi... (score: 13)
+  -> Skipped (not devtools related)
+Checking Show HN: Show HN: AGL a toy language that compiles to Go... (score: 77)
+  -> Skipped (not devtools related)
+Checking Show HN: Show HN: Vet – A tool for safely running remote sh... (score: 73)
+  -> SAVING (devtools related)
+Checking Show HN: Show HN: I'm an airline pilot – I built interactiv... (score: 1467)
+  -> Skipped (not devtools related)
+Checking Show HN: Show HN: SVG Lined Tile Generator... (score: 25)
+  -> Skipped (not devtools related)
+Checking Show HN: Show HN: Sink – Sync any directory with any device... (score: 141)
+  -> Skipped (not devtools related)
+Checking Show HN: Show HN: Do you know RGB?... (score: 91)
+  -> Skipped (not devtools related)
+Checking Show HN: Show HN: Zenta – Mindfulness for Terminal Users... (score: 196)
+  -> Skipped (not devtools related)
+Checking Show HN: Show HN: Magnitude – Open-source AI browser automa... (score: 135)
+  -> Skipped (not devtools related)
+Checking Show HN: Show HN: I built an AI dataset generator... (score: 163)
+  -> Skipped (not devtools related)
+Checking Show HN: Show HN: Anti-Cluely – Detect virtual devices and ... (score: 6)
+  -> Skipped (not devtools related)
+Checking Show HN: Show HN: Clai - Vendor agnostic Claude Code/Gemini... (score: 7)
+  -> Skipped (not devtools related)
+Checking Show HN: Show HN: PILF, The ultimate solution to catastroph... (score: 28)
+  -> Skipped (not devtools related)
+Checking Show HN: Show HN: Oasis – An open-source, 3D-printed smart ... (score: 141)
+  -> Skipped (not devtools related)
+Checking Show HN: Show HN: Query your Rust codebase and generate typ... (score: 5)
+  -> Skipped (not devtools related)
+Checking Show HN: Show HN: Open-Source outcome- / usage-based billin... (score: 6)
+  -> Skipped (not devtools related)
+Checking Show HN: Show HN: Reactylon – Open-source framework for bui... (score: 7)
+  -> Skipped (not devtools related)
+Checking Show HN: Show HN: PRSS Site Creator – Create Blogs and Webs... (score: 25)
+  -> Skipped (not devtools related)
+Checking Show HN: Show HN: I built Hispi, an app to design custom je... (score: 15)
+  -> Skipped (not devtools related)
+Total Show HN devtools found: 1
+
+============================================================
+🔄 Product Hunt API
+============================================================
+✅ Product Hunt API response: 200
+Found 20 products
+Checking: StayZ...
+  -> Skipped (not devtools related)
+Checking: SalafiMatch...
+  -> Skipped (not devtools related)
+Checking: Mr. Nerd: AI Math Tutor for Kids...
+  -> Skipped (not devtools related)
+Checking: Tailwind Gradient Generator...
+  -> Skipped (not devtools related)
+Checking: LinkTrim...
+  -> Skipped (not devtools related)
+Checking: Craftr....
+  -> Skipped (not devtools related)
+Checking: Milo — Your freelance command center...
+  -> Skipped (not devtools related)
+Checking: Data Socket...
+  -> Skipped (not devtools related)
+Checking: Bull`s Eye AI...
+  -> Skipped (not devtools related)
+Checking: Ailoquence - Alpha 200 slots...
+  -> Skipped (not devtools related)
+Checking: OfferCraft: $100M Builder Map...
+  -> Skipped (not devtools related)
+Checking: AutoBillHQ...
+  -> Skipped (not devtools related)
+Checking: Mornden: AI Travel Planner...
+  -> Skipped (not devtools related)
+Checking: Zero to Dev...
+  -> Skipped (not devtools related)
+Checking: Legalite.ai...
+  -> Skipped (not devtools related)
+Checking: Note Cargo...
+  -> Skipped (not devtools related)
+Checking: Cuentos.uno...
+  -> Skipped (not devtools related)
+Checking: Wrytar...
+  -> Skipped (not devtools related)
+Checking: The CACulator by Flyweel...
+  -> Skipped (not devtools related)
+Checking: Quotify...
+  -> Skipped (not devtools related)
+Total devtools items found: 0
+
+============================================================
+✅ Scraping Complete!
+📊 Results: 3/3 scrapers successful
+📅 Finished at: 2025-06-29 18:40:49
+============================================================
+
+🌐 View your results at: http://localhost:8000
+💡 Run 'python app.py' to start the web interface
+🚀 Starting DevTools Scraper
+📅 Started at: 2025-06-29 18:41:01
+
+============================================================
+🔄 GitHub Trending Repositories
+============================================================
+Response status: 200
+Found 16 trending repositories
+Checking: twentyhq/twenty...
+  -> Skipped (not devtools related)
+Checking: GraphiteEditor/Graphite...
+  -> Skipped (not devtools related)
+Checking: octra-labs/wallet-gen...
+  -> Skipped (not devtools related)
+Checking: microsoft/generative-ai-for-beginners...
+  -> Skipped (not devtools related)
+Checking: x1xhlol/system-prompts-and-models-of-ai-tools...
+  -> Skipped (not devtools related)
+Checking: coleam00/ottomator-agents...
+  -> Skipped (not devtools related)
+Checking: stanford-oval/storm...
+  -> Skipped (not devtools related)
+Checking: jnsahaj/tweakcn...
+  -> Skipped (not devtools related)
+Checking: mendableai/firecrawl...
+  -> Skipped (not devtools related)
+Checking: ItzCrazyKns/Perplexica...
+  -> Skipped (not devtools related)
+Checking: adityachandelgit/BookLore...
+  -> Skipped (not devtools related)
+Checking: swisskyrepo/PayloadsAllTheThings...
+  -> Skipped (not devtools related)
+Checking: mikumifa/biliTickerBuy...
+  -> Skipped (not devtools related)
+Checking: m1k1o/neko...
+  -> Skipped (not devtools related)
+Checking: LMCache/LMCache...
+  -> Skipped (not devtools related)
+Checking: zyronon/typing-word...
+  -> Skipped (not devtools related)
+Total devtools items found: 0
+
+============================================================
+🔄 Hacker News & Show HN
+============================================================
+Found 50 top stories
+Checking: Personal care products disrupt the human oxidation... (score: 88)
+  -> Skipped (not devtools related)
+Checking: I made my VM think it has a CPU fan... (score: 260)
+  -> Skipped (not devtools related)
+Checking: Tools I love: mise(-en-place)... (score: 22)
+  -> Skipped (not devtools related)
+Checking: Show HN: Octelium – FOSS Alternative to Teleport, ... (score: 188)
+  -> Skipped (not devtools related)
+Checking: Bloom Filters by Example... (score: 120)
+  -> Skipped (not devtools related)
+Checking: Using the Internet without IPv4 connectivity... (score: 219)
+  -> Skipped (not devtools related)
+Checking: 4-10x faster in-process pub/sub for Go... (score: 32)
+  -> Skipped (not devtools related)
+Checking: Loss of key US satellite data could send hurricane... (score: 38)
+  -> Skipped (not devtools related)
+Checking: The Medley Interlisp Project: Reviving a Historica... (score: 47)
+  -> Skipped (not devtools related)
+Checking: Web Numbers... (score: 12)
+  -> Skipped (not devtools related)
+Checking: Scientists Retrace 30k-Year-Old Sea Voyage, in a H... (score: 26)
+  -> Skipped (not devtools related)
+Checking: America's Coming Smoke Epidemic... (score: 20)
+  -> Skipped (not devtools related)
+Checking: Brad Woods Digital Garden... (score: 23)
+  -> Skipped (not devtools related)
+Checking: The Unsustainability of Moore's Law... (score: 115)
+  -> Skipped (not devtools related)
+Checking: Why Go Rocks for Building a Lua Interpreter... (score: 18)
+  -> Skipped (not devtools related)
+Checking: MCP: An (Accidentally) Universal Plugin System... (score: 722)
+  -> Skipped (not devtools related)
+Checking: More on Apple's Trust-Eroding 'F1 the Movie' Walle... (score: 658)
+  -> Skipped (not devtools related)
+Checking: Solving `Passport Application` with Haskell... (score: 263)
+  -> Skipped (not devtools related)
+Checking: Implementing fast TCP fingerprinting with eBPF... (score: 46)
+  -> SAVING (devtools related)
+Checking: Sequence and first differences together list all p... (score: 61)
+  -> Skipped (not devtools related)
+Checking: The Death of the Middle-Class Musician... (score: 240)
+  -> Skipped (not devtools related)
+Checking: Schizophrenia is the price we pay for minds poised... (score: 181)
+  -> Skipped (not devtools related)
+Checking: Improving River Simulation... (score: 59)
+  -> Skipped (not devtools related)
+Checking: Engineered Addictions... (score: 626)
+  -> Skipped (not devtools related)
+Checking: BusyBeaver(6) Is Quite Large... (score: 254)
+  -> Skipped (not devtools related)
+Checking: What LLMs Know About Their Users... (score: 46)
+  -> Skipped (not devtools related)
+Checking: JavaScript Trademark Update... (score: 836)
+  -> Skipped (not devtools related)
+Checking: Magnetic Tape Storage Technology: usage, history, ... (score: 35)
+  -> Skipped (not devtools related)
+Checking: An Indoor Beehive in My Bedroom Wall... (score: 162)
+  -> Skipped (not devtools related)
+Checking: Show HN: SmartStepper – Multi-Step Form Library wi... (score: 13)
+  -> Skipped (not devtools related)
+Checking: Life of an inference request (vLLM V1): How LLMs a... (score: 162)
+  -> Skipped (not devtools related)
+Checking: 2025 ARRL Field Day... (score: 127)
+  -> Skipped (not devtools related)
+Checking: Is being bilingual good for your brain?... (score: 126)
+  -> Skipped (not devtools related)
+Checking: Europe approves first saliva-based contraceptive –... (score: 14)
+  -> Skipped (not devtools related)
+Checking: Sirius: A GPU-native SQL engine... (score: 130)
+  -> Skipped (not devtools related)
+Checking: Community Is Motivation on Tap... (score: 99)
+  -> Skipped (not devtools related)
+Checking: An Important New Study on Phones and Kids... (score: 13)
+  -> Skipped (not devtools related)
+Checking: The European wood pigeon helped me appreciate its ... (score: 38)
+  -> Skipped (not devtools related)
+Checking: Abusing copyright strings to trick SW into thinkin... (score: 62)
+  -> Skipped (not devtools related)
+Checking: Parsing JSON in Forty Lines of Awk... (score: 112)
+  -> Skipped (not devtools related)
+Checking: Show HN: AGL a toy language that compiles to Go... (score: 77)
+  -> Skipped (not devtools related)
+Checking: We ran a Unix-like OS on our home-built CPU with a... (score: 293)
+  -> Skipped (not devtools related)
+Checking: The Consciousness Gradient: When Machines Begin to... (score: 29)
+  -> Skipped (not devtools related)
+Checking: Blackwell: Nvidia's GPU... (score: 104)
+  -> Skipped (not devtools related)
+Checking: Memory Safe Languages: Reducing Vulnerabilities in... (score: 87)
+  -> Skipped (not devtools related)
+Checking: Performance Debugging with LLVM-mca: Simulating th... (score: 19)
+  -> SAVING (devtools related)
+Total devtools items found: 2
+Found 30 Show HN stories
+Checking Show HN: Show HN: Octelium – FOSS Alternative to Teleport, ... (score: 188)
+  -> Skipped (not devtools related)
+Checking Show HN: Show HN: SmartStepper – Multi-Step Form Library wi... (score: 13)
+  -> Skipped (not devtools related)
+Checking Show HN: Show HN: AGL a toy language that compiles to Go... (score: 77)
+  -> Skipped (not devtools related)
+Checking Show HN: Show HN: Vet – A tool for safely running remote sh... (score: 73)
+  -> SAVING (devtools related)
+Checking Show HN: Show HN: I'm an airline pilot – I built interactiv... (score: 1468)
+  -> Skipped (not devtools related)
+Checking Show HN: Show HN: SVG Lined Tile Generator... (score: 25)
+  -> Skipped (not devtools related)
+Checking Show HN: Show HN: Sink – Sync any directory with any device... (score: 141)
+  -> Skipped (not devtools related)
+Checking Show HN: Show HN: Do you know RGB?... (score: 91)
+  -> Skipped (not devtools related)
+Checking Show HN: Show HN: Zenta – Mindfulness for Terminal Users... (score: 196)
+  -> Skipped (not devtools related)
+Checking Show HN: Show HN: Magnitude – Open-source AI browser automa... (score: 135)
+  -> Skipped (not devtools related)
+Checking Show HN: Show HN: I built an AI dataset generator... (score: 163)
+  -> Skipped (not devtools related)
+Checking Show HN: Show HN: Anti-Cluely – Detect virtual devices and ... (score: 6)
+  -> Skipped (not devtools related)
+Checking Show HN: Show HN: Clai - Vendor agnostic Claude Code/Gemini... (score: 7)
+  -> Skipped (not devtools related)
+Checking Show HN: Show HN: PILF, The ultimate solution to catastroph... (score: 28)
+  -> Skipped (not devtools related)
+Checking Show HN: Show HN: Oasis – An open-source, 3D-printed smart ... (score: 141)
+  -> Skipped (not devtools related)
+Checking Show HN: Show HN: Query your Rust codebase and generate typ... (score: 5)
+  -> SAVING (devtools related)
+Checking Show HN: Show HN: Open-Source outcome- / usage-based billin... (score: 6)
+  -> Skipped (not devtools related)
+Checking Show HN: Show HN: Reactylon – Open-source framework for bui... (score: 7)
+  -> Skipped (not devtools related)
+Checking Show HN: Show HN: PRSS Site Creator – Create Blogs and Webs... (score: 25)
+  -> Skipped (not devtools related)
+Checking Show HN: Show HN: I built Hispi, an app to design custom je... (score: 15)
+  -> Skipped (not devtools related)
+Total Show HN devtools found: 2
+
+============================================================
+🔄 Product Hunt API
+============================================================
+✅ Product Hunt API response: 200
+Found 20 products
+Checking: StayZ...
+  -> Skipped (not devtools related)
+Checking: SalafiMatch...
+  -> Skipped (not devtools related)
+Checking: Mr. Nerd: AI Math Tutor for Kids...
+  -> Skipped (not devtools related)
+Checking: Tailwind Gradient Generator...
+  -> Skipped (not devtools related)
+Checking: LinkTrim...
+  -> Skipped (not devtools related)
+Checking: Craftr....
+  -> Skipped (not devtools related)
+Checking: Milo — Your freelance command center...
+  -> Skipped (not devtools related)
+Checking: Data Socket...
+  -> Skipped (not devtools related)
+Checking: Bull`s Eye AI...
+  -> Skipped (not devtools related)
+Checking: Ailoquence - Alpha 200 slots...
+  -> Skipped (not devtools related)
+Checking: OfferCraft: $100M Builder Map...
+  -> Skipped (not devtools related)
+Checking: AutoBillHQ...
+  -> Skipped (not devtools related)
+Checking: Mornden: AI Travel Planner...
+  -> Skipped (not devtools related)
+Checking: Zero to Dev...
+  -> Skipped (not devtools related)
+Checking: Legalite.ai...
+  -> Skipped (not devtools related)
+Checking: Note Cargo...
+  -> Skipped (not devtools related)
+Checking: Cuentos.uno...
+  -> Skipped (not devtools related)
+Checking: Wrytar...
+  -> Skipped (not devtools related)
+Checking: The CACulator by Flyweel...
+  -> Skipped (not devtools related)
+Checking: Quotify...
+  -> Skipped (not devtools related)
+Total devtools items found: 0
+
+============================================================
+✅ Scraping Complete!
+📊 Results: 3/3 scrapers successful
+📅 Finished at: 2025-06-29 18:41:51
+============================================================
+
+🌐 View your results at: http://localhost:8000
+💡 Run 'python app.py' to start the web interface
+🚀 Starting DevTools Scraper
+📅 Started at: 2025-06-29 18:42:01
+
+============================================================
+🔄 GitHub Trending Repositories
+============================================================
+Response status: 200
+Found 16 trending repositories
+Checking: twentyhq/twenty...
+  -> Skipped (not devtools related)
+Checking: GraphiteEditor/Graphite...
+  -> Skipped (not devtools related)
+Checking: octra-labs/wallet-gen...
+  -> Skipped (not devtools related)
+Checking: microsoft/generative-ai-for-beginners...
+  -> Skipped (not devtools related)
+Checking: x1xhlol/system-prompts-and-models-of-ai-tools...
+  -> Skipped (not devtools related)
+Checking: coleam00/ottomator-agents...
+  -> Skipped (not devtools related)
+Checking: stanford-oval/storm...
+  -> Skipped (not devtools related)
+Checking: jnsahaj/tweakcn...
+  -> Skipped (not devtools related)
+Checking: mendableai/firecrawl...
+  -> Skipped (not devtools related)
+Checking: ItzCrazyKns/Perplexica...
+  -> Skipped (not devtools related)
+Checking: adityachandelgit/BookLore...
+  -> Skipped (not devtools related)
+Checking: swisskyrepo/PayloadsAllTheThings...
+  -> Skipped (not devtools related)
+Checking: mikumifa/biliTickerBuy...
+  -> Skipped (not devtools related)
+Checking: m1k1o/neko...
+  -> Skipped (not devtools related)
+Checking: LMCache/LMCache...
+  -> Skipped (not devtools related)
+Checking: zyronon/typing-word...
+  -> Skipped (not devtools related)
+Total devtools items found: 0
+
+============================================================
+🔄 Hacker News & Show HN
+============================================================
+Found 50 top stories
+Checking: Personal care products disrupt the human oxidation... (score: 89)
+  -> Skipped (not devtools related)
+Checking: I made my VM think it has a CPU fan... (score: 260)
+  -> Skipped (not devtools related)
+Checking: Tools I love: mise(-en-place)... (score: 23)
+  -> Skipped (not devtools related)
+Checking: Show HN: Octelium – FOSS Alternative to Teleport, ... (score: 188)
+  -> Skipped (not devtools related)
+Checking: Bloom Filters by Example... (score: 120)
+  -> Skipped (not devtools related)
+Checking: Using the Internet without IPv4 connectivity... (score: 220)
+  -> Skipped (not devtools related)
+Checking: Loss of key US satellite data could send hurricane... (score: 39)
+  -> Skipped (not devtools related)
+Checking: 4-10x faster in-process pub/sub for Go... (score: 33)
+  -> SAVING (devtools related)
+Checking: The Medley Interlisp Project: Reviving a Historica... (score: 47)
+  -> Skipped (not devtools related)
+Checking: Web Numbers... (score: 12)
+  -> Skipped (not devtools related)
+Checking: Scientists Retrace 30k-Year-Old Sea Voyage, in a H... (score: 26)
+  -> Skipped (not devtools related)
+Checking: America's Coming Smoke Epidemic... (score: 20)
+  -> Skipped (not devtools related)
+Checking: Brad Woods Digital Garden... (score: 23)
+  -> Skipped (not devtools related)
+Checking: The Unsustainability of Moore's Law... (score: 115)
+  -> Skipped (not devtools related)
+Checking: Why Go Rocks for Building a Lua Interpreter... (score: 18)
+  -> Skipped (not devtools related)
+Checking: More on Apple's Trust-Eroding 'F1 the Movie' Walle... (score: 660)
+  -> Skipped (not devtools related)
+Checking: MCP: An (Accidentally) Universal Plugin System... (score: 722)
+  -> Skipped (not devtools related)
+Checking: Solving `Passport Application` with Haskell... (score: 263)
+  -> Skipped (not devtools related)
+Checking: Implementing fast TCP fingerprinting with eBPF... (score: 46)
+  -> SAVING (devtools related)
+Checking: Sequence and first differences together list all p... (score: 61)
+  -> Skipped (not devtools related)
+Checking: The Death of the Middle-Class Musician... (score: 240)
+  -> Skipped (not devtools related)
+Checking: Schizophrenia is the price we pay for minds poised... (score: 181)
+  -> Skipped (not devtools related)
+Checking: Improving River Simulation... (score: 59)
+  -> Skipped (not devtools related)
+Checking: Engineered Addictions... (score: 627)
+  -> Skipped (not devtools related)
+Checking: BusyBeaver(6) Is Quite Large... (score: 254)
+  -> Skipped (not devtools related)
+Checking: What LLMs Know About Their Users... (score: 46)
+  -> Skipped (not devtools related)
+Checking: JavaScript Trademark Update... (score: 836)
+  -> Skipped (not devtools related)
+Checking: Magnetic Tape Storage Technology: usage, history, ... (score: 35)
+  -> Skipped (not devtools related)
+Checking: An Indoor Beehive in My Bedroom Wall... (score: 162)
+  -> Skipped (not devtools related)
+Checking: Show HN: SmartStepper – Multi-Step Form Library wi... (score: 13)
+  -> Skipped (not devtools related)
+Checking: Life of an inference request (vLLM V1): How LLMs a... (score: 162)
+  -> Skipped (not devtools related)
+Checking: 2025 ARRL Field Day... (score: 127)
+  -> Skipped (not devtools related)
+Checking: Is being bilingual good for your brain?... (score: 126)
+  -> Skipped (not devtools related)
+Checking: Europe approves first saliva-based contraceptive –... (score: 14)
+  -> Skipped (not devtools related)
+Checking: Sirius: A GPU-native SQL engine... (score: 130)
+  -> Skipped (not devtools related)
+Checking: Community Is Motivation on Tap... (score: 99)
+  -> Skipped (not devtools related)
+Checking: An Important New Study on Phones and Kids... (score: 13)
+  -> Skipped (not devtools related)
+Checking: The European wood pigeon helped me appreciate its ... (score: 38)
+  -> Skipped (not devtools related)
+Checking: Abusing copyright strings to trick SW into thinkin... (score: 62)
+  -> Skipped (not devtools related)
+Checking: Parsing JSON in Forty Lines of Awk... (score: 112)
+  -> Skipped (not devtools related)
+Checking: Show HN: AGL a toy language that compiles to Go... (score: 77)
+  -> Skipped (not devtools related)
+Checking: We ran a Unix-like OS on our home-built CPU with a... (score: 293)
+  -> Skipped (not devtools related)
+Checking: The Consciousness Gradient: When Machines Begin to... (score: 29)
+  -> Skipped (not devtools related)
+Checking: Blackwell: Nvidia's GPU... (score: 104)
+  -> Skipped (not devtools related)
+Checking: Memory Safe Languages: Reducing Vulnerabilities in... (score: 87)
+  -> Skipped (not devtools related)
+Checking: Performance Debugging with LLVM-mca: Simulating th... (score: 19)
+  -> SAVING (devtools related)
+Total devtools items found: 3
+Found 30 Show HN stories
+Checking Show HN: Show HN: Octelium – FOSS Alternative to Teleport, ... (score: 188)
+  -> Skipped (not devtools related)
+Checking Show HN: Show HN: SmartStepper – Multi-Step Form Library wi... (score: 13)
+  -> Skipped (not devtools related)
+Checking Show HN: Show HN: AGL a toy language that compiles to Go... (score: 77)
+  -> Skipped (not devtools related)
+Checking Show HN: Show HN: Vet – A tool for safely running remote sh... (score: 73)
+  -> SAVING (devtools related)
+Checking Show HN: Show HN: I'm an airline pilot – I built interactiv... (score: 1468)
+  -> Skipped (not devtools related)
+Checking Show HN: Show HN: SVG Lined Tile Generator... (score: 25)
+  -> Skipped (not devtools related)
+Checking Show HN: Show HN: Sink – Sync any directory with any device... (score: 141)
+  -> Skipped (not devtools related)
+Checking Show HN: Show HN: Do you know RGB?... (score: 91)
+  -> Skipped (not devtools related)
+Checking Show HN: Show HN: Zenta – Mindfulness for Terminal Users... (score: 196)
+  -> Skipped (not devtools related)
+Checking Show HN: Show HN: Magnitude – Open-source AI browser automa... (score: 135)
+  -> Skipped (not devtools related)
+Checking Show HN: Show HN: I built an AI dataset generator... (score: 163)
+  -> Skipped (not devtools related)
+Checking Show HN: Show HN: Anti-Cluely – Detect virtual devices and ... (score: 6)
+  -> Skipped (not devtools related)
+Checking Show HN: Show HN: Clai - Vendor agnostic Claude Code/Gemini... (score: 7)
+  -> SAVING (devtools related)
+Checking Show HN: Show HN: PILF, The ultimate solution to catastroph... (score: 28)
+  -> Skipped (not devtools related)
+Checking Show HN: Show HN: Oasis – An open-source, 3D-printed smart ... (score: 141)
+  -> Skipped (not devtools related)
+Checking Show HN: Show HN: Query your Rust codebase and generate typ... (score: 5)
+  -> SAVING (devtools related)
+Checking Show HN: Show HN: Open-Source outcome- / usage-based billin... (score: 6)
+  -> Skipped (not devtools related)
+Checking Show HN: Show HN: Reactylon – Open-source framework for bui... (score: 7)
+  -> Skipped (not devtools related)
+Checking Show HN: Show HN: PRSS Site Creator – Create Blogs and Webs... (score: 25)
+  -> Skipped (not devtools related)
+Checking Show HN: Show HN: I built Hispi, an app to design custom je... (score: 15)
+  -> Skipped (not devtools related)
+Total Show HN devtools found: 3
+
+============================================================
+🔄 Product Hunt API
+============================================================
+✅ Product Hunt API response: 200
+Found 20 products
+Checking: StayZ...
+  -> Skipped (not devtools related)
+Checking: SalafiMatch...
+  -> Skipped (not devtools related)
+Checking: Mr. Nerd: AI Math Tutor for Kids...
+  -> Skipped (not devtools related)
+Checking: Tailwind Gradient Generator...
+  -> Skipped (not devtools related)
+Checking: LinkTrim...
+  -> Skipped (not devtools related)
+Checking: Craftr....
+  -> Skipped (not devtools related)
+Checking: Milo — Your freelance command center...
+  -> Skipped (not devtools related)
+Checking: Data Socket...
+  -> Skipped (not devtools related)
+Checking: Bull`s Eye AI...
+  -> Skipped (not devtools related)
+Checking: Ailoquence - Alpha 200 slots...
+  -> Skipped (not devtools related)
+Checking: OfferCraft: $100M Builder Map...
+  -> Skipped (not devtools related)
+Checking: AutoBillHQ...
+  -> Skipped (not devtools related)
+Checking: Mornden: AI Travel Planner...
+  -> Skipped (not devtools related)
+Checking: Zero to Dev...
+  -> Skipped (not devtools related)
+Checking: Legalite.ai...
+  -> Skipped (not devtools related)
+Checking: Note Cargo...
+  -> Skipped (not devtools related)
+Checking: Cuentos.uno...
+  -> Skipped (not devtools related)
+Checking: Wrytar...
+  -> Skipped (not devtools related)
+Checking: The CACulator by Flyweel...
+  -> Skipped (not devtools related)
+Checking: Quotify...
+  -> Skipped (not devtools related)
+Total devtools items found: 0
+
+============================================================
+✅ Scraping Complete!
+📊 Results: 3/3 scrapers successful
+📅 Finished at: 2025-06-29 18:42:50
+============================================================
+
+🌐 View your results at: http://localhost:8000
+💡 Run 'python app.py' to start the web interface
+🚀 Starting DevTools Scraper
+📅 Started at: 2025-06-29 18:43:01
+
+============================================================
+🔄 GitHub Trending Repositories
+============================================================
+Response status: 200
+Found 16 trending repositories
+Checking: twentyhq/twenty...
+  -> Skipped (not devtools related)
+Checking: GraphiteEditor/Graphite...
+  -> Skipped (not devtools related)
+Checking: octra-labs/wallet-gen...
+  -> Skipped (not devtools related)
+Checking: microsoft/generative-ai-for-beginners...
+  -> Skipped (not devtools related)
+Checking: x1xhlol/system-prompts-and-models-of-ai-tools...
+  -> Skipped (not devtools related)
+Checking: coleam00/ottomator-agents...
+  -> Skipped (not devtools related)
+Checking: stanford-oval/storm...
+  -> Skipped (not devtools related)
+Checking: jnsahaj/tweakcn...
+  -> Skipped (not devtools related)
+Checking: mendableai/firecrawl...
+  -> Skipped (not devtools related)
+Checking: ItzCrazyKns/Perplexica...
+  -> Skipped (not devtools related)
+Checking: adityachandelgit/BookLore...
+  -> Skipped (not devtools related)
+Checking: swisskyrepo/PayloadsAllTheThings...
+  -> Skipped (not devtools related)
+Checking: mikumifa/biliTickerBuy...
+  -> Skipped (not devtools related)
+Checking: m1k1o/neko...
+  -> Skipped (not devtools related)
+Checking: LMCache/LMCache...
+  -> Skipped (not devtools related)
+Checking: zyronon/typing-word...
+  -> Skipped (not devtools related)
+Total devtools items found: 0
+
+============================================================
+🔄 Hacker News & Show HN
+============================================================
+Found 50 top stories
+Checking: Personal care products disrupt the human oxidation... (score: 89)
+  -> Skipped (not devtools related)
+Checking: I made my VM think it has a CPU fan... (score: 260)
+  -> Skipped (not devtools related)
+Checking: Tools I love: mise(-en-place)... (score: 26)
+  -> Skipped (not devtools related)
+Checking: Show HN: Octelium – FOSS Alternative to Teleport, ... (score: 189)
+  -> Skipped (not devtools related)
+Checking: Bloom Filters by Example... (score: 121)
+  -> Skipped (not devtools related)
+Checking: Using the Internet without IPv4 connectivity... (score: 220)
+  -> Skipped (not devtools related)
+Checking: 4-10x faster in-process pub/sub for Go... (score: 35)
+  -> SAVING (devtools related)
+Checking: Loss of key US satellite data could send hurricane... (score: 39)
+  -> Skipped (not devtools related)
+Checking: The Medley Interlisp Project: Reviving a Historica... (score: 48)
+  -> Skipped (not devtools related)
+Checking: Web Numbers... (score: 12)
+  -> Skipped (not devtools related)
+Checking: Why Go Rocks for Building a Lua Interpreter... (score: 19)
+  -> Skipped (not devtools related)
+Checking: Scientists Retrace 30k-Year-Old Sea Voyage, in a H... (score: 26)
+  -> Skipped (not devtools related)
+Checking: America's Coming Smoke Epidemic... (score: 21)
+  -> Skipped (not devtools related)
+Checking: Brad Woods Digital Garden... (score: 23)
+  -> Skipped (not devtools related)
+Checking: The Unsustainability of Moore's Law... (score: 115)
+  -> Skipped (not devtools related)
+Checking: More on Apple's Trust-Eroding 'F1 the Movie' Walle... (score: 660)
+  -> Skipped (not devtools related)
+Checking: MCP: An (Accidentally) Universal Plugin System... (score: 722)
+  -> Skipped (not devtools related)
+Checking: Solving `Passport Application` with Haskell... (score: 263)
+  -> Skipped (not devtools related)
+Checking: Implementing fast TCP fingerprinting with eBPF... (score: 46)
+  -> SAVING (devtools related)
+Checking: Sequence and first differences together list all p... (score: 61)
+  -> Skipped (not devtools related)
+Checking: The Death of the Middle-Class Musician... (score: 240)
+  -> Skipped (not devtools related)
+Checking: Schizophrenia is the price we pay for minds poised... (score: 181)
+  -> Skipped (not devtools related)
+Checking: Improving River Simulation... (score: 59)
+  -> Skipped (not devtools related)
+Checking: Engineered Addictions... (score: 627)
+  -> Skipped (not devtools related)
+Checking: BusyBeaver(6) Is Quite Large... (score: 254)
+  -> Skipped (not devtools related)
+Checking: What LLMs Know About Their Users... (score: 47)
+  -> Skipped (not devtools related)
+Checking: JavaScript Trademark Update... (score: 836)
+  -> Skipped (not devtools related)
+Checking: Magnetic Tape Storage Technology: usage, history, ... (score: 35)
+  -> Skipped (not devtools related)
+Checking: An Indoor Beehive in My Bedroom Wall... (score: 162)
+  -> Skipped (not devtools related)
+Checking: Show HN: SmartStepper – Multi-Step Form Library wi... (score: 13)
+  -> Skipped (not devtools related)
+Checking: Life of an inference request (vLLM V1): How LLMs a... (score: 162)
+  -> Skipped (not devtools related)
+Checking: 2025 ARRL Field Day... (score: 127)
+  -> Skipped (not devtools related)
+Checking: Is being bilingual good for your brain?... (score: 126)
+  -> Skipped (not devtools related)
+Checking: Europe approves first saliva-based contraceptive –... (score: 14)
+  -> Skipped (not devtools related)
+Checking: Sirius: A GPU-native SQL engine... (score: 130)
+  -> Skipped (not devtools related)
+Checking: Community Is Motivation on Tap... (score: 99)
+  -> Skipped (not devtools related)
+Checking: An Important New Study on Phones and Kids... (score: 13)
+  -> Skipped (not devtools related)
+Checking: The European wood pigeon helped me appreciate its ... (score: 38)
+  -> Skipped (not devtools related)
+Checking: Abusing copyright strings to trick SW into thinkin... (score: 62)
+  -> Skipped (not devtools related)
+Checking: Parsing JSON in Forty Lines of Awk... (score: 112)
+  -> Skipped (not devtools related)
+Checking: Show HN: AGL a toy language that compiles to Go... (score: 77)
+  -> SAVING (devtools related)
+Checking: We ran a Unix-like OS on our home-built CPU with a... (score: 294)
+  -> Skipped (not devtools related)
+Checking: The Consciousness Gradient: When Machines Begin to... (score: 29)
+  -> Skipped (not devtools related)
+Checking: Blackwell: Nvidia's GPU... (score: 104)
+  -> Skipped (not devtools related)
+Checking: Memory Safe Languages: Reducing Vulnerabilities in... (score: 87)
+  -> Skipped (not devtools related)
+Checking: Performance Debugging with LLVM-mca: Simulating th... (score: 19)
+  -> SAVING (devtools related)
+Total devtools items found: 4
+Found 30 Show HN stories
+Checking Show HN: Show HN: Octelium – FOSS Alternative to Teleport, ... (score: 189)
+  -> Skipped (not devtools related)
+Checking Show HN: Show HN: SmartStepper – Multi-Step Form Library wi... (score: 13)
+  -> Skipped (not devtools related)
+Checking Show HN: Show HN: AGL a toy language that compiles to Go... (score: 77)
+  -> Skipped (not devtools related)
+Checking Show HN: Show HN: Vet – A tool for safely running remote sh... (score: 73)
+  -> SAVING (devtools related)
+Checking Show HN: Show HN: I'm an airline pilot – I built interactiv... (score: 1468)
+  -> Skipped (not devtools related)
+Checking Show HN: Show HN: SVG Lined Tile Generator... (score: 25)
+  -> Skipped (not devtools related)
+Checking Show HN: Show HN: Sink – Sync any directory with any device... (score: 141)
+  -> Skipped (not devtools related)
+Checking Show HN: Show HN: Do you know RGB?... (score: 91)
+  -> Skipped (not devtools related)
+Checking Show HN: Show HN: Zenta – Mindfulness for Terminal Users... (score: 196)
+  -> Skipped (not devtools related)
+Checking Show HN: Show HN: Magnitude – Open-source AI browser automa... (score: 135)
+  -> Skipped (not devtools related)
+Checking Show HN: Show HN: I built an AI dataset generator... (score: 163)
+  -> Skipped (not devtools related)
+Checking Show HN: Show HN: Anti-Cluely – Detect virtual devices and ... (score: 6)
+  -> Skipped (not devtools related)
+Checking Show HN: Show HN: Clai - Vendor agnostic Claude Code/Gemini... (score: 7)
+  -> Skipped (not devtools related)
+Checking Show HN: Show HN: PILF, The ultimate solution to catastroph... (score: 28)
+  -> Skipped (not devtools related)
+Checking Show HN: Show HN: Oasis – An open-source, 3D-printed smart ... (score: 141)
+  -> Skipped (not devtools related)
+Checking Show HN: Show HN: Query your Rust codebase and generate typ... (score: 5)
+  -> SAVING (devtools related)
+Checking Show HN: Show HN: Open-Source outcome- / usage-based billin... (score: 6)
+  -> Skipped (not devtools related)
+Checking Show HN: Show HN: Reactylon – Open-source framework for bui... (score: 7)
+  -> Skipped (not devtools related)
+Checking Show HN: Show HN: PRSS Site Creator – Create Blogs and Webs... (score: 25)
+  -> Skipped (not devtools related)
+Checking Show HN: Show HN: I built Hispi, an app to design custom je... (score: 15)
+  -> Skipped (not devtools related)
+Total Show HN devtools found: 2
+
+============================================================
+🔄 Product Hunt API
+============================================================
+✅ Product Hunt API response: 200
+Found 20 products
+Checking: StayZ...
+  -> Skipped (not devtools related)
+Checking: SalafiMatch...
+  -> Skipped (not devtools related)
+Checking: Mr. Nerd: AI Math Tutor for Kids...
+  -> Skipped (not devtools related)
+Checking: Tailwind Gradient Generator...
+  -> Skipped (not devtools related)
+Checking: LinkTrim...
+  -> Skipped (not devtools related)
+Checking: Craftr....
+  -> Skipped (not devtools related)
+Checking: Milo — Your freelance command center...
+  -> Skipped (not devtools related)
+Checking: Data Socket...
+  -> Skipped (not devtools related)
+Checking: Bull`s Eye AI...
+  -> Skipped (not devtools related)
+Checking: Ailoquence - Alpha 200 slots...
+  -> Skipped (not devtools related)
+Checking: OfferCraft: $100M Builder Map...
+  -> Skipped (not devtools related)
+Checking: AutoBillHQ...
+  -> Skipped (not devtools related)
+Checking: Mornden: AI Travel Planner...
+  -> Skipped (not devtools related)
+Checking: Zero to Dev...
+  -> Skipped (not devtools related)
+Checking: Legalite.ai...
+  -> Skipped (not devtools related)
+Checking: Note Cargo...
+  -> Skipped (not devtools related)
+Checking: Cuentos.uno...
+  -> Skipped (not devtools related)
+Checking: Wrytar...
+  -> Skipped (not devtools related)
+Checking: The CACulator by Flyweel...
+  -> Skipped (not devtools related)
+Checking: Quotify...
+  -> Skipped (not devtools related)
+Total devtools items found: 0
+
+============================================================
+✅ Scraping Complete!
+📊 Results: 3/3 scrapers successful
+📅 Finished at: 2025-06-29 18:43:55
+============================================================
+
+🌐 View your results at: http://localhost:8000
+💡 Run 'python app.py' to start the web interface
+🚀 Starting DevTools Scraper
+📅 Started at: 2025-06-29 18:44:02
+
+============================================================
+🔄 GitHub Trending Repositories
+============================================================
+Response status: 200
+Found 16 trending repositories
+Checking: twentyhq/twenty...
+  -> Skipped (not devtools related)
+Checking: GraphiteEditor/Graphite...
+  -> Skipped (not devtools related)
+Checking: octra-labs/wallet-gen...
+  -> Skipped (not devtools related)
+Checking: microsoft/generative-ai-for-beginners...
+  -> Skipped (not devtools related)
+Checking: x1xhlol/system-prompts-and-models-of-ai-tools...
+  -> Skipped (not devtools related)
+Checking: coleam00/ottomator-agents...
+  -> Skipped (not devtools related)
+Checking: stanford-oval/storm...
+  -> Skipped (not devtools related)
+Checking: jnsahaj/tweakcn...
+  -> Skipped (not devtools related)
+Checking: mendableai/firecrawl...
+  -> Skipped (not devtools related)
+Checking: ItzCrazyKns/Perplexica...
+  -> Skipped (not devtools related)
+Checking: adityachandelgit/BookLore...
+  -> Skipped (not devtools related)
+Checking: swisskyrepo/PayloadsAllTheThings...
+  -> Skipped (not devtools related)
+Checking: mikumifa/biliTickerBuy...
+  -> Skipped (not devtools related)
+Checking: m1k1o/neko...
+  -> Skipped (not devtools related)
+Checking: LMCache/LMCache...
+  -> Skipped (not devtools related)
+Checking: zyronon/typing-word...
+  -> Skipped (not devtools related)
+Total devtools items found: 0
+
+============================================================
+🔄 Hacker News & Show HN
+============================================================
+Found 50 top stories
+Checking: Personal care products disrupt the human oxidation... (score: 89)
+  -> Skipped (not devtools related)
+Checking: I made my VM think it has a CPU fan... (score: 260)
+  -> Skipped (not devtools related)
+Checking: Tools I love: mise(-en-place)... (score: 27)
+  -> Skipped (not devtools related)
+Checking: Show HN: Octelium – FOSS Alternative to Teleport, ... (score: 190)
+  -> Skipped (not devtools related)
+Checking: Bloom Filters by Example... (score: 122)
+  -> Skipped (not devtools related)
+Checking: Using the Internet without IPv4 connectivity... (score: 220)
+  -> Skipped (not devtools related)
+Checking: 4-10x faster in-process pub/sub for Go... (score: 35)
+  -> SAVING (devtools related)
+Checking: Loss of key US satellite data could send hurricane... (score: 41)
+  -> Skipped (not devtools related)
+Checking: The Medley Interlisp Project: Reviving a Historica... (score: 48)
+  -> Skipped (not devtools related)
+Checking: Web Numbers... (score: 13)
+  -> Skipped (not devtools related)
+Checking: America's Coming Smoke Epidemic... (score: 21)
+  -> Skipped (not devtools related)
+Checking: Why Go Rocks for Building a Lua Interpreter... (score: 19)
+  -> Skipped (not devtools related)
+Checking: Scientists Retrace 30k-Year-Old Sea Voyage, in a H... (score: 26)
+  -> Skipped (not devtools related)
+Checking: Brad Woods Digital Garden... (score: 23)
+  -> Skipped (not devtools related)
+Checking: The Unsustainability of Moore's Law... (score: 115)
+  -> Skipped (not devtools related)
+Checking: More on Apple's Trust-Eroding 'F1 the Movie' Walle... (score: 661)
+  -> Skipped (not devtools related)
+Checking: MCP: An (Accidentally) Universal Plugin System... (score: 722)
+  -> Skipped (not devtools related)
+Checking: Solving `Passport Application` with Haskell... (score: 263)
+  -> Skipped (not devtools related)
+Checking: Implementing fast TCP fingerprinting with eBPF... (score: 46)
+  -> SAVING (devtools related)
+Checking: Sequence and first differences together list all p... (score: 61)
+  -> Skipped (not devtools related)
+Checking: The Death of the Middle-Class Musician... (score: 241)
+  -> Skipped (not devtools related)
+Checking: Schizophrenia is the price we pay for minds poised... (score: 181)
+  -> Skipped (not devtools related)
+Checking: Improving River Simulation... (score: 59)
+  -> Skipped (not devtools related)
+Checking: Engineered Addictions... (score: 627)
+  -> Skipped (not devtools related)
+Checking: What LLMs Know About Their Users... (score: 47)
+  -> Skipped (not devtools related)
+Checking: BusyBeaver(6) Is Quite Large... (score: 255)
+  -> Skipped (not devtools related)
+Checking: JavaScript Trademark Update... (score: 837)
+  -> Skipped (not devtools related)
+Checking: Magnetic Tape Storage Technology: usage, history, ... (score: 35)
+  -> Skipped (not devtools related)
+Checking: An Indoor Beehive in My Bedroom Wall... (score: 162)
+  -> Skipped (not devtools related)
+Checking: Show HN: SmartStepper – Multi-Step Form Library wi... (score: 13)
+  -> Skipped (not devtools related)
+Checking: Life of an inference request (vLLM V1): How LLMs a... (score: 162)
+  -> Skipped (not devtools related)
+Checking: 2025 ARRL Field Day... (score: 127)
+  -> Skipped (not devtools related)
+Checking: Is being bilingual good for your brain?... (score: 126)
+  -> Skipped (not devtools related)
+Checking: Europe approves first saliva-based contraceptive –... (score: 14)
+  -> Skipped (not devtools related)
+Checking: Sirius: A GPU-native SQL engine... (score: 130)
+  -> Skipped (not devtools related)
+Checking: Community Is Motivation on Tap... (score: 99)
+  -> Skipped (not devtools related)
+Checking: An Important New Study on Phones and Kids... (score: 13)
+  -> Skipped (not devtools related)
+Checking: The European wood pigeon helped me appreciate its ... (score: 38)
+  -> Skipped (not devtools related)
+Checking: Abusing copyright strings to trick SW into thinkin... (score: 62)
+  -> Skipped (not devtools related)
+Checking: Parsing JSON in Forty Lines of Awk... (score: 112)
+  -> Skipped (not devtools related)
+Checking: Show HN: AGL a toy language that compiles to Go... (score: 77)
+  -> Skipped (not devtools related)
+Checking: We ran a Unix-like OS on our home-built CPU with a... (score: 294)
+  -> Skipped (not devtools related)
+Checking: The Consciousness Gradient: When Machines Begin to... (score: 29)
+  -> Skipped (not devtools related)
+Checking: Blackwell: Nvidia's GPU... (score: 104)
+  -> Skipped (not devtools related)
+Checking: Memory Safe Languages: Reducing Vulnerabilities in... (score: 87)
+  -> Skipped (not devtools related)
+Checking: Tennis Scorigami... (score: 43)
+  -> Skipped (not devtools related)
+Total devtools items found: 2
+Found 30 Show HN stories
+Checking Show HN: Show HN: Octelium – FOSS Alternative to Teleport, ... (score: 190)
+  -> Skipped (not devtools related)
+Checking Show HN: Show HN: SmartStepper – Multi-Step Form Library wi... (score: 13)
+  -> Skipped (not devtools related)
+Checking Show HN: Show HN: AGL a toy language that compiles to Go... (score: 77)
+  -> Skipped (not devtools related)
+Checking Show HN: Show HN: Vet – A tool for safely running remote sh... (score: 73)
+  -> SAVING (devtools related)
+Checking Show HN: Show HN: I'm an airline pilot – I built interactiv... (score: 1468)
+  -> Skipped (not devtools related)
+Checking Show HN: Show HN: SVG Lined Tile Generator... (score: 25)
+  -> Skipped (not devtools related)
+Checking Show HN: Show HN: Sink – Sync any directory with any device... (score: 141)
+  -> Skipped (not devtools related)
+Checking Show HN: Show HN: Do you know RGB?... (score: 91)
+  -> Skipped (not devtools related)
+Checking Show HN: Show HN: Zenta – Mindfulness for Terminal Users... (score: 196)
+  -> Skipped (not devtools related)
+Checking Show HN: Show HN: Magnitude – Open-source AI browser automa... (score: 135)
+  -> Skipped (not devtools related)
+Checking Show HN: Show HN: I built an AI dataset generator... (score: 163)
+  -> Skipped (not devtools related)
+Checking Show HN: Show HN: Anti-Cluely – Detect virtual devices and ... (score: 6)
+  -> Skipped (not devtools related)
+Checking Show HN: Show HN: Clai - Vendor agnostic Claude Code/Gemini... (score: 7)
+  -> SAVING (devtools related)
+Checking Show HN: Show HN: PILF, The ultimate solution to catastroph... (score: 28)
+  -> Skipped (not devtools related)
+Checking Show HN: Show HN: Oasis – An open-source, 3D-printed smart ... (score: 141)
+  -> Skipped (not devtools related)
+Checking Show HN: Show HN: Query your Rust codebase and generate typ... (score: 5)
+  -> SAVING (devtools related)
+Checking Show HN: Show HN: Open-Source outcome- / usage-based billin... (score: 6)
+  -> Skipped (not devtools related)
+Checking Show HN: Show HN: Reactylon – Open-source framework for bui... (score: 7)
+  -> Skipped (not devtools related)
+Checking Show HN: Show HN: PRSS Site Creator – Create Blogs and Webs... (score: 25)
+  -> Skipped (not devtools related)
+Checking Show HN: Show HN: I built Hispi, an app to design custom je... (score: 15)
+  -> Skipped (not devtools related)
+Total Show HN devtools found: 3
+
+============================================================
+🔄 Product Hunt API
+============================================================
+✅ Product Hunt API response: 200
+Found 20 products
+Checking: StayZ...
+  -> Skipped (not devtools related)
+Checking: SalafiMatch...
+  -> Skipped (not devtools related)
+Checking: Mr. Nerd: AI Math Tutor for Kids...
+  -> Skipped (not devtools related)
+Checking: Tailwind Gradient Generator...
+  -> Skipped (not devtools related)
+Checking: LinkTrim...
+  -> Skipped (not devtools related)
+Checking: Craftr....
+  -> Skipped (not devtools related)
+Checking: Milo — Your freelance command center...
+  -> Skipped (not devtools related)
+Checking: Data Socket...
+  -> Skipped (not devtools related)
+Checking: Bull`s Eye AI...
+  -> Skipped (not devtools related)
+Checking: Ailoquence - Alpha 200 slots...
+  -> Skipped (not devtools related)
+Checking: OfferCraft: $100M Builder Map...
+  -> Skipped (not devtools related)
+Checking: AutoBillHQ...
+  -> Skipped (not devtools related)
+Checking: Mornden: AI Travel Planner...
+  -> Skipped (not devtools related)
+Checking: Zero to Dev...
+  -> Skipped (not devtools related)
+Checking: Legalite.ai...
+  -> Skipped (not devtools related)
+Checking: Note Cargo...
+  -> Skipped (not devtools related)
+Checking: Cuentos.uno...
+  -> Skipped (not devtools related)
+Checking: Wrytar...
+  -> Skipped (not devtools related)
+Checking: The CACulator by Flyweel...
+  -> Skipped (not devtools related)
+Checking: Quotify...
+  -> Skipped (not devtools related)
+Total devtools items found: 0
+
+============================================================
+✅ Scraping Complete!
+📊 Results: 3/3 scrapers successful
+📅 Finished at: 2025-06-29 18:44:56
+============================================================
+
+🌐 View your results at: http://localhost:8000
+💡 Run 'python app.py' to start the web interface

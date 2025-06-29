@@ -68,9 +68,9 @@
                             {{ category }}
                         </span>
                     </div>
-                    <div class="text-gray-700 whitespace-pre-wrap">{{ description }}</div>
+                    <div class="text-gray-700">{{ description|safe }}</div>
                 {% else %}
-                    <div class="text-gray-700 whitespace-pre-wrap">{{ tool.description }}</div>
+                    <div class="text-gray-700">{{ tool.description|safe }}</div>
                 {% endif %}
             </div>
         </div>
