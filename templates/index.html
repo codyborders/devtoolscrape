@@ -4,20 +4,32 @@
 
 {% block content %}
 <div class="mb-8">
-    <h1 class="text-4xl font-bold text-gray-900 mb-4">
-        {% if source_display and source_display != 'All Sources' %}
-            🛠️ {{ source_display }} Tools
-        {% else %}
-            🛠️ All DevTools
+    <div class="flex items-start justify-between mb-4">
+        <div>
+            <h1 class="text-4xl font-bold text-gray-900 mb-4">
+                {% if source_display and source_display != 'All Sources' %}
+                    🛠️ {{ source_display }} Tools
+                {% else %}
+                    🛠️ All DevTools
+                {% endif %}
+            </h1>
+            <p class="text-gray-600 text-lg">
+                {% if source_display and source_display != 'All Sources' %}
+                    Discover the latest developer tools from {{ source_display }}
+                {% else %}
+                    Discover the latest developer tools and utilities
+                {% endif %}
+            </p>
+        </div>
+        {% if last_scrape_time %}
+        <div class="text-right">
+            <p class="text-sm text-gray-500">
+                Last Updated<br>
+                <span class="font-medium text-gray-700">{{ last_scrape_time|format_datetime }}</span>
+            </p>
+        </div>
         {% endif %}
-    </h1>
-    <p class="text-gray-600 text-lg">
-        {% if source_display and source_display != 'All Sources' %}
-            Discover the latest developer tools from {{ source_display }}
-        {% else %}
-            Discover the latest developer tools and utilities
-        {% endif %}
-    </p>
+    </div>
     
     <!-- Stats -->
     <div class="mt-6 grid grid-cols-1 md:grid-cols-4 gap-4">

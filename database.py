@@ -21,6 +21,15 @@ def init_db():
     # Add index on name for faster duplicate checking
     c.execute('CREATE INDEX IF NOT EXISTS idx_startups_name ON startups(name)')
 
+    # Create table for tracking last scrape time
+    c.execute('''
+        CREATE TABLE IF NOT EXISTS scrape_log (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            last_scrape TIMESTAMP NOT NULL,
+            scrapers_run TEXT
+        )
+    ''')
+
     conn.commit()
     conn.close()
 
@@ -123,4 +132,31 @@ def get_startup_by_url(url):
             'source': row[4],
             'date_found': row[5]
         }
+    return None
+
+def record_scrape_completion(scrapers_run=None):
+    """Record that a scrape has completed"""
+    conn = sqlite3.connect(DB_NAME)
+    c = conn.cursor()
+    
+    # Clear old entries and insert new one
+    c.execute('DELETE FROM scrape_log')
+    c.execute('''
+        INSERT INTO scrape_log (last_scrape, scrapers_run)
+        VALUES (?, ?)
+    ''', (datetime.now().isoformat(), scrapers_run))
+    
+    conn.commit()
+    conn.close()
+
+def get_last_scrape_time():
+    """Get the timestamp of the last completed scrape"""
+    conn = sqlite3.connect(DB_NAME)
+    c = conn.cursor()
+    c.execute('SELECT last_scrape FROM scrape_log ORDER BY id DESC LIMIT 1')
+    row = c.fetchone()
+    conn.close()
+    
+    if row:
+        return row[0]
     return None

@@ -1,5 +1,5 @@
 from flask import Flask, render_template, request, jsonify
-from database import get_all_startups, search_startups, get_startup_by_url
+from database import get_all_startups, search_startups, get_startup_by_url, get_last_scrape_time
 from datetime import datetime
 import sqlite3
 import os
@@ -60,7 +60,8 @@ def index():
             startups = [s for s in startups if s['source'] == 'Product Hunt']
     
     source_counts = get_source_counts(get_all_startups())  # Always show total counts
-    return render_template('index.html', startups=startups, source_counts=source_counts, current_filter=source_filter)
+    last_scrape_time = get_last_scrape_time()
+    return render_template('index.html', startups=startups, source_counts=source_counts, current_filter=source_filter, last_scrape_time=last_scrape_time)
 
 @app.route('/source/<source_name>')
 def filter_by_source(source_name):
@@ -82,8 +83,9 @@ def filter_by_source(source_name):
         source_display = 'All Sources'
     
     source_counts = get_source_counts(get_all_startups())
+    last_scrape_time = get_last_scrape_time()
     return render_template('index.html', startups=filtered_startups, source_counts=source_counts, 
-                         current_filter=source_name, source_display=source_display)
+                         current_filter=source_name, source_display=source_display, last_scrape_time=last_scrape_time)
 
 @app.route('/search')
 def search():
@@ -94,7 +96,8 @@ def search():
     else:
         startups = []
     source_counts = get_source_counts(startups)
-    return render_template('search.html', startups=startups, query=query, source_counts=source_counts)
+    last_scrape_time = get_last_scrape_time()
+    return render_template('search.html', startups=startups, query=query, source_counts=source_counts, last_scrape_time=last_scrape_time)
 
 @app.route('/tool/<int:tool_id>')
 def tool_detail(tool_id):
@@ -110,7 +113,8 @@ def tool_detail(tool_id):
     if not tool:
         return "Tool not found", 404
     
-    return render_template('tool_detail.html', tool=tool, startups=startups)
+    last_scrape_time = get_last_scrape_time()
+    return render_template('tool_detail.html', tool=tool, startups=startups, last_scrape_time=last_scrape_time)
 
 @app.route('/api/startups')
 def api_startups():
@@ -144,6 +148,17 @@ def format_date(date_str):
         try:
             dt = datetime.fromisoformat(date_str.replace('Z', '+00:00'))
             return dt.strftime('%B %d, %Y')
+        except:
+            return date_str
+    return date_str
+
+@app.template_filter('format_datetime')
+def format_datetime(date_str):
+    """Format datetime for display"""
+    if isinstance(date_str, str):
+        try:
+            dt = datetime.fromisoformat(date_str.replace('Z', '+00:00'))
+            return dt.strftime('%B %d, %Y at %I:%M %p')
         except:
             return date_str
     return date_str

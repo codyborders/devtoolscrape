@@ -4,7 +4,7 @@ Master scraper that runs all data sources
 """
 
 from datetime import datetime
-from database import init_db
+from database import init_db, record_scrape_completion
 import importlib.util
 import sys
 
@@ -64,6 +64,10 @@ def main():
     print(f"📊 Results: {successful_scrapers}/{total_scrapers} scrapers successful")
     print(f"📅 Finished at: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
     print(f"{'='*60}")
+    
+    # Record the scrape completion
+    scrapers_run = [desc for _, desc in scrapers[:successful_scrapers]]
+    record_scrape_completion(', '.join(scrapers_run))
     
     if successful_scrapers > 0:
         print("\n🌐 View your results at: http://localhost:8000")
