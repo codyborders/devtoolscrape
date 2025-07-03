@@ -6,14 +6,41 @@ from typing import Dict, Optional
 # Load environment variables from .env file
 load_dotenv()
 
+# Initialize LLM Observability before creating OpenAI client
+from ddtrace.llmobs import LLMObs
+
+LLMObs.enable(
+    ml_app="devtoolscrape",
+    api_key=os.getenv('DATADOG_API_KEY'),
+    site="datadoghq.com",
+    agentless_enabled=True,
+)
+
 # Set up OpenAI client
 client = openai.OpenAI(api_key=os.getenv('OPENAI_API_KEY'))
+
+def has_devtools_keywords(text: str, name: str = "") -> bool:
+    """Quick keyword pre-filter to avoid unnecessary API calls"""
+    DEVTOOLS_KEYWORDS = [
+        "developer", "devtool", "CLI", "SDK", "API", "code", "coding", "debug", "git", 
+        "CI", "CD", "DevOps", "terminal", "IDE", "framework", "testing", "monitoring", 
+        "observability", "build", "deploy", "infra", "cloud-native", "backend", "log",
+        "linter", "formatter", "package manager", "container", "kubernetes", "docker", "microservice", "serverless", "database",
+        "query", "schema", "migration", "deployment", "orchestration", "automation"
+    ]
+    
+    combined_text = f"{name} {text}".lower()
+    return any(keyword.lower() in combined_text for keyword in DEVTOOLS_KEYWORDS)
 
 def is_devtools_related_ai(text: str, name: str = "") -> bool:
     """
     Use OpenAI to classify if content is devtools-related.
     Returns True if it's devtools, False otherwise.
     """
+    # Quick keyword pre-filter to avoid unnecessary API calls
+    if not has_devtools_keywords(text, name):
+        return False
+    
     if not os.getenv('OPENAI_API_KEY'):
         print("Warning: OPENAI_API_KEY not set. Falling back to keyword matching.")
         return is_devtools_related_fallback(text)
