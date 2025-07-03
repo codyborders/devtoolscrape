@@ -82,6 +82,30 @@ def is_devtools_related_ai(text: str, name: str = "") -> bool:
     Description: Accounting software for small businesses.
     Answer: no
 
+    Name: Figma
+    Description: Design tool for creating user interfaces and prototypes.
+    Answer: yes
+
+    Name: Notion
+    Description: All-in-one workspace for notes, docs, and project management.
+    Answer: no
+
+    Name: Linear
+    Description: Issue tracking and project management for software teams.
+    Answer: yes
+
+    Name: Airtable
+    Description: Spreadsheet-database hybrid for organizing data.
+    Answer: no
+
+    Name: Retool
+    Description: Build internal tools and admin panels with code.
+    Answer: yes
+
+    Name: Zapier
+    Description: Automate workflows between different apps.
+    Answer: no
+
     Content to classify:
     Name: {name}
     Description: {text}
@@ -93,10 +117,10 @@ def is_devtools_related_ai(text: str, name: str = "") -> bool:
         response = client.chat.completions.create(
             model="gpt-3.5-turbo",
             messages=[
-                {"role": "system", "content": "You are a helpful assistant that classifies software as devtools or not. Respond with only 'yes' or 'no'."},
+                {"role": "system", "content": "You are a binary classifier for developer tools. You must respond with EXACTLY 'yes' or 'no' - no explanations, no additional text, no punctuation beyond the word itself. If you are uncertain, respond with 'no'. Never use 'maybe', 'it depends', or any other response format."},
                 {"role": "user", "content": prompt}
             ],
-            max_tokens=10,
+            max_tokens=5,
             temperature=0.0
         )
         
@@ -181,10 +205,10 @@ def get_devtools_category(text: str, name: str = "") -> Optional[str]:
         response = client.chat.completions.create(
             model="gpt-3.5-turbo",
             messages=[
-                {"role": "system", "content": "You are a helpful assistant that categorizes devtools. Respond with only the category name."},
+                {"role": "system", "content": "You are a devtool categorizer. Respond with EXACTLY one of the specified category names - no explanations, no additional text, no punctuation. If the tool doesn't fit any category, respond with 'Other'. Never use 'maybe', 'it depends', or any other response format."},
                 {"role": "user", "content": prompt}
             ],
-            max_tokens=20,
+            max_tokens=15,
             temperature=0.0
         )
         
