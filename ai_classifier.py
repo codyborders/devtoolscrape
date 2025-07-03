@@ -38,6 +38,23 @@ def is_devtools_related_ai(text: str, name: str = "") -> bool:
     - Consumer apps, entertainment apps
     - E-commerce, finance apps (unless specifically for developers)
 
+    Examples:
+    Name: VSCode
+    Description: A code editor for developers.
+    Answer: yes
+
+    Name: Slack
+    Description: A team chat and collaboration app.
+    Answer: no
+
+    Name: GitHub Actions
+    Description: A CI/CD automation tool for code repositories.
+    Answer: yes
+
+    Name: QuickBooks
+    Description: Accounting software for small businesses.
+    Answer: no
+
     Content to classify:
     Name: {name}
     Description: {text}
@@ -53,11 +70,14 @@ def is_devtools_related_ai(text: str, name: str = "") -> bool:
                 {"role": "user", "content": prompt}
             ],
             max_tokens=10,
-            temperature=0.1
+            temperature=0.0
         )
         
         answer = response.choices[0].message.content.strip().lower()
-        return answer in ['yes', 'true', '1']
+        if answer not in ['yes', 'no']:
+            print(f"Unexpected classifier output: {answer!r}")
+            return is_devtools_related_fallback(text)
+        return answer == 'yes'
         
     except Exception as e:
         print(f"OpenAI API error: {e}. Falling back to keyword matching.")
@@ -99,6 +119,31 @@ def get_devtools_category(text: str, name: str = "") -> Optional[str]:
     - Package Manager: Dependency management, package managers
     - Other: Anything else
 
+    Examples:
+    Name: VSCode
+    Description: A code editor for developers.
+    Category: IDE/Editor
+
+    Name: GitHub Actions
+    Description: A CI/CD automation tool for code repositories.
+    Category: Build/Deploy
+
+    Name: Postman
+    Description: API development and testing tool.
+    Category: API/SDK
+
+    Name: Datadog
+    Description: Cloud monitoring and observability platform.
+    Category: Monitoring/Observability
+
+    Name: Slack
+    Description: A team chat and collaboration app.
+    Category: Other
+
+    Name: QuickBooks
+    Description: Accounting software for small businesses.
+    Category: Other
+
     Name: {name}
     Description: {text}
 
@@ -113,7 +158,7 @@ def get_devtools_category(text: str, name: str = "") -> Optional[str]:
                 {"role": "user", "content": prompt}
             ],
             max_tokens=20,
-            temperature=0.1
+            temperature=0.0
         )
         
         return response.choices[0].message.content.strip()

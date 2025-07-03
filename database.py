@@ -18,8 +18,20 @@ def init_db():
         )
     ''')
 
+    # Add index on name for faster duplicate checking
+    c.execute('CREATE INDEX IF NOT EXISTS idx_startups_name ON startups(name)')
+
     conn.commit()
     conn.close()
+
+def is_duplicate(name: str, url: str) -> bool:
+    """Check if item already exists in database"""
+    conn = sqlite3.connect(DB_NAME)
+    cursor = conn.cursor()
+    cursor.execute("SELECT COUNT(*) FROM startups WHERE name = ? OR url = ?", (name, url))
+    count = cursor.fetchone()[0]
+    conn.close()
+    return count > 0
 
 def save_startup(startup):
     conn = sqlite3.connect(DB_NAME)
