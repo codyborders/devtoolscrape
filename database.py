@@ -1,9 +1,29 @@
 import sqlite3
+import os
 from datetime import datetime
 
-DB_NAME = "startups.db"
+# Create data directory if it doesn't exist
+DATA_DIR = os.path.join(os.getcwd(), 'data')
+os.makedirs(DATA_DIR, exist_ok=True)
+
+DB_NAME = "/app/data/startups.db"  # Use absolute path for reliability
 
 def init_db():
+    # Check if database already exists and has data
+    if os.path.exists(DB_NAME) and os.path.getsize(DB_NAME) > 0:
+        # Test if the startups table exists
+        try:
+            conn = sqlite3.connect(DB_NAME)
+            c = conn.cursor()
+            c.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='startups'")
+            if c.fetchone():
+                conn.close()
+                return  # Database already exists with proper schema
+            conn.close()
+        except:
+            pass
+    
+    # Create new database with schema
     conn = sqlite3.connect(DB_NAME)
     c = conn.cursor()
 

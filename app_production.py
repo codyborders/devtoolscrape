@@ -1,5 +1,5 @@
 from flask import Flask, render_template, request, jsonify
-from database import get_all_startups, search_startups, get_startup_by_url, get_last_scrape_time
+from database import get_all_startups, search_startups, get_startup_by_url, get_last_scrape_time, init_db
 from datetime import datetime
 import sqlite3
 import os
@@ -12,6 +12,9 @@ from dotenv import load_dotenv
 load_dotenv()
 
 app = Flask(__name__)
+
+# Initialize database
+init_db()
 
 # Production configuration
 app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'dev-secret-key-change-in-production')
