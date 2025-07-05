@@ -9,7 +9,7 @@ os.makedirs(DATA_DIR, exist_ok=True)
 DB_NAME = "/app/data/startups.db"  # Use absolute path for reliability
 
 def init_db():
-    # Check if database already exists and has data
+        # Check if database already exists and has data
     if os.path.exists(DB_NAME) and os.path.getsize(DB_NAME) > 0:
         # Test if the startups table exists
         try:
@@ -22,8 +22,7 @@ def init_db():
             conn.close()
         except:
             pass
-    
-    # Create new database with schema
+
     conn = sqlite3.connect(DB_NAME)
     c = conn.cursor()
 
