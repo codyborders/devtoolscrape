@@ -2,17 +2,14 @@ __pycache__/
 *.pyc
 *.pyo
 *.pyd
-*.db
 *.sqlite3
 *.log
 *.tar.gz
 *.tgz
 *.egg-info/
-.env
 .git/
 .venv/
 venv/
 node_modules/
 .DS_Store
 *.swp
-.db

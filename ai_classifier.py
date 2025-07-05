@@ -13,7 +13,7 @@ LLMObs.enable(
     ml_app="devtoolscrape",
     api_key=os.getenv('DATADOG_API_KEY'),
     site="datadoghq.com",
-    agentless_enabled=True,
+    agentless_enabled=False,
 )
 
 # Set up OpenAI client

@@ -4,6 +4,20 @@ from datetime import datetime
 DB_NAME = "startups.db"
 
 def init_db():
+        # Check if database already exists and has data
+    if os.path.exists(DB_NAME) and os.path.getsize(DB_NAME) > 0:
+        # Test if the startups table exists
+        try:
+            conn = sqlite3.connect(DB_NAME)
+            c = conn.cursor()
+            c.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='startups'")
+            if c.fetchone():
+                conn.close()
+                return  # Database already exists with proper schema
+            conn.close()
+        except:
+            pass
+
     conn = sqlite3.connect(DB_NAME)
     c = conn.cursor()
 
