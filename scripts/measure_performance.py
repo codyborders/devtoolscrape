@@ -149,6 +149,7 @@ def measure(client) -> Dict[str, Dict[str, float]]:
         ("/?source=producthunt", 5),
         ("/search?q=tool", 5),
         ("/tool/1", 5),
+        ("/api/search?q=tool", 5),
     ]
     for path, iterations in endpoints:
         durations = time_call(client, path, iterations)

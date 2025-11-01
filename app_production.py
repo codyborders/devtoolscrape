@@ -196,11 +196,24 @@ def api_startups():
 def api_search():
     """API endpoint for searching startups"""
     query = request.args.get('q', '')
+    per_page = min(max(int(request.args.get('per_page', 20)), 1), 200)
+    page = max(int(request.args.get('page', 1)), 1)
+    offset = (page - 1) * per_page
+
     if query:
-        startups = search_startups(query)
+        total = count_search_results(query)
+        startups = search_startups(query, limit=per_page, offset=offset)
     else:
+        total = 0
         startups = []
-    return jsonify(startups)
+
+    return jsonify({
+        'items': startups,
+        'page': page,
+        'per_page': per_page,
+        'total': total,
+        'total_pages': max((total + per_page - 1) // per_page, 1) if total else 1,
+    })
 
 @app.route('/health')
 def health_check():

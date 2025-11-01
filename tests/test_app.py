@@ -153,8 +153,12 @@ def test_api_endpoints(app_module, monkeypatch):
     assert page2["page"] == 2
     assert len(page2["items"]) == 2
 
-    assert client.get("/api/search?q=dev").status_code == 200
-    assert client.get("/api/search").get_json() == []
+    search_payload = client.get("/api/search?q=dev").get_json()
+    assert search_payload["total"] == len(_sample_startups())
+    assert len(search_payload["items"]) <= search_payload["per_page"]
+    empty_payload = client.get("/api/search").get_json()
+    assert empty_payload["total"] == 0
+    assert empty_payload["items"] == []
 
 
 def test_health_and_error_handlers(app_module, monkeypatch):
