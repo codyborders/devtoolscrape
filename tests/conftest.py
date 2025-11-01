@@ -1,6 +1,8 @@
 import importlib
+import json
 import pathlib
 import sys
+import threading
 import types
 
 import pytest
@@ -37,6 +39,8 @@ def stub_external_sdks():
         def __init__(self):
             self._responses = []
             self._should_raise = False
+            self.calls = 0
+            self._lock = threading.Lock()
 
         def queue_response(self, content):
             self._responses.append(content)
@@ -45,12 +49,16 @@ def stub_external_sdks():
             self._should_raise = True
 
         def create(self, *_, **__):
-            if self._should_raise:
-                raise Exception("forced failure")
-            content = self._responses.pop(0) if self._responses else "yes"
-            message = types.SimpleNamespace(content=content)
-            choice = types.SimpleNamespace(message=message)
-            return types.SimpleNamespace(choices=[choice])
+            with self._lock:
+                self.calls += 1
+                if self._should_raise:
+                    raise Exception("forced failure")
+                content = self._responses.pop(0) if self._responses else "yes"
+                if isinstance(content, dict):
+                    content = json.dumps(content)
+                message = types.SimpleNamespace(content=content)
+                choice = types.SimpleNamespace(message=message)
+                return types.SimpleNamespace(choices=[choice])
 
     class _FakeChat:
         def __init__(self):
@@ -88,6 +96,9 @@ def fresh_db(tmp_path, monkeypatch):
 @pytest.fixture
 def reset_ai_classifier(monkeypatch):
     """Reload ai_classifier with stubbed dependencies and provide easy client control."""
+    monkeypatch.setenv("AI_CLASSIFIER_DISABLE_CACHE", "1")
+    monkeypatch.setenv("AI_CLASSIFIER_DISABLE_BATCH", "1")
+    monkeypatch.setenv("AI_CLASSIFIER_MAX_CONCURRENCY", "1")
     import ai_classifier
 
     importlib.reload(ai_classifier)

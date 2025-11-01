@@ -2,7 +2,7 @@ import requests
 import os
 from datetime import datetime
 from database import init_db, save_startup
-from ai_classifier import is_devtools_related_ai, get_devtools_category
+from ai_classifier import classify_candidates, get_devtools_category
 from dotenv import load_dotenv
 
 # Load environment variables from .env file
@@ -87,39 +87,44 @@ def scrape_producthunt_api():
         posts = data.get('data', {}).get('posts', {}).get('edges', [])
         print(f"Found {len(posts)} products")
         
-        devtools_count = 0
+        candidates = []
+        post_map = {}
         for post_edge in posts:
             post = post_edge['node']
             name = post['name']
             tagline = post.get('tagline', '')
             description = post.get('description', '')
-            
-            # Check if it's devtools related using AI
             full_text = f"{name} {tagline} {description}"
-            print(f"Checking: {name[:50]}...")
-            
-            if not is_devtools_related_ai(full_text, name):
+            post_identifier = post.get('id') or post.get('url') or name
+            post_id = str(post_identifier)
+            post_map[post_id] = (post, name, tagline, description, full_text)
+            candidates.append({"id": post_id, "name": name, "text": full_text})
+
+        results = classify_candidates(candidates)
+
+        devtools_count = 0
+        for post_id, (post, name, tagline, description, full_text) in post_map.items():
+            if not results.get(post_id):
                 print(f"  -> Skipped (not devtools related)")
                 continue
-            
+
             print(f"  -> SAVING (devtools related)")
             devtools_count += 1
-            
-            # Get category if possible
+
             category = get_devtools_category(full_text, name)
             if category:
-                description = f"[{category}] {tagline}\n\n{description}"
+                description_text = f"[{category}] {tagline}\n\n{description}"
             else:
-                description = f"{tagline}\n\n{description}"
-            
+                description_text = f"{tagline}\n\n{description}"
+
             startup = {
                 "name": name,
                 "url": post.get('url', ''),
-                "description": description,
+                "description": description_text,
                 "date_found": datetime.fromisoformat(post['createdAt'].replace('Z', '+00:00')),
                 "source": "Product Hunt"
             }
-            
+
             save_startup(startup)
         
         print(f"Total devtools items found: {devtools_count}")

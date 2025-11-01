@@ -1,3 +1,4 @@
+import importlib
 import types
 
 import pytest
@@ -124,3 +125,34 @@ def test_openai_stub_queue_and_raise(reset_ai_classifier):
     stub.raise_on_create()
     with pytest.raises(Exception):
         stub.create(None)
+
+
+def test_classify_candidates_caches_results(monkeypatch):
+    monkeypatch.setenv("AI_CLASSIFIER_DISABLE_CACHE", "0")
+    monkeypatch.setenv("AI_CLASSIFIER_DISABLE_BATCH", "0")
+    monkeypatch.setenv("AI_CLASSIFIER_MAX_CONCURRENCY", "2")
+    monkeypatch.setenv("OPENAI_API_KEY", "present")
+
+    import importlib
+    import ai_classifier
+
+    importlib.reload(ai_classifier)
+
+    stub = ai_classifier.client.chat.completions
+    stub.queue_response({"results": {"a": "yes", "b": "no"}})
+    stub.queue_response({"results": {"a": "no", "b": "yes"}})
+
+    candidates = [
+        {"id": "a", "name": "Tool A", "text": "developer CLI"},
+        {"id": "b", "name": "Tool B", "text": "developer API"},
+    ]
+
+    first = ai_classifier.classify_candidates(candidates)
+    assert first["a"] is True
+    assert first["b"] is False
+    assert stub.calls == 1
+
+    second = ai_classifier.classify_candidates(candidates)
+    assert second["a"] is True
+    assert second["b"] is False
+    assert stub.calls == 1  # cache hit prevents second API call

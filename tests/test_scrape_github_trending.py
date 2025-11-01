@@ -30,19 +30,15 @@ def test_scrape_github_trending_success(monkeypatch):
     monkeypatch.setattr("scrape_github_trending.requests.get", lambda *args, **kwargs: response)
 
     saved = []
-    monkeypatch.setattr(
-        "scrape_github_trending.save_startup",
-        lambda record: saved.append(record),
-    )
-    call_sequence = iter([True, False])
-    monkeypatch.setattr(
-        "scrape_github_trending.is_devtools_related_ai",
-        lambda description, name: next(call_sequence),
-    )
-    monkeypatch.setattr(
-        "scrape_github_trending.get_devtools_category",
-        lambda description, name: "CLI Tool",
-    )
+    monkeypatch.setattr("scrape_github_trending.save_startup", lambda record: saved.append(record))
+
+    def fake_classify(candidates):
+        candidates = list(candidates)
+        sequence = iter([True, False])
+        return {item["id"]: next(sequence) for item in candidates}
+
+    monkeypatch.setattr("scrape_github_trending.classify_candidates", fake_classify)
+    monkeypatch.setattr("scrape_github_trending.get_devtools_category", lambda description, name: "CLI Tool")
 
     scrape_github_trending.scrape_github_trending()
     assert saved and saved[0]["description"].startswith("[CLI Tool]")
@@ -92,7 +88,7 @@ def test_scrape_github_trending_skips_missing_link(monkeypatch):
     response = FakeResponse(content=html.encode("utf-8"))
     monkeypatch.setattr("scrape_github_trending.requests.get", lambda *args, **kwargs: response)
 
-    monkeypatch.setattr("scrape_github_trending.is_devtools_related_ai", lambda *args, **kwargs: True)
+    monkeypatch.setattr("scrape_github_trending.classify_candidates", lambda candidates: {item["id"]: True for item in candidates})
     monkeypatch.setattr("scrape_github_trending.get_devtools_category", lambda *args, **kwargs: None)
 
     saved = []

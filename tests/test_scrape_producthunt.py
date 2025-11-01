@@ -78,7 +78,10 @@ def test_scrape_producthunt_api_success(monkeypatch):
         return FakeResponse(product)
 
     monkeypatch.setattr("scrape_producthunt_api.requests.post", fake_post)
-    monkeypatch.setattr("scrape_producthunt_api.is_devtools_related_ai", lambda text, name: name == "DevTool")
+    def fake_classify(candidates):
+        return {item["id"]: item["name"] == "DevTool" for item in candidates}
+
+    monkeypatch.setattr("scrape_producthunt_api.classify_candidates", fake_classify)
     monkeypatch.setattr("scrape_producthunt_api.get_devtools_category", lambda text, name: "CLI Tool")
 
     saved = []
@@ -127,7 +130,7 @@ def test_scrape_producthunt_api_handles_parse_errors(monkeypatch):
         return FakeResponse(broken)
 
     monkeypatch.setattr("scrape_producthunt_api.requests.post", fake_post)
-    monkeypatch.setattr("scrape_producthunt_api.is_devtools_related_ai", lambda *args, **kwargs: True)
+    monkeypatch.setattr("scrape_producthunt_api.classify_candidates", lambda candidates: {item["id"]: True for item in candidates})
     monkeypatch.setattr("scrape_producthunt_api.get_devtools_category", lambda *args, **kwargs: None)
     scrape_producthunt_api.scrape_producthunt_api()
 

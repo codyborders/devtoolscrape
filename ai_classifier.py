@@ -1,7 +1,13 @@
 from dotenv import load_dotenv
-import openai
+import json
 import os
-from typing import Dict, Optional
+import threading
+import time
+from collections import OrderedDict
+from concurrent.futures import ThreadPoolExecutor, as_completed
+from typing import Dict, Iterable, List, Optional
+
+import openai
 
 # Load environment variables from .env file
 load_dotenv()
@@ -19,6 +25,59 @@ LLMObs.enable(
 # Set up OpenAI client
 client = openai.OpenAI(api_key=os.getenv('OPENAI_API_KEY'))
 
+# Feature flags and tuning knobs
+_CACHE_ENABLED = os.getenv("AI_CLASSIFIER_DISABLE_CACHE", "0") != "1"
+_CACHE_TTL = float(os.getenv("AI_CLASSIFIER_CACHE_TTL", "3600"))
+_CACHE_SIZE = int(os.getenv("AI_CLASSIFIER_CACHE_SIZE", "2048"))
+_USE_BATCH = os.getenv("AI_CLASSIFIER_DISABLE_BATCH", "0") != "1"
+_BATCH_SIZE = max(1, int(os.getenv("AI_CLASSIFIER_BATCH_SIZE", "8")))
+_MAX_CONCURRENCY = max(1, int(os.getenv("AI_CLASSIFIER_MAX_CONCURRENCY", "4")))
+_MAX_RETRIES = max(1, int(os.getenv("AI_CLASSIFIER_MAX_RETRIES", "3")))
+def _has_openai_key() -> bool:
+    return bool(os.getenv('OPENAI_API_KEY'))
+
+
+class TTLCache:
+    def __init__(self, maxsize: int, ttl: float):
+        self.maxsize = maxsize
+        self.ttl = ttl
+        self._data: OrderedDict[str, tuple[float, object]] = OrderedDict()
+        self._lock = threading.Lock()
+
+    def get(self, key: str):
+        if not _CACHE_ENABLED:
+            return None
+        now = time.monotonic()
+        with self._lock:
+            record = self._data.get(key)
+            if not record:
+                return None
+            expires_at, value = record
+            if expires_at and expires_at < now:
+                del self._data[key]
+                return None
+            self._data.move_to_end(key)
+            return value
+
+    def set(self, key: str, value):
+        if not _CACHE_ENABLED:
+            return
+        with self._lock:
+            expires = time.monotonic() + self.ttl if self.ttl else None
+            self._data[key] = (expires, value)
+            self._data.move_to_end(key)
+            while len(self._data) > self.maxsize:
+                self._data.popitem(last=False)
+
+    def clear(self):
+        with self._lock:
+            self._data.clear()
+
+
+_classification_cache = TTLCache(_CACHE_SIZE, _CACHE_TTL)
+_category_cache = TTLCache(_CACHE_SIZE, _CACHE_TTL)
+_cache_lock = threading.Lock()
+
 def has_devtools_keywords(text: str, name: str = "") -> bool:
     """Quick keyword pre-filter to avoid unnecessary API calls"""
     DEVTOOLS_KEYWORDS = [
@@ -32,19 +91,131 @@ def has_devtools_keywords(text: str, name: str = "") -> bool:
     combined_text = f"{name} {text}".lower()
     return any(keyword.lower() in combined_text for keyword in DEVTOOLS_KEYWORDS)
 
-def is_devtools_related_ai(text: str, name: str = "") -> bool:
+def _cache_key(name: str, text: str) -> str:
+    return f"{name.strip().lower()}|{text.strip().lower()}"
+
+
+def _call_openai(messages: List[Dict[str, str]], max_tokens: int, temperature: float = 0.0, response_format=None):
+    delay = 1.0
+    last_exc = None
+    for attempt in range(_MAX_RETRIES):
+        try:
+            return client.chat.completions.create(
+                model="gpt-3.5-turbo",
+                messages=messages,
+                max_tokens=max_tokens,
+                temperature=temperature,
+                response_format=response_format,
+            )
+        except Exception as exc:  # pragma: no cover - relies on API behaviour
+            last_exc = exc
+            message = str(exc).lower()
+            if attempt == _MAX_RETRIES - 1 or ("rate limit" not in message and "timeout" not in message and "429" not in message):
+                raise
+            time.sleep(delay)
+            delay *= 2
+    if last_exc:
+        raise last_exc
+
+
+def classify_candidates(candidates: Iterable[Dict[str, str]]) -> Dict[str, bool]:
     """
-    Use OpenAI to classify if content is devtools-related.
-    Returns True if it's devtools, False otherwise.
+    Batch classify multiple candidates. Each candidate must contain keys:
+    - id: unique identifier
+    - name: tool name
+    - text: description
     """
-    # Quick keyword pre-filter to avoid unnecessary API calls
+    candidates = list(candidates)
+    results: Dict[str, bool] = {}
+    pending: List[Dict[str, str]] = []
+
+    for candidate in candidates:
+        cid = candidate["id"]
+        name = candidate.get("name", "")
+        text = candidate.get("text", "")
+        if not has_devtools_keywords(text, name):
+            results[cid] = False
+            continue
+        key = _cache_key(name, text)
+        cached = _classification_cache.get(key)
+        if cached is not None:
+            results[cid] = cached
+        else:
+            candidate["_cache_key"] = key
+            pending.append(candidate)
+
+    if not pending:
+        return results
+
+    if not _has_openai_key() or not _USE_BATCH or len(pending) == 1:
+        for candidate in pending:
+            outcome = _classify_single(candidate.get("name", ""), candidate.get("text", ""))
+            _classification_cache.set(candidate["_cache_key"], outcome)
+            results[candidate["id"]] = outcome
+        return results
+
+    chunks = [pending[i:i + _BATCH_SIZE] for i in range(0, len(pending), _BATCH_SIZE)]
+
+    def worker(chunk):
+        payload = [
+            {
+                "item_id": candidate["id"],
+                "name": candidate.get("name", ""),
+                "description": candidate.get("text", ""),
+            }
+            for candidate in chunk
+        ]
+        try:
+            response = _call_openai(
+                [
+                    {
+                        "role": "system",
+                        "content": (
+                            "Classify each item as devtools-related. "
+                            "Respond with JSON object {\"results\": {\"<item_id>\": \"yes\"|\"no\", ...}}. "
+                            "If unsure, respond with \"no\"."
+                        ),
+                    },
+                    {"role": "user", "content": json.dumps(payload)},
+                ],
+                max_tokens=payload.__len__() * 4,
+                temperature=0.0,
+                response_format={"type": "json_object"},
+            )
+            content = response.choices[0].message.content.strip()
+            data = json.loads(content)
+            result_map = data.get("results", {})
+        except Exception as exc:
+            print(f"Batch classification failed: {exc}. Falling back to per-item.")
+            result_map = {}
+
+        if not result_map:
+            for candidate in chunk:
+                outcome = _classify_single(candidate.get("name", ""), candidate.get("text", ""))
+                _classification_cache.set(candidate["_cache_key"], outcome)
+                results[candidate["id"]] = outcome
+        else:
+            for candidate in chunk:
+                answer = result_map.get(candidate["id"])
+                outcome = str(answer).strip().lower() == "yes"
+                _classification_cache.set(candidate["_cache_key"], outcome)
+                results[candidate["id"]] = outcome
+
+    with ThreadPoolExecutor(max_workers=min(_MAX_CONCURRENCY, len(chunks))) as executor:
+        futures = [executor.submit(worker, chunk) for chunk in chunks]
+        for future in as_completed(futures):
+            future.result()
+
+    return results
+
+
+def _classify_single(name: str, text: str) -> bool:
     if not has_devtools_keywords(text, name):
         return False
-    
-    if not os.getenv('OPENAI_API_KEY'):
+    if not _has_openai_key():
         print("Warning: OPENAI_API_KEY not set. Falling back to keyword matching.")
         return is_devtools_related_fallback(text)
-    
+
     prompt = f"""
     You are a classifier that determines if software/tools are developer tools (devtools).
 
@@ -65,74 +236,49 @@ def is_devtools_related_ai(text: str, name: str = "") -> bool:
     - Consumer apps, entertainment apps
     - E-commerce, finance apps (unless specifically for developers)
 
-    Examples:
-    Name: VSCode
-    Description: A code editor for developers.
-    Answer: yes
-
-    Name: Slack
-    Description: A team chat and collaboration app.
-    Answer: no
-
-    Name: GitHub Actions
-    Description: A CI/CD automation tool for code repositories.
-    Answer: yes
-
-    Name: QuickBooks
-    Description: Accounting software for small businesses.
-    Answer: no
-
-    Name: Figma
-    Description: Design tool for creating user interfaces and prototypes.
-    Answer: yes
-
-    Name: Notion
-    Description: All-in-one workspace for notes, docs, and project management.
-    Answer: no
-
-    Name: Linear
-    Description: Issue tracking and project management for software teams.
-    Answer: yes
-
-    Name: Airtable
-    Description: Spreadsheet-database hybrid for organizing data.
-    Answer: no
-
-    Name: Retool
-    Description: Build internal tools and admin panels with code.
-    Answer: yes
-
-    Name: Zapier
-    Description: Automate workflows between different apps.
-    Answer: no
-
     Content to classify:
     Name: {name}
     Description: {text}
 
     Answer with ONLY "yes" or "no".
     """
-
     try:
-        response = client.chat.completions.create(
-            model="gpt-3.5-turbo",
-            messages=[
-                {"role": "system", "content": "You are a binary classifier for developer tools. You must respond with EXACTLY 'yes' or 'no' - no explanations, no additional text, no punctuation beyond the word itself. If you are uncertain, respond with 'no'. Never use 'maybe', 'it depends', or any other response format."},
-                {"role": "user", "content": prompt}
+        response = _call_openai(
+            [
+                {
+                    "role": "system",
+                    "content": (
+                        "You are a binary classifier for developer tools. "
+                        "Respond with EXACTLY 'yes' or 'no'. If uncertain, respond 'no'."
+                    ),
+                },
+                {"role": "user", "content": prompt},
             ],
             max_tokens=5,
-            temperature=0.0
+            temperature=0.0,
         )
-        
         answer = response.choices[0].message.content.strip().lower()
-        if answer not in ['yes', 'no']:
+        if answer not in {"yes", "no"}:
             print(f"Unexpected classifier output: {answer!r}")
             return is_devtools_related_fallback(text)
-        return answer == 'yes'
-        
-    except Exception as e:
-        print(f"OpenAI API error: {e}. Falling back to keyword matching.")
+        return answer == "yes"
+    except Exception as exc:
+        print(f"OpenAI API error: {exc}. Falling back to keyword matching.")
         return is_devtools_related_fallback(text)
+
+
+def is_devtools_related_ai(text: str, name: str = "") -> bool:
+    """
+    Use OpenAI to classify if content is devtools-related.
+    Returns True if it's devtools, False otherwise.
+    """
+    key = _cache_key(name, text)
+    cached = _classification_cache.get(key)
+    if cached is not None:
+        return cached
+    result = classify_candidates([{"id": "_single", "name": name, "text": text}]).get("_single", False)
+    _classification_cache.set(key, result)
+    return result
 
 def is_devtools_related_fallback(text: str) -> bool:
     """Fallback keyword-based classifier when AI is unavailable"""
@@ -153,8 +299,13 @@ def get_devtools_category(text: str, name: str = "") -> Optional[str]:
     Get a more specific category for the devtool.
     Returns category like 'IDE', 'CLI Tool', 'Testing', etc.
     """
-    if not os.getenv('OPENAI_API_KEY'):
+    if not _has_openai_key():
         return None
+
+    key = _cache_key(name, text)
+    cached = _category_cache.get(key)
+    if cached is not None:
+        return cached
     
     prompt = f"""
     Classify this devtool into one of these categories:
@@ -202,18 +353,25 @@ def get_devtools_category(text: str, name: str = "") -> Optional[str]:
     """
 
     try:
-        response = client.chat.completions.create(
-            model="gpt-3.5-turbo",
-            messages=[
-                {"role": "system", "content": "You are a devtool categorizer. Respond with EXACTLY one of the specified category names - no explanations, no additional text, no punctuation. If the tool doesn't fit any category, respond with 'Other'. Never use 'maybe', 'it depends', or any other response format."},
-                {"role": "user", "content": prompt}
+        response = _call_openai(
+            [
+                {
+                    "role": "system",
+                    "content": (
+                        "You are a devtool categorizer. Respond with EXACTLY one of the specified category names. "
+                        "If the tool doesn't fit, respond with 'Other'."
+                    ),
+                },
+                {"role": "user", "content": prompt},
             ],
             max_tokens=15,
-            temperature=0.0
+            temperature=0.0,
         )
-        
-        return response.choices[0].message.content.strip()
-        
+
+        category = response.choices[0].message.content.strip()
+        _category_cache.set(key, category)
+        return category
+
     except Exception as e:
         print(f"OpenAI API error: {e}")
-        return None 
+        return None

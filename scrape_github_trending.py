@@ -1,7 +1,7 @@
 import requests
 from datetime import datetime
 from database import init_db, save_startup
-from ai_classifier import is_devtools_related_ai, get_devtools_category
+from ai_classifier import classify_candidates, get_devtools_category
 
 def scrape_github_trending():
     url = "https://github.com/trending"
@@ -23,48 +23,59 @@ def scrape_github_trending():
         repos = soup.find_all('article', class_='Box-row')
         print(f"Found {len(repos)} trending repositories")
         
-        devtools_count = 0
+        candidates = []
         for repo in repos:
-            # Extract repo name
             name_elem = repo.find('h2', class_='h3')
             if not name_elem:
                 continue
-                
+
             name = name_elem.get_text(strip=True).replace('\n', '').replace(' ', '')
-            
-            # Extract description
             desc_elem = repo.find('p')
             description = desc_elem.get_text(strip=True) if desc_elem else ""
-            
-            # Extract URL
             link_elem = name_elem.find('a')
             if not link_elem:
                 continue
             repo_url = f"https://github.com{link_elem['href']}"
-            
-            # Check if it's devtools related using AI
-            print(f"Checking: {name[:50]}...")
-            
-            if not is_devtools_related_ai(description, name):
+
+            candidates.append({
+                "id": repo_url,
+                "name": name,
+                "text": description or name,
+                "description": description,
+                "url": repo_url,
+            })
+
+        results = classify_candidates(
+            {
+                "id": candidate["id"],
+                "name": candidate["name"],
+                "text": candidate["text"],
+            }
+            for candidate in candidates
+        )
+
+        devtools_count = 0
+        for candidate in candidates:
+            if not results.get(candidate["id"]):
                 print(f"  -> Skipped (not devtools related)")
                 continue
-            
+
             print(f"  -> SAVING (devtools related)")
             devtools_count += 1
-            
-            # Get category if possible
-            category = get_devtools_category(description, name)
+
+            description = candidate["description"]
+            category = get_devtools_category(description, candidate["name"])
             if category:
-                description = f"[{category}] {description}"
-            
+                description = f"[{category}] {description}" if description else f"[{category}]"
+
             startup = {
-                "name": name,
-                "url": repo_url,
+                "name": candidate["name"],
+                "url": candidate["url"],
                 "description": description,
                 "date_found": datetime.now(),
                 "source": "GitHub Trending"
             }
-            
+
             save_startup(startup)
         
         print(f"Total devtools items found: {devtools_count}")

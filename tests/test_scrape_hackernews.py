@@ -42,10 +42,13 @@ def test_scrape_hackernews_success(monkeypatch):
 
     monkeypatch.setattr("scrape_hackernews.requests.get", fake_get)
 
-    def classifier(text, name):
-        return name in {"Devtool Launch", "Categoryless Tool"}
+    def fake_classify(candidates):
+        mapping = {}
+        for item in candidates:
+            mapping[item["id"]] = item["name"] in {"Devtool Launch", "Categoryless Tool"}
+        return mapping
 
-    monkeypatch.setattr("scrape_hackernews.is_devtools_related_ai", classifier)
+    monkeypatch.setattr("scrape_hackernews.classify_candidates", fake_classify)
     def categorizer(text, name):
         if name == "Devtool Launch":
             return "Build/Deploy"
@@ -82,10 +85,13 @@ def test_scrape_hackernews_show_success(monkeypatch):
 
     monkeypatch.setattr("scrape_hackernews.requests.get", fake_get)
 
-    def classifier(text, name):
-        return name in {"Show HN: Dev CLI", "Show HN: Dev Notes"}
+    def fake_classify(candidates):
+        mapping = {}
+        for item in candidates:
+            mapping[item["id"]] = item["name"] in {"Show HN: Dev CLI", "Show HN: Dev Notes"}
+        return mapping
 
-    monkeypatch.setattr("scrape_hackernews.is_devtools_related_ai", classifier)
+    monkeypatch.setattr("scrape_hackernews.classify_candidates", fake_classify)
 
     def categorizer(text, name):
         return "CLI Tool" if name == "Show HN: Dev CLI" else None
