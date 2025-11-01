@@ -4,4 +4,4 @@ set -euo pipefail
 export DD_SERVICE="devtoolscrape"
 export DD_ENV="local"
 
-ddtrace-run pytest "$@"
+pytest --ddtrace --ddtrace-patch-all "$@"
