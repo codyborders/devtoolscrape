@@ -11,6 +11,7 @@ from database import (
     get_startup_by_id,
     get_startups_by_source_key,
     get_startups_by_sources,
+    get_related_startups,
     search_startups,
     count_search_results,
     count_all_startups,
@@ -169,14 +170,7 @@ def tool_detail(tool_id):
     if not tool:
         return "Tool not found", 404
 
-    if tool['source'] == 'GitHub Trending':
-        related = get_startups_by_source_key('github')
-    elif tool['source'] == 'Product Hunt':
-        related = get_startups_by_source_key('producthunt')
-    elif 'Hacker News' in tool['source'] or 'Show HN' in tool['source']:
-        related = get_startups_by_source_key('hackernews')
-    else:
-        related = get_startups_by_sources('source = ?', [tool['source']])
+    related = get_related_startups(tool['source'], tool['id'], limit=4)
 
     last_scrape_time = get_last_scrape_time()
     return render_template('tool_detail.html', tool=tool, startups=related, last_scrape_time=last_scrape_time)

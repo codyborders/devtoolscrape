@@ -120,25 +120,12 @@ def test_tool_detail_routes(app_module, monkeypatch):
     def fake_get_startup_by_id(tool_id):
         return next((s for s in sample if s["id"] == tool_id), None)
 
-    def fake_get_startups_by_source_key(key):
-        if key == "github":
-            return [s for s in sample if s["source"] == "GitHub Trending"]
-        if key == "producthunt":
-            return [s for s in sample if s["source"] == "Product Hunt"]
-        if key == "hackernews":
-            return [s for s in sample if "Hacker News" in s["source"]]
-        return sample
-
-    captured = {}
-
-    def fake_get_startups_by_sources(clause, params):
-        captured["clause"] = clause
-        captured["params"] = params
-        return [s for s in sample if s["source"] not in ("GitHub Trending", "Product Hunt") and "Hacker News" not in s["source"]]
+    def fake_get_related_startups(source, exclude_id, limit=4):
+        data = [s for s in sample if s["source"] == source and s["id"] != exclude_id]
+        return data[:limit]
 
     monkeypatch.setattr(module, "get_startup_by_id", fake_get_startup_by_id)
-    monkeypatch.setattr(module, "get_startups_by_source_key", fake_get_startups_by_source_key)
-    monkeypatch.setattr(module, "get_startups_by_sources", fake_get_startups_by_sources)
+    monkeypatch.setattr(module, "get_related_startups", fake_get_related_startups)
     monkeypatch.setattr(module, "get_last_scrape_time", lambda: None)
 
     client = module.app.test_client()
@@ -147,9 +134,8 @@ def test_tool_detail_routes(app_module, monkeypatch):
     assert client.get("/tool/2").status_code == 200
     assert client.get("/tool/4").status_code == 200
     assert client.get("/tool/999").status_code == 404
-    assert captured["clause"] == 'source = ?'
-    assert captured["params"] == ["Indie Hackers"]
-    assert module.get_startups_by_source_key("other") == sample
+    related = module.get_related_startups("GitHub Trending", 1, limit=2)
+    assert len(related) <= 2
 
 
 def test_api_endpoints(app_module, monkeypatch):

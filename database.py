@@ -130,6 +130,22 @@ def get_startup_by_id(startup_id: int) -> Optional[dict]:
     return _row_to_dict(row) if row else None
 
 
+def get_related_startups(source: str, exclude_id: int, limit: int = 4) -> list[dict]:
+    conn = _connect()
+    rows = conn.execute(
+        '''
+        SELECT id, name, url, description, source, date_found
+        FROM startups
+        WHERE source = ? AND id != ?
+        ORDER BY date_found DESC
+        LIMIT ?
+        ''',
+        (source, exclude_id, limit),
+    ).fetchall()
+    conn.close()
+    return [_row_to_dict(row) for row in rows]
+
+
 def get_startups_by_sources(where_clause: str, params: Iterable, limit: Optional[int] = None, offset: Optional[int] = None) -> list[dict]:
     query = '''
         SELECT id, name, url, description, source, date_found
