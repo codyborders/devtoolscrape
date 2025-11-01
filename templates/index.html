@@ -15,9 +15,9 @@
             </h1>
             <p class="text-gray-600 text-lg">
                 {% if source_display and source_display != 'All Sources' %}
-                    Discover the latest developer tools from {{ source_display }}
+                    Showing {{ first_item }}&ndash;{{ last_item }} of {{ total_results }} tools from {{ source_display }}
                 {% else %}
-                    Discover the latest developer tools and utilities
+                    Showing {{ first_item }}&ndash;{{ last_item }} of {{ total_results }} tools
                 {% endif %}
             </p>
         </div>
@@ -155,6 +155,25 @@
     <a href="/" class="mt-4 inline-block bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition">
         View All Tools
     </a>
+    {% endif %}
+</div>
+{% endif %}
+
+{% if total_pages > 1 %}
+<div class="mt-10 flex items-center justify-center gap-4">
+    {% set prev_page = page - 1 %}
+    {% set next_page = page + 1 %}
+    {% set base_path = '/' if not current_filter else '/source/' ~ current_filter %}
+    {% if page > 1 %}
+        <a href="{{ base_path }}?page={{ prev_page }}&per_page={{ per_page }}" class="px-4 py-2 bg-white border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition">Previous</a>
+    {% else %}
+        <span class="px-4 py-2 bg-gray-100 border border-gray-200 rounded-lg text-gray-400 cursor-not-allowed">Previous</span>
+    {% endif %}
+    <span class="text-gray-600 text-sm">Page {{ page }} of {{ total_pages }}</span>
+    {% if page < total_pages %}
+        <a href="{{ base_path }}?page={{ next_page }}&per_page={{ per_page }}" class="px-4 py-2 bg-white border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition">Next</a>
+    {% else %}
+        <span class="px-4 py-2 bg-gray-100 border border-gray-200 rounded-lg text-gray-400 cursor-not-allowed">Next</span>
     {% endif %}
 </div>
 {% endif %}

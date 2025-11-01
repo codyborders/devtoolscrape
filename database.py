@@ -24,7 +24,16 @@ def _row_to_dict(row: sqlite3.Row) -> dict:
     return dict(row)
 
 def init_db():
-    conn = _connect()
+    conn = None
+    for attempt in range(2):
+        try:
+            conn = _connect()
+            break
+        except sqlite3.OperationalError:
+            if attempt == 1:
+                raise
+            continue
+
     c = conn.cursor()
 
     c.execute('''
@@ -121,30 +130,62 @@ def get_startup_by_id(startup_id: int) -> Optional[dict]:
     return _row_to_dict(row) if row else None
 
 
-def get_startups_by_sources(where_clause: str, params: Iterable) -> list[dict]:
+def get_startups_by_sources(where_clause: str, params: Iterable, limit: Optional[int] = None, offset: Optional[int] = None) -> list[dict]:
     query = '''
         SELECT id, name, url, description, source, date_found
         FROM startups
         WHERE {} ORDER BY date_found DESC
     '''.format(where_clause)
 
+    args = list(params)
+    if limit is not None:
+        query += " LIMIT ?"
+        args.append(limit)
+    if offset is not None:
+        if limit is None:
+            query += " LIMIT -1"
+        query += " OFFSET ?"
+        args.append(offset)
+
     conn = _connect()
-    rows = conn.execute(query, params).fetchall()
+    rows = conn.execute(query, args).fetchall()
     conn.close()
     return [_row_to_dict(row) for row in rows]
 
 
-def get_startups_by_source_key(source_key: str) -> list[dict]:
+def count_startups_by_sources(where_clause: str, params: Iterable) -> int:
+    query = 'SELECT COUNT(*) FROM startups WHERE {}'.format(where_clause)
+    conn = _connect()
+    (count,) = conn.execute(query, params).fetchone()
+    conn.close()
+    return count
+
+def get_startups_by_source_key(source_key: str, limit: Optional[int] = None, offset: Optional[int] = None) -> list[dict]:
     if source_key == "github":
-        return get_startups_by_sources("source = ?", ["GitHub Trending"])
+        return get_startups_by_sources("source = ?", ["GitHub Trending"], limit, offset)
     if source_key == "hackernews":
         return get_startups_by_sources(
             "source LIKE ? OR source LIKE ?",
             ["Hacker News%", "Show HN%"],
+            limit,
+            offset,
         )
     if source_key == "producthunt":
-        return get_startups_by_sources("source = ?", ["Product Hunt"])
-    return get_all_startups()
+        return get_startups_by_sources("source = ?", ["Product Hunt"], limit, offset)
+    return get_all_startups(limit, offset)
+
+
+def count_startups_by_source_key(source_key: str) -> int:
+    if source_key == "github":
+        return count_startups_by_sources("source = ?", ["GitHub Trending"])
+    if source_key == "hackernews":
+        return count_startups_by_sources(
+            "source LIKE ? OR source LIKE ?",
+            ["Hacker News%", "Show HN%"],
+        )
+    if source_key == "producthunt":
+        return count_startups_by_sources("source = ?", ["Product Hunt"])
+    return count_all_startups()
 
 
 def get_source_counts() -> dict:
@@ -195,6 +236,13 @@ def get_all_startups(limit: Optional[int] = None, offset: Optional[int] = None):
     conn.close()
 
     return [_row_to_dict(row) for row in rows]
+
+
+def count_all_startups() -> int:
+    conn = _connect()
+    (count,) = conn.execute('SELECT COUNT(*) FROM startups').fetchone()
+    conn.close()
+    return count
 
 def search_startups(query: str, limit: int = 20, offset: int = 0):
     """Search startups using FTS."""

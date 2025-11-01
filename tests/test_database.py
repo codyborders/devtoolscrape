@@ -2,6 +2,7 @@ from datetime import datetime, timedelta
 
 import os
 import sqlite3
+import pytest
 
 
 def _fetch_all(connection, query):
@@ -51,6 +52,8 @@ def test_save_and_retrieve_startups(fresh_db):
 
     limited = fresh_db.get_all_startups(limit=1, offset=0)
     assert len(limited) == 1
+
+    assert fresh_db.count_all_startups() == len(all_startups)
 
     by_url = fresh_db.get_startup_by_url("https://example.com")
     assert by_url["id"] == stored["id"]
@@ -104,6 +107,8 @@ def test_search_returns_matching_rows(fresh_db):
     assert fresh_db.count_search_results("CLI") >= 1
     producthunt = fresh_db.get_startups_by_source_key("producthunt")
     assert producthunt and producthunt[0]["source"] == "Product Hunt"
+    paged = fresh_db.search_startups("CLI", limit=1, offset=0)
+    assert len(paged) == 1
 
 
 def test_record_scrape_completion_overwrites_history(fresh_db):
@@ -230,5 +235,57 @@ def test_get_source_counts(fresh_db):
 
     ph_list = fresh_db.get_startups_by_source_key("producthunt")
     assert any(item["source"] == "Product Hunt" for item in ph_list)
+    assert len(fresh_db.get_startups_by_source_key("producthunt", limit=1, offset=0)) == 1
+    assert fresh_db.get_startups_by_source_key("producthunt", offset=1) == []
 
     assert fresh_db.get_startups_by_source_key("unknown") == fresh_db.get_all_startups()
+    assert fresh_db.count_startups_by_source_key("producthunt") >= 1
+    assert fresh_db.count_startups_by_source_key("github") >= 0
+    assert fresh_db.count_startups_by_source_key("hackernews") >= 1
+    assert fresh_db.count_startups_by_source_key("unknown") == fresh_db.count_all_startups()
+
+
+def test_search_startups_empty_query_returns_empty(fresh_db):
+    assert fresh_db.search_startups("") == []
+    assert fresh_db.count_search_results("") == 0
+
+
+def test_init_db_rebuild_failure_is_ignored(monkeypatch):
+    import database
+
+    class _FakeCursor:
+        def execute(self, sql, params=None):
+            if sql.strip().startswith("INSERT INTO startups_fts") and "'rebuild'" in sql:
+                raise database.sqlite3.OperationalError("rebuild failed")
+            return self
+
+        def executescript(self, script):
+            return None
+
+    class _FakeConn:
+        def __init__(self):
+            self.cursor_obj = _FakeCursor()
+
+        def cursor(self):
+            return self.cursor_obj
+
+        def commit(self):
+            return None
+
+        def close(self):
+            return None
+
+    monkeypatch.setattr(database, "_connect", lambda: _FakeConn())
+    database.init_db()  # Should not raise despite rebuild failure
+
+
+def test_init_db_retry_exhaustion(monkeypatch):
+    import database
+
+    def failing_connect():
+        raise database.sqlite3.OperationalError("permanent failure")
+
+    monkeypatch.setattr(database, "_connect", failing_connect)
+
+    with pytest.raises(database.sqlite3.OperationalError):
+        database.init_db()

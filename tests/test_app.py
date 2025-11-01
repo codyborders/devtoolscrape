@@ -26,18 +26,30 @@ def _sample_startups():
 
 def test_index_route_filters_sources(app_module, monkeypatch):
     module = app_module
-    monkeypatch.setattr(module, "get_all_startups", lambda: _sample_startups())
-    def fake_get_startups_by_source_key(key):
+    def _paginate(data, limit, offset):
+        start = offset or 0
+        end = start + limit if limit is not None else None
+        return data[start:end]
+
+    monkeypatch.setattr(
+        module,
+        "get_all_startups",
+        lambda limit=None, offset=None: _paginate(_sample_startups(), limit, offset),
+    )
+
+    def fake_get_startups_by_source_key(key, limit=None, offset=None):
         data = _sample_startups()
         if key == "github":
-            return [s for s in data if s["source"] == "GitHub Trending"]
-        if key == "hackernews":
-            return [s for s in data if "Hacker News" in s["source"]]
-        if key == "producthunt":
-            return [s for s in data if s["source"] == "Product Hunt"]
-        return data
+            data = [s for s in data if s["source"] == "GitHub Trending"]
+        elif key == "hackernews":
+            data = [s for s in data if "Hacker News" in s["source"]]
+        elif key == "producthunt":
+            data = [s for s in data if s["source"] == "Product Hunt"]
+        return _paginate(data, limit, offset)
 
     monkeypatch.setattr(module, "get_startups_by_source_key", fake_get_startups_by_source_key)
+    monkeypatch.setattr(module, "count_all_startups", lambda: len(_sample_startups()))
+    monkeypatch.setattr(module, "count_startups_by_source_key", lambda key: len(fake_get_startups_by_source_key(key)))
     monkeypatch.setattr(
         module,
         "get_source_counts",
@@ -63,8 +75,10 @@ def test_index_route_filters_sources(app_module, monkeypatch):
 
 def test_filter_by_source_route_variants(app_module, monkeypatch):
     module = app_module
-    monkeypatch.setattr(module, "get_all_startups", lambda: _sample_startups())
-    monkeypatch.setattr(module, "get_startups_by_source_key", lambda key: _sample_startups())
+    monkeypatch.setattr(module, "get_all_startups", lambda limit=None, offset=None: _sample_startups())
+    monkeypatch.setattr(module, "get_startups_by_source_key", lambda key, limit=None, offset=None: _sample_startups())
+    monkeypatch.setattr(module, "count_all_startups", lambda: len(_sample_startups()))
+    monkeypatch.setattr(module, "count_startups_by_source_key", lambda key: len(_sample_startups()))
     monkeypatch.setattr(
         module,
         "get_source_counts",
@@ -87,8 +101,10 @@ def test_filter_by_source_route_variants(app_module, monkeypatch):
 
 def test_search_route_with_and_without_query(app_module, monkeypatch):
     module = app_module
-    monkeypatch.setattr(module, "search_startups", lambda q, limit, offset: _sample_startups()[:limit] if q else [])
+    monkeypatch.setattr(module, "search_startups", lambda q, limit=20, offset=0: _sample_startups()[offset:offset + limit] if q else [])
     monkeypatch.setattr(module, "count_search_results", lambda q: len(_sample_startups()) if q else 0)
+    monkeypatch.setattr(module, "count_startups_by_source_key", lambda key: len(_sample_startups()))
+    monkeypatch.setattr(module, "count_all_startups", lambda: len(_sample_startups()))
     monkeypatch.setattr(module, "get_last_scrape_time", lambda: None)
 
     client = module.app.test_client()
@@ -138,12 +154,18 @@ def test_tool_detail_routes(app_module, monkeypatch):
 
 def test_api_endpoints(app_module, monkeypatch):
     module = app_module
-    monkeypatch.setattr(module, "get_all_startups", _sample_startups)
-    monkeypatch.setattr(module, "search_startups", lambda q: _sample_startups() if q else [])
+    monkeypatch.setattr(module, "get_all_startups", lambda limit=None, offset=None: _sample_startups()[offset or 0:(offset or 0) + limit] if limit is not None else _sample_startups())
+    monkeypatch.setattr(module, "count_all_startups", lambda: len(_sample_startups()))
+    monkeypatch.setattr(module, "search_startups", lambda q, limit=20, offset=0: _sample_startups()[offset:offset + limit] if q else [])
+    monkeypatch.setattr(module, "count_search_results", lambda q: len(_sample_startups()) if q else 0)
 
     client = module.app.test_client()
-    startups = client.get("/api/startups").get_json()
-    assert isinstance(startups, list)
+    payload = client.get("/api/startups").get_json()
+    assert payload["total"] == len(_sample_startups())
+    assert len(payload["items"]) == len(_sample_startups())
+    page2 = client.get("/api/startups?page=2&per_page=2").get_json()
+    assert page2["page"] == 2
+    assert len(page2["items"]) == 2
 
     assert client.get("/api/search?q=dev").status_code == 200
     assert client.get("/api/search").get_json() == []

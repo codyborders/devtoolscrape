@@ -13,6 +13,8 @@ from database import (
     get_startups_by_sources,
     search_startups,
     count_search_results,
+    count_all_startups,
+    count_startups_by_source_key,
     init_db,
 )
 
@@ -61,14 +63,35 @@ def summarize_sources(startups):
 def index():
     """Main page showing all devtools"""
     source_filter = request.args.get('source', '')
+    per_page = min(max(int(request.args.get('per_page', 20)), 1), 100)
+    page = max(int(request.args.get('page', 1)), 1)
+    offset = (page - 1) * per_page
+
     if source_filter:
-        startups = get_startups_by_source_key(source_filter)
+        total_results = count_startups_by_source_key(source_filter)
+        startups = get_startups_by_source_key(source_filter, limit=per_page, offset=offset)
     else:
-        startups = get_all_startups()
+        total_results = count_all_startups()
+        startups = get_all_startups(limit=per_page, offset=offset)
 
     source_counts = get_source_counts()
     last_scrape_time = get_last_scrape_time()
-    return render_template('index.html', startups=startups, source_counts=source_counts, current_filter=source_filter, last_scrape_time=last_scrape_time)
+    total_pages = max((total_results + per_page - 1) // per_page, 1)
+    first_item = offset + 1 if startups else 0
+    last_item = offset + len(startups)
+    return render_template(
+        'index.html',
+        startups=startups,
+        source_counts=source_counts,
+        current_filter=source_filter,
+        last_scrape_time=last_scrape_time,
+        page=page,
+        per_page=per_page,
+        total_pages=total_pages,
+        total_results=total_results,
+        first_item=first_item,
+        last_item=last_item,
+    )
 
 @app.route('/source/<source_name>')
 def filter_by_source(source_name):
@@ -78,13 +101,33 @@ def filter_by_source(source_name):
         'hackernews': 'Hacker News',
         'producthunt': 'Product Hunt',
     }
-    filtered_startups = get_startups_by_source_key(source_name)
+    per_page = min(max(int(request.args.get('per_page', 20)), 1), 100)
+    page = max(int(request.args.get('page', 1)), 1)
+    offset = (page - 1) * per_page
+
+    filtered_startups = get_startups_by_source_key(source_name, limit=per_page, offset=offset)
     source_display = source_map.get(source_name, 'All Sources')
 
     source_counts = get_source_counts()
+    total_results = count_startups_by_source_key(source_name)
     last_scrape_time = get_last_scrape_time()
-    return render_template('index.html', startups=filtered_startups, source_counts=source_counts, 
-                         current_filter=source_name, source_display=source_display, last_scrape_time=last_scrape_time)
+    total_pages = max((total_results + per_page - 1) // per_page, 1)
+    first_item = offset + 1 if filtered_startups else 0
+    last_item = offset + len(filtered_startups)
+    return render_template(
+        'index.html',
+        startups=filtered_startups,
+        source_counts=source_counts,
+        current_filter=source_name,
+        source_display=source_display,
+        last_scrape_time=last_scrape_time,
+        page=page,
+        per_page=per_page,
+        total_pages=total_pages,
+        total_results=total_results,
+        first_item=first_item,
+        last_item=last_item,
+    )
 
 @app.route('/search')
 def search():
@@ -141,8 +184,19 @@ def tool_detail(tool_id):
 @app.route('/api/startups')
 def api_startups():
     """API endpoint for getting all startups"""
-    startups = get_all_startups()
-    return jsonify(startups)
+    per_page = min(max(int(request.args.get('per_page', 50)), 1), 200)
+    page = max(int(request.args.get('page', 1)), 1)
+    offset = (page - 1) * per_page
+
+    startups = get_all_startups(limit=per_page, offset=offset)
+    total = count_all_startups()
+    return jsonify({
+        'items': startups,
+        'page': page,
+        'per_page': per_page,
+        'total': total,
+        'total_pages': max((total + per_page - 1) // per_page, 1),
+    })
 
 @app.route('/api/search')
 def api_search():
