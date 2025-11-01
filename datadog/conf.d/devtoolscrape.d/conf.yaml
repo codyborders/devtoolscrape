@@ -1,0 +1,15 @@
+# DevTools Scraper log collection for the Datadog Agent.
+#
+# Copy or symlink this file into /etc/datadog-agent/conf.d/devtoolscrape.d/conf.yaml
+# on hosts running the Datadog Agent. Then restart the datadog-agent service.
+#
+# Ensure `logs_enabled: true` is set in /etc/datadog-agent/datadog.yaml.
+
+logs:
+  - type: file
+    path: /var/log/devtoolscrape/*.log
+    service: devtoolscrape
+    source: python
+    sourcecategory: sourcecode
+    tags:
+      env: local
