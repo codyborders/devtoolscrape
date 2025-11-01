@@ -1,9 +1,19 @@
-from flask import Flask, render_template, request, jsonify
-from database import get_all_startups, search_startups, get_startup_by_url, get_last_scrape_time, init_db
 from datetime import datetime
-import sqlite3
 import os
+
+from flask import Flask, render_template, request, jsonify
 from dotenv import load_dotenv
+
+from database import (
+    get_all_startups,
+    get_last_scrape_time,
+    get_source_counts,
+    get_startup_by_id,
+    get_startups_by_source_key,
+    get_startups_by_sources,
+    search_startups,
+    init_db,
+)
 
 
 
@@ -24,8 +34,7 @@ if not app.debug:
     from werkzeug.middleware.proxy_fix import ProxyFix
     app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1)
 
-def get_source_counts(startups):
-    """Calculate counts for each source"""
+def summarize_sources(startups):
     counts = {
         'total': len(startups),
         'github': 0,
@@ -33,7 +42,7 @@ def get_source_counts(startups):
         'producthunt': 0,
         'other': 0
     }
-    
+
     for startup in startups:
         source = startup['source']
         if 'GitHub' in source:
@@ -44,48 +53,34 @@ def get_source_counts(startups):
             counts['producthunt'] += 1
         else:
             counts['other'] += 1
-    
+
     return counts
 
 @app.route('/')
 def index():
     """Main page showing all devtools"""
     source_filter = request.args.get('source', '')
-    startups = get_all_startups()
-    
-    # Filter by source if specified
     if source_filter:
-        if source_filter == 'github':
-            startups = [s for s in startups if s['source'] == 'GitHub Trending']
-        elif source_filter == 'hackernews':
-            startups = [s for s in startups if 'Hacker News' in s['source']]
-        elif source_filter == 'producthunt':
-            startups = [s for s in startups if s['source'] == 'Product Hunt']
-    
-    source_counts = get_source_counts(get_all_startups())  # Always show total counts
+        startups = get_startups_by_source_key(source_filter)
+    else:
+        startups = get_all_startups()
+
+    source_counts = get_source_counts()
     last_scrape_time = get_last_scrape_time()
     return render_template('index.html', startups=startups, source_counts=source_counts, current_filter=source_filter, last_scrape_time=last_scrape_time)
 
 @app.route('/source/<source_name>')
 def filter_by_source(source_name):
     """Filter tools by source"""
-    startups = get_all_startups()
-    
-    # Filter by source
-    if source_name == 'github':
-        filtered_startups = [s for s in startups if s['source'] == 'GitHub Trending']
-        source_display = 'GitHub Trending'
-    elif source_name == 'hackernews':
-        filtered_startups = [s for s in startups if 'Hacker News' in s['source']]
-        source_display = 'Hacker News'
-    elif source_name == 'producthunt':
-        filtered_startups = [s for s in startups if s['source'] == 'Product Hunt']
-        source_display = 'Product Hunt'
-    else:
-        filtered_startups = startups
-        source_display = 'All Sources'
-    
-    source_counts = get_source_counts(get_all_startups())
+    source_map = {
+        'github': 'GitHub Trending',
+        'hackernews': 'Hacker News',
+        'producthunt': 'Product Hunt',
+    }
+    filtered_startups = get_startups_by_source_key(source_name)
+    source_display = source_map.get(source_name, 'All Sources')
+
+    source_counts = get_source_counts()
     last_scrape_time = get_last_scrape_time()
     return render_template('index.html', startups=filtered_startups, source_counts=source_counts, 
                          current_filter=source_name, source_display=source_display, last_scrape_time=last_scrape_time)
@@ -98,26 +93,28 @@ def search():
         startups = search_startups(query)
     else:
         startups = []
-    source_counts = get_source_counts(startups)
+    source_counts = summarize_sources(startups)
     last_scrape_time = get_last_scrape_time()
     return render_template('search.html', startups=startups, query=query, source_counts=source_counts, last_scrape_time=last_scrape_time)
 
 @app.route('/tool/<int:tool_id>')
 def tool_detail(tool_id):
     """Show detailed view of a specific tool"""
-    # Get all startups and find the one with matching ID
-    startups = get_all_startups()
-    tool = None
-    for startup in startups:
-        if startup['id'] == tool_id:
-            tool = startup
-            break
-    
+    tool = get_startup_by_id(tool_id)
     if not tool:
         return "Tool not found", 404
-    
+
+    if tool['source'] == 'GitHub Trending':
+        related = get_startups_by_source_key('github')
+    elif tool['source'] == 'Product Hunt':
+        related = get_startups_by_source_key('producthunt')
+    elif 'Hacker News' in tool['source'] or 'Show HN' in tool['source']:
+        related = get_startups_by_source_key('hackernews')
+    else:
+        related = get_startups_by_sources('source = ?', [tool['source']])
+
     last_scrape_time = get_last_scrape_time()
-    return render_template('tool_detail.html', tool=tool, startups=startups, last_scrape_time=last_scrape_time)
+    return render_template('tool_detail.html', tool=tool, startups=related, last_scrape_time=last_scrape_time)
 
 @app.route('/api/startups')
 def api_startups():

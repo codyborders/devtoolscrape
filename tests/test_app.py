@@ -26,7 +26,29 @@ def _sample_startups():
 
 def test_index_route_filters_sources(app_module, monkeypatch):
     module = app_module
-    monkeypatch.setattr(module, "get_all_startups", _sample_startups)
+    monkeypatch.setattr(module, "get_all_startups", lambda: _sample_startups())
+    def fake_get_startups_by_source_key(key):
+        data = _sample_startups()
+        if key == "github":
+            return [s for s in data if s["source"] == "GitHub Trending"]
+        if key == "hackernews":
+            return [s for s in data if "Hacker News" in s["source"]]
+        if key == "producthunt":
+            return [s for s in data if s["source"] == "Product Hunt"]
+        return data
+
+    monkeypatch.setattr(module, "get_startups_by_source_key", fake_get_startups_by_source_key)
+    monkeypatch.setattr(
+        module,
+        "get_source_counts",
+        lambda: {
+            "total": len(_sample_startups()),
+            "github": 1,
+            "hackernews": 1,
+            "producthunt": 1,
+            "other": 1,
+        },
+    )
     monkeypatch.setattr(module, "get_last_scrape_time", lambda: "2024-01-04T00:00:00")
 
     client = module.app.test_client()
@@ -36,10 +58,24 @@ def test_index_route_filters_sources(app_module, monkeypatch):
     assert client.get("/?source=hackernews").status_code == 200
     assert client.get("/?source=producthunt").status_code == 200
 
+    assert module.get_startups_by_source_key("other") == _sample_startups()
+
 
 def test_filter_by_source_route_variants(app_module, monkeypatch):
     module = app_module
-    monkeypatch.setattr(module, "get_all_startups", _sample_startups)
+    monkeypatch.setattr(module, "get_all_startups", lambda: _sample_startups())
+    monkeypatch.setattr(module, "get_startups_by_source_key", lambda key: _sample_startups())
+    monkeypatch.setattr(
+        module,
+        "get_source_counts",
+        lambda: {
+            "total": len(_sample_startups()),
+            "github": 1,
+            "hackernews": 1,
+            "producthunt": 1,
+            "other": 1,
+        },
+    )
     monkeypatch.setattr(module, "get_last_scrape_time", lambda: "2024-01-04T00:00:00")
 
     client = module.app.test_client()
@@ -61,12 +97,41 @@ def test_search_route_with_and_without_query(app_module, monkeypatch):
 
 def test_tool_detail_routes(app_module, monkeypatch):
     module = app_module
-    monkeypatch.setattr(module, "get_all_startups", _sample_startups)
+    sample = _sample_startups()
+
+    def fake_get_startup_by_id(tool_id):
+        return next((s for s in sample if s["id"] == tool_id), None)
+
+    def fake_get_startups_by_source_key(key):
+        if key == "github":
+            return [s for s in sample if s["source"] == "GitHub Trending"]
+        if key == "producthunt":
+            return [s for s in sample if s["source"] == "Product Hunt"]
+        if key == "hackernews":
+            return [s for s in sample if "Hacker News" in s["source"]]
+        return sample
+
+    captured = {}
+
+    def fake_get_startups_by_sources(clause, params):
+        captured["clause"] = clause
+        captured["params"] = params
+        return [s for s in sample if s["source"] not in ("GitHub Trending", "Product Hunt") and "Hacker News" not in s["source"]]
+
+    monkeypatch.setattr(module, "get_startup_by_id", fake_get_startup_by_id)
+    monkeypatch.setattr(module, "get_startups_by_source_key", fake_get_startups_by_source_key)
+    monkeypatch.setattr(module, "get_startups_by_sources", fake_get_startups_by_sources)
     monkeypatch.setattr(module, "get_last_scrape_time", lambda: None)
 
     client = module.app.test_client()
     assert client.get("/tool/1").status_code == 200
+    assert client.get("/tool/3").status_code == 200
+    assert client.get("/tool/2").status_code == 200
+    assert client.get("/tool/4").status_code == 200
     assert client.get("/tool/999").status_code == 404
+    assert captured["clause"] == 'source = ?'
+    assert captured["params"] == ["Indie Hackers"]
+    assert module.get_startups_by_source_key("other") == sample
 
 
 def test_api_endpoints(app_module, monkeypatch):

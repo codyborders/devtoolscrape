@@ -40,6 +40,18 @@ def test_save_and_retrieve_startups(fresh_db):
     assert stored["url"] == "https://example.com"
     assert stored["source"] == "GitHub Trending"
 
+    fetched = fresh_db.get_startup_by_id(stored["id"])
+    assert fetched["id"] == stored["id"]
+
+    assert fresh_db.get_startups_by_source_key("github")
+    assert fresh_db.get_startups_by_source_key("hackernews") == []
+
+    with_offset = fresh_db.get_all_startups(offset=0)
+    assert len(with_offset) == len(all_startups)
+
+    limited = fresh_db.get_all_startups(limit=1, offset=0)
+    assert len(limited) == 1
+
     by_url = fresh_db.get_startup_by_url("https://example.com")
     assert by_url["id"] == stored["id"]
 
@@ -89,6 +101,9 @@ def test_search_returns_matching_rows(fresh_db):
     assert len(results) == 1
     assert results[0]["name"] == "Searchable Tool"
 
+    producthunt = fresh_db.get_startups_by_source_key("producthunt")
+    assert producthunt and producthunt[0]["source"] == "Product Hunt"
+
 
 def test_record_scrape_completion_overwrites_history(fresh_db):
     # No rows yet -> ensure None path covered
@@ -114,9 +129,11 @@ def test_init_db_recovers_from_partial_database(tmp_path, monkeypatch):
     import importlib
     import database
 
-    importlib.reload(database)
     db_file = tmp_path / "partial.db"
-    monkeypatch.setattr(database, "DB_NAME", str(db_file))
+    monkeypatch.setenv("DEVTOOLS_DB_PATH", str(db_file))
+    monkeypatch.setenv("DEVTOOLS_DATA_DIR", str(tmp_path))
+
+    importlib.reload(database)
 
     # Create an existing SQLite file without the expected tables
     conn = sqlite3.connect(database.DB_NAME)
@@ -139,9 +156,11 @@ def test_init_db_handles_initial_connect_failure(tmp_path, monkeypatch):
     import importlib
     import database
 
-    importlib.reload(database)
     db_file = tmp_path / "retry.db"
-    monkeypatch.setattr(database, "DB_NAME", str(db_file))
+    monkeypatch.setenv("DEVTOOLS_DB_PATH", str(db_file))
+    monkeypatch.setenv("DEVTOOLS_DATA_DIR", str(tmp_path))
+
+    importlib.reload(database)
 
     # Pre-create file with content so init_db attempts the validation branch
     db_file.write_text("placeholder")
@@ -162,3 +181,53 @@ def test_init_db_handles_initial_connect_failure(tmp_path, monkeypatch):
 
     database.init_db()
     assert call_tracker["count"] >= 2
+
+
+def test_get_source_counts(fresh_db):
+    fresh_db.save_startup(
+        {
+            "name": "HN Dev Tool",
+            "url": "https://hn.dev",
+            "description": "HN source",
+            "source": "Hacker News (score: 20)",
+            "date_found": datetime.now(),
+        }
+    )
+    fresh_db.save_startup(
+        {
+            "name": "GitHub Dev Tool",
+            "url": "https://github.dev",
+            "description": "GH source",
+            "source": "GitHub Trending",
+            "date_found": datetime.now(),
+        }
+    )
+    fresh_db.save_startup(
+        {
+            "name": "Product Hunt Dev Tool",
+            "url": "https://ph.dev",
+            "description": "PH source",
+            "source": "Product Hunt",
+            "date_found": datetime.now(),
+        }
+    )
+    fresh_db.save_startup(
+        {
+            "name": "Other Dev Tool",
+            "url": "https://other.dev",
+            "description": "Misc source",
+            "source": "Indie Hackers",
+            "date_found": datetime.now(),
+        }
+    )
+    counts = fresh_db.get_source_counts()
+    assert counts["total"] >= 1
+    assert counts["github"] >= 0
+    assert counts["hackernews"] >= 1
+    assert counts["producthunt"] >= 1
+    assert counts["other"] >= 1
+
+    ph_list = fresh_db.get_startups_by_source_key("producthunt")
+    assert any(item["source"] == "Product Hunt" for item in ph_list)
+
+    assert fresh_db.get_startups_by_source_key("unknown") == fresh_db.get_all_startups()

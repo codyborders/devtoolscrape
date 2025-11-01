@@ -1,29 +1,44 @@
-import sqlite3
 import os
+import sqlite3
 from datetime import datetime
+from pathlib import Path
+from typing import Iterable, Optional
 
-# Create data directory if it doesn't exist
-DATA_DIR = os.path.join(os.getcwd(), 'data')
-os.makedirs(DATA_DIR, exist_ok=True)
 
-DB_NAME = "/app/data/startups.db"  # Use absolute path for reliability
+DEFAULT_DATA_DIR = Path(os.getcwd()) / "data"
+DATA_DIR = Path(os.getenv("DEVTOOLS_DATA_DIR", DEFAULT_DATA_DIR))
+DATA_DIR.mkdir(parents=True, exist_ok=True)
+
+DB_PATH = Path(os.getenv("DEVTOOLS_DB_PATH", DATA_DIR / "startups.db"))
+DB_PATH.parent.mkdir(parents=True, exist_ok=True)
+DB_NAME = str(DB_PATH)
+
+
+def _connect() -> sqlite3.Connection:
+    conn = sqlite3.connect(DB_PATH)
+    conn.row_factory = sqlite3.Row
+    return conn
+
+
+def _row_to_dict(row: sqlite3.Row) -> dict:
+    return dict(row)
 
 def init_db():
         # Check if database already exists and has data
-    if os.path.exists(DB_NAME) and os.path.getsize(DB_NAME) > 0:
+    if DB_PATH.exists() and DB_PATH.stat().st_size > 0:
         # Test if the startups table exists
         try:
-            conn = sqlite3.connect(DB_NAME)
+            conn = _connect()
             c = conn.cursor()
             c.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='startups'")
             if c.fetchone():
                 conn.close()
                 return  # Database already exists with proper schema
             conn.close()
-        except:
+        except Exception:
             pass
 
-    conn = sqlite3.connect(DB_NAME)
+    conn = _connect()
     c = conn.cursor()
 
     c.execute('''
@@ -54,7 +69,7 @@ def init_db():
 
 def is_duplicate(name: str, url: str) -> bool:
     """Check if item already exists in database"""
-    conn = sqlite3.connect(DB_NAME)
+    conn = _connect()
     cursor = conn.cursor()
     cursor.execute("SELECT COUNT(*) FROM startups WHERE name = ? OR url = ?", (name, url))
     count = cursor.fetchone()[0]
@@ -62,7 +77,7 @@ def is_duplicate(name: str, url: str) -> bool:
     return count > 0
 
 def save_startup(startup):
-    conn = sqlite3.connect(DB_NAME)
+    conn = _connect()
     c = conn.cursor()
 
     try:
@@ -83,94 +98,136 @@ def save_startup(startup):
     finally:
         conn.close()
 
-def get_all_startups():
+def get_startup_by_id(startup_id: int) -> Optional[dict]:
+    conn = _connect()
+    row = conn.execute(
+        '''
+        SELECT id, name, url, description, source, date_found
+        FROM startups WHERE id = ?
+        ''',
+        (startup_id,),
+    ).fetchone()
+    conn.close()
+    return _row_to_dict(row) if row else None
+
+
+def get_startups_by_sources(where_clause: str, params: Iterable) -> list[dict]:
+    query = '''
+        SELECT id, name, url, description, source, date_found
+        FROM startups
+        WHERE {} ORDER BY date_found DESC
+    '''.format(where_clause)
+
+    conn = _connect()
+    rows = conn.execute(query, params).fetchall()
+    conn.close()
+    return [_row_to_dict(row) for row in rows]
+
+
+def get_startups_by_source_key(source_key: str) -> list[dict]:
+    if source_key == "github":
+        return get_startups_by_sources("source = ?", ["GitHub Trending"])
+    if source_key == "hackernews":
+        return get_startups_by_sources(
+            "source LIKE ? OR source LIKE ?",
+            ["Hacker News%", "Show HN%"],
+        )
+    if source_key == "producthunt":
+        return get_startups_by_sources("source = ?", ["Product Hunt"])
+    return get_all_startups()
+
+
+def get_source_counts() -> dict:
+    conn = _connect()
+    rows = conn.execute("SELECT source, COUNT(*) as count FROM startups GROUP BY source").fetchall()
+    conn.close()
+
+    summary = {
+        "total": 0,
+        "github": 0,
+        "hackernews": 0,
+        "producthunt": 0,
+        "other": 0,
+    }
+
+    for row in rows:
+        source = row["source"]
+        count = row["count"]
+        summary["total"] += count
+        if source == "GitHub Trending":
+            summary["github"] += count
+        elif source.startswith("Hacker News") or source.startswith("Show HN"):
+            summary["hackernews"] += count
+        elif source == "Product Hunt":
+            summary["producthunt"] += count
+        else:
+            summary["other"] += count
+    return summary
+
+def get_all_startups(limit: Optional[int] = None, offset: Optional[int] = None):
     """Get all startups"""
-    conn = sqlite3.connect(DB_NAME)
-    c = conn.cursor()
-    c.execute('''
+    query = '''
         SELECT id, name, url, description, source, date_found
         FROM startups ORDER BY date_found DESC
-    ''')
-    rows = c.fetchall()
+    '''
+    params: list = []
+    if limit is not None:
+        query += " LIMIT ?"
+        params.append(limit)
+    if offset is not None:
+        if limit is None:
+            query += " LIMIT -1"
+        query += " OFFSET ?"
+        params.append(offset)
+
+    conn = _connect()
+    rows = conn.execute(query, params).fetchall()
     conn.close()
-    
-    return [
-        {
-            'id': row[0],
-            'name': row[1],
-            'url': row[2],
-            'description': row[3],
-            'source': row[4],
-            'date_found': row[5]
-        }
-        for row in rows
-    ]
+
+    return [_row_to_dict(row) for row in rows]
 
 def search_startups(query):
     """Search startups by name or description"""
-    conn = sqlite3.connect(DB_NAME)
-    c = conn.cursor()
-    c.execute('''
+    conn = _connect()
+    rows = conn.execute('''
         SELECT id, name, url, description, source, date_found
         FROM startups 
         WHERE name LIKE ? OR description LIKE ?
         ORDER BY date_found DESC
-    ''', (f'%{query}%', f'%{query}%'))
-    rows = c.fetchall()
+    ''', (f'%{query}%', f'%{query}%')).fetchall()
     conn.close()
-    
-    return [
-        {
-            'id': row[0],
-            'name': row[1],
-            'url': row[2],
-            'description': row[3],
-            'source': row[4],
-            'date_found': row[5]
-        }
-        for row in rows
-    ]
+
+    return [_row_to_dict(row) for row in rows]
 
 def get_startup_by_url(url):
     """Get startup by URL"""
-    conn = sqlite3.connect(DB_NAME)
-    c = conn.cursor()
-    c.execute('''
+    conn = _connect()
+    row = conn.execute('''
         SELECT id, name, url, description, source, date_found
         FROM startups WHERE url = ?
-    ''', (url,))
-    row = c.fetchone()
+    ''', (url,)).fetchone()
     conn.close()
-    
-    if row:
-        return {
-            'id': row[0],
-            'name': row[1],
-            'url': row[2],
-            'description': row[3],
-            'source': row[4],
-            'date_found': row[5]
-        }
-    return None
+
+    return _row_to_dict(row) if row else None
 
 def record_scrape_completion(scrapers_run=None):
     """Record that a scrape has completed"""
-    conn = sqlite3.connect(DB_NAME)
+    conn = _connect()
     c = conn.cursor()
-    
+
     # Clear old entries and insert new one
     c.execute('DELETE FROM scrape_log')
     c.execute('''
         INSERT INTO scrape_log (last_scrape, scrapers_run)
         VALUES (?, ?)
     ''', (datetime.now().isoformat(), scrapers_run))
-    
+
     conn.commit()
     conn.close()
 
 def get_last_scrape_time():
     """Get the timestamp of the last completed scrape"""
-    conn = sqlite3.connect(DB_NAME)
+    conn = _connect()
     c = conn.cursor()
     c.execute('SELECT last_scrape FROM scrape_log ORDER BY id DESC LIMIT 1')
     row = c.fetchone()

@@ -74,10 +74,13 @@ def stub_external_sdks():
 @pytest.fixture
 def fresh_db(tmp_path, monkeypatch):
     """Point the database module at an isolated SQLite file and initialize schema."""
+    db_file = tmp_path / "startups.db"
+    monkeypatch.setenv("DEVTOOLS_DB_PATH", str(db_file))
+    monkeypatch.setenv("DEVTOOLS_DATA_DIR", str(tmp_path))
+
     import database
 
-    db_file = tmp_path / "startups.db"
-    monkeypatch.setattr(database, "DB_NAME", str(db_file))
+    importlib.reload(database)
     database.init_db()
     return database
 
