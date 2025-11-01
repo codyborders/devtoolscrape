@@ -3,5 +3,6 @@ set -euo pipefail
 
 export DD_SERVICE="devtoolscrape"
 export DD_ENV="local"
+export DD_PYTEST_USE_NEW_PLUGIN_BETA=true
 
-pytest --ddtrace --ddtrace-patch-all "$@"
+ddtrace-run pytest "$@"
