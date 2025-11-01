@@ -3,14 +3,14 @@
 Follow these steps to ship DevTools Scraper JSON logs to Datadog using the Agent:
 
 1. **Enable log collection in the Agent**
-   - Edit `/etc/datadog-agent/datadog.yaml` and ensure `logs_enabled: true`.
+   - Edit `/opt/datadog-agent/etc/datadog.yaml` (or `/etc/datadog-agent/datadog.yaml` on older installs) and ensure `logs_enabled: true`.
    - Restart the Agent after making changes: `sudo systemctl restart datadog-agent`.
 
 2. **Install the DevTools Scraper log configuration**
-   - Copy the provided config into the Agent's `conf.d` directory:
+   - Copy the provided config into the Agent's `conf.d` directory (default `/opt/datadog-agent/etc/conf.d`):
      ```bash
-     sudo mkdir -p /etc/datadog-agent/conf.d/devtoolscrape.d
-     sudo cp datadog/conf.d/devtoolscrape.d/conf.yaml /etc/datadog-agent/conf.d/devtoolscrape.d/conf.yaml
+     sudo mkdir -p /opt/datadog-agent/etc/conf.d/devtoolscrape.d
+     sudo cp datadog/conf.d/devtoolscrape.d/conf.yaml /opt/datadog-agent/etc/conf.d/devtoolscrape.d/conf.yaml
      sudo systemctl restart datadog-agent
      ```
    - The file instructs the Agent to tail the structured JSON logs emitted to `/var/log/devtoolscrape/*.log`.
