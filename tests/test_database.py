@@ -101,6 +101,7 @@ def test_search_returns_matching_rows(fresh_db):
     assert len(results) == 1
     assert results[0]["name"] == "Searchable Tool"
 
+    assert fresh_db.count_search_results("CLI") >= 1
     producthunt = fresh_db.get_startups_by_source_key("producthunt")
     assert producthunt and producthunt[0]["source"] == "Product Hunt"
 

@@ -24,20 +24,6 @@ def _row_to_dict(row: sqlite3.Row) -> dict:
     return dict(row)
 
 def init_db():
-        # Check if database already exists and has data
-    if DB_PATH.exists() and DB_PATH.stat().st_size > 0:
-        # Test if the startups table exists
-        try:
-            conn = _connect()
-            c = conn.cursor()
-            c.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='startups'")
-            if c.fetchone():
-                conn.close()
-                return  # Database already exists with proper schema
-            conn.close()
-        except Exception:
-            pass
-
     conn = _connect()
     c = conn.cursor()
 
@@ -54,6 +40,7 @@ def init_db():
 
     # Add index on name for faster duplicate checking
     c.execute('CREATE INDEX IF NOT EXISTS idx_startups_name ON startups(name)')
+    c.execute('CREATE INDEX IF NOT EXISTS idx_startups_source ON startups(source)')
 
     # Create table for tracking last scrape time
     c.execute('''
@@ -63,6 +50,29 @@ def init_db():
             scrapers_run TEXT
         )
     ''')
+
+    # Create FTS index for fast search
+    c.execute('''
+        CREATE VIRTUAL TABLE IF NOT EXISTS startups_fts
+        USING fts5(name, description, content='startups', content_rowid='id')
+    ''')
+    c.executescript('''
+        CREATE TRIGGER IF NOT EXISTS startups_ai AFTER INSERT ON startups BEGIN
+            INSERT INTO startups_fts(rowid, name, description) VALUES (new.id, new.name, new.description);
+        END;
+        CREATE TRIGGER IF NOT EXISTS startups_ad AFTER DELETE ON startups BEGIN
+            INSERT INTO startups_fts(startups_fts, rowid, name, description) VALUES('delete', old.id, old.name, old.description);
+        END;
+        CREATE TRIGGER IF NOT EXISTS startups_au AFTER UPDATE ON startups BEGIN
+            INSERT INTO startups_fts(startups_fts, rowid, name, description) VALUES('delete', old.id, old.name, old.description);
+            INSERT INTO startups_fts(rowid, name, description) VALUES (new.id, new.name, new.description);
+        END;
+    ''')
+    try:
+        c.execute("INSERT INTO startups_fts(startups_fts) VALUES('rebuild')")
+    except sqlite3.OperationalError:
+        # Rebuild may fail if table is empty or FTS not initialised yet; safe to ignore
+        pass
 
     conn.commit()
     conn.close()
@@ -186,18 +196,41 @@ def get_all_startups(limit: Optional[int] = None, offset: Optional[int] = None):
 
     return [_row_to_dict(row) for row in rows]
 
-def search_startups(query):
-    """Search startups by name or description"""
+def search_startups(query: str, limit: int = 20, offset: int = 0):
+    """Search startups using FTS."""
+    if not query:
+        return []
+
     conn = _connect()
-    rows = conn.execute('''
-        SELECT id, name, url, description, source, date_found
-        FROM startups 
-        WHERE name LIKE ? OR description LIKE ?
-        ORDER BY date_found DESC
-    ''', (f'%{query}%', f'%{query}%')).fetchall()
+    rows = conn.execute(
+        '''
+        SELECT s.id, s.name, s.url, s.description, s.source, s.date_found
+        FROM startups s
+        JOIN startups_fts fts ON s.id = fts.rowid
+        WHERE startups_fts MATCH ?
+        ORDER BY rank
+        LIMIT ? OFFSET ?
+        ''',
+        (query, limit, offset),
+    ).fetchall()
     conn.close()
 
     return [_row_to_dict(row) for row in rows]
+
+
+def count_search_results(query: str) -> int:
+    if not query:
+        return 0
+    conn = _connect()
+    (count,) = conn.execute(
+        '''
+        SELECT COUNT(*) FROM startups_fts
+        WHERE startups_fts MATCH ?
+        ''',
+        (query,),
+    ).fetchone()
+    conn.close()
+    return count
 
 def get_startup_by_url(url):
     """Get startup by URL"""

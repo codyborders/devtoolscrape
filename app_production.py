@@ -12,6 +12,7 @@ from database import (
     get_startups_by_source_key,
     get_startups_by_sources,
     search_startups,
+    count_search_results,
     init_db,
 )
 
@@ -89,13 +90,34 @@ def filter_by_source(source_name):
 def search():
     """Search page"""
     query = request.args.get('q', '')
+    per_page = min(max(int(request.args.get('per_page', 20)), 1), 100)
+    page = max(int(request.args.get('page', 1)), 1)
+    offset = (page - 1) * per_page
+
     if query:
-        startups = search_startups(query)
+        total_results = count_search_results(query)
+        startups = search_startups(query, limit=per_page, offset=offset)
     else:
+        total_results = 0
         startups = []
     source_counts = summarize_sources(startups)
     last_scrape_time = get_last_scrape_time()
-    return render_template('search.html', startups=startups, query=query, source_counts=source_counts, last_scrape_time=last_scrape_time)
+    total_pages = max((total_results + per_page - 1) // per_page, 1) if total_results else 1
+    first_item = offset + 1 if startups else 0
+    last_item = offset + len(startups)
+    return render_template(
+        'search.html',
+        startups=startups,
+        query=query,
+        source_counts=source_counts,
+        last_scrape_time=last_scrape_time,
+        total_results=total_results,
+        page=page,
+        per_page=per_page,
+        total_pages=total_pages,
+        first_item=first_item,
+        last_item=last_item,
+    )
 
 @app.route('/tool/<int:tool_id>')
 def tool_detail(tool_id):

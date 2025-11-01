@@ -87,11 +87,13 @@ def test_filter_by_source_route_variants(app_module, monkeypatch):
 
 def test_search_route_with_and_without_query(app_module, monkeypatch):
     module = app_module
-    monkeypatch.setattr(module, "search_startups", lambda q: _sample_startups() if q else [])
+    monkeypatch.setattr(module, "search_startups", lambda q, limit, offset: _sample_startups()[:limit] if q else [])
+    monkeypatch.setattr(module, "count_search_results", lambda q: len(_sample_startups()) if q else 0)
     monkeypatch.setattr(module, "get_last_scrape_time", lambda: None)
 
     client = module.app.test_client()
     assert client.get("/search?q=dev").status_code == 200
+    assert client.get("/search?q=dev&page=2").status_code == 200
     assert client.get("/search").status_code == 200
 
 
