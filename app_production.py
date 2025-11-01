@@ -1,7 +1,9 @@
 from datetime import datetime
 import os
+import time
+import uuid
 
-from flask import Flask, render_template, request, jsonify
+from flask import Flask, render_template, request, jsonify, g
 from dotenv import load_dotenv
 
 from database import (
@@ -19,6 +21,8 @@ from database import (
     init_db,
 )
 
+from logging_config import bind_context, get_logger, unbind_context
+
 
 
 
@@ -26,6 +30,7 @@ from database import (
 load_dotenv()
 
 app = Flask(__name__)
+logger = get_logger("devtools.app")
 
 # Initialize database
 init_db()
@@ -38,7 +43,63 @@ if not app.debug:
     from werkzeug.middleware.proxy_fix import ProxyFix
     app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1)
 
+@app.before_request
+def _start_request_logging():
+    request_id = request.headers.get("X-Request-ID") or str(uuid.uuid4())
+    g.request_id = request_id
+    g.request_start_time = time.perf_counter()
+    client_ip = request.headers.get("X-Forwarded-For", request.remote_addr)
+    bind_context(
+        request_id=request_id,
+        http_method=request.method,
+        http_path=request.path,
+        client_ip=client_ip,
+    )
+    logger.debug(
+        "request.start",
+        extra={
+            "event": "request.start",
+            "http_method": request.method,
+            "http_path": request.path,
+            "client_ip": client_ip,
+        },
+    )
+
+
+@app.after_request
+def _complete_request_logging(response):
+    duration_ms = None
+    if hasattr(g, "request_start_time"):
+        duration_ms = round((time.perf_counter() - g.request_start_time) * 1000, 2)
+    logger.info(
+        "request.complete",
+        extra={
+            "event": "request.complete",
+            "status_code": response.status_code,
+            "duration_ms": duration_ms,
+            "content_length": response.calculate_content_length(),
+        },
+    )
+    return response
+
+
+@app.teardown_request
+def _teardown_request_logging(exc):
+    if exc is not None:
+        logger.exception(
+            "request.error",
+            extra={
+                "event": "request.error",
+                "error_type": exc.__class__.__name__,
+            },
+        )
+    unbind_context("request_id", "http_method", "http_path", "client_ip")
+
 def summarize_sources(startups):
+    logger.debug(
+        "summarize.sources",
+        extra={"event": "summarize.sources", "startup_count": len(startups)},
+    )
     counts = {
         'total': len(startups),
         'github': 0,
@@ -80,7 +141,7 @@ def index():
     total_pages = max((total_results + per_page - 1) // per_page, 1)
     first_item = offset + 1 if startups else 0
     last_item = offset + len(startups)
-    return render_template(
+    response = render_template(
         'index.html',
         startups=startups,
         source_counts=source_counts,
@@ -93,6 +154,18 @@ def index():
         first_item=first_item,
         last_item=last_item,
     )
+    logger.info(
+        "render.index",
+        extra={
+            "event": "render.index",
+            "source_filter": source_filter or "all",
+            "page": page,
+            "per_page": per_page,
+            "returned": len(startups),
+            "total_results": total_results,
+        },
+    )
+    return response
 
 @app.route('/source/<source_name>')
 def filter_by_source(source_name):
@@ -115,7 +188,7 @@ def filter_by_source(source_name):
     total_pages = max((total_results + per_page - 1) // per_page, 1)
     first_item = offset + 1 if filtered_startups else 0
     last_item = offset + len(filtered_startups)
-    return render_template(
+    response = render_template(
         'index.html',
         startups=filtered_startups,
         source_counts=source_counts,
@@ -129,6 +202,18 @@ def filter_by_source(source_name):
         first_item=first_item,
         last_item=last_item,
     )
+    logger.info(
+        "render.source",
+        extra={
+            "event": "render.source",
+            "source": source_name,
+            "page": page,
+            "per_page": per_page,
+            "returned": len(filtered_startups),
+            "total_results": total_results,
+        },
+    )
+    return response
 
 @app.route('/search')
 def search():
@@ -149,7 +234,7 @@ def search():
     total_pages = max((total_results + per_page - 1) // per_page, 1) if total_results else 1
     first_item = offset + 1 if startups else 0
     last_item = offset + len(startups)
-    return render_template(
+    response = render_template(
         'search.html',
         startups=startups,
         query=query,
@@ -162,17 +247,42 @@ def search():
         first_item=first_item,
         last_item=last_item,
     )
+    logger.info(
+        "render.search",
+        extra={
+            "event": "render.search",
+            "query": query,
+            "page": page,
+            "per_page": per_page,
+            "returned": len(startups),
+            "total_results": total_results,
+        },
+    )
+    return response
 
 @app.route('/tool/<int:tool_id>')
 def tool_detail(tool_id):
     """Show detailed view of a specific tool"""
     tool = get_startup_by_id(tool_id)
     if not tool:
+        logger.warning(
+            "render.tool_missing",
+            extra={"event": "render.tool_missing", "tool_id": tool_id},
+        )
         return "Tool not found", 404
 
     related = get_related_startups(tool['source'], tool['id'], limit=4)
 
     last_scrape_time = get_last_scrape_time()
+    logger.info(
+        "render.tool_detail",
+        extra={
+            "event": "render.tool_detail",
+            "tool_id": tool_id,
+            "source": tool.get("source"),
+            "related_count": len(related),
+        },
+    )
     return render_template('tool_detail.html', tool=tool, startups=related, last_scrape_time=last_scrape_time)
 
 @app.route('/api/startups')
@@ -184,13 +294,24 @@ def api_startups():
 
     startups = get_all_startups(limit=per_page, offset=offset)
     total = count_all_startups()
-    return jsonify({
+    payload = {
         'items': startups,
         'page': page,
         'per_page': per_page,
         'total': total,
         'total_pages': max((total + per_page - 1) // per_page, 1),
-    })
+    }
+    logger.info(
+        "api.startups",
+        extra={
+            "event": "api.startups",
+            "page": page,
+            "per_page": per_page,
+            "returned": len(startups),
+            "total": total,
+        },
+    )
+    return jsonify(payload)
 
 @app.route('/api/search')
 def api_search():
@@ -207,17 +328,30 @@ def api_search():
         total = 0
         startups = []
 
-    return jsonify({
+    payload = {
         'items': startups,
         'page': page,
         'per_page': per_page,
         'total': total,
         'total_pages': max((total + per_page - 1) // per_page, 1) if total else 1,
-    })
+    }
+    logger.info(
+        "api.search",
+        extra={
+            "event": "api.search",
+            "query": query,
+            "page": page,
+            "per_page": per_page,
+            "returned": len(startups),
+            "total": total,
+        },
+    )
+    return jsonify(payload)
 
 @app.route('/health')
 def health_check():
     """Health check endpoint for monitoring"""
+    logger.debug("health_check", extra={"event": "health_check"})
     return jsonify({
         'status': 'healthy',
         'timestamp': datetime.now().isoformat(),
@@ -249,10 +383,12 @@ def format_datetime(date_str):
 # Error handlers
 @app.errorhandler(404)
 def not_found_error(error):
+    logger.warning("http.404", extra={"event": "http.404"})
     return render_template('404.html'), 404
 
 @app.errorhandler(500)
 def internal_error(error):
+    logger.exception("http.500", extra={"event": "http.500"})
     return render_template('500.html'), 500
 
 if __name__ == '__main__':

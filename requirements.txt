@@ -6,4 +6,4 @@ python-dotenv>=1.1.1,<2.0.0
 lxml>=6.0.0,<7.0.0
 gunicorn>=21.0.0,<22.0.0
 ddtrace>=2.0.0,<3.0.0
-
+python-json-logger>=2.0.7,<3.0.0

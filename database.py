@@ -1,9 +1,13 @@
 import os
 import sqlite3
+import time
 from datetime import datetime
 from pathlib import Path
 from typing import Iterable, Optional
 
+from logging_config import get_logger
+
+logger = get_logger("devtools.db")
 
 DEFAULT_DATA_DIR = Path(os.getcwd()) / "data"
 DATA_DIR = Path(os.getenv("DEVTOOLS_DATA_DIR", DEFAULT_DATA_DIR))
@@ -15,8 +19,14 @@ DB_NAME = str(DB_PATH)
 
 
 def _connect() -> sqlite3.Connection:
+    start = time.perf_counter()
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
+    duration = round((time.perf_counter() - start) * 1000, 2)
+    logger.debug(
+        "db.connect",
+        extra={"event": "db.connect", "duration_ms": duration, "db_path": str(DB_PATH)},
+    )
     return conn
 
 
@@ -24,6 +34,7 @@ def _row_to_dict(row: sqlite3.Row) -> dict:
     return dict(row)
 
 def init_db():
+    logger.info("db.init.start", extra={"event": "db.init.start", "db_path": str(DB_PATH)})
     conn = None
     for attempt in range(2):
         try:
@@ -85,6 +96,7 @@ def init_db():
 
     conn.commit()
     conn.close()
+    logger.info("db.init.complete", extra={"event": "db.init.complete"})
 
 def is_duplicate(name: str, url: str) -> bool:
     """Check if item already exists in database"""
@@ -93,6 +105,15 @@ def is_duplicate(name: str, url: str) -> bool:
     cursor.execute("SELECT COUNT(*) FROM startups WHERE name = ? OR url = ?", (name, url))
     count = cursor.fetchone()[0]
     conn.close()
+    logger.debug(
+        "db.is_duplicate",
+        extra={
+            "event": "db.is_duplicate",
+            "startup_name": name,
+            "url": url,
+            "is_duplicate": count > 0,
+        },
+    )
     return count > 0
 
 def save_startup(startup):
@@ -111,9 +132,25 @@ def save_startup(startup):
             startup['date_found']
         ))
         conn.commit()
+        logger.info(
+            "db.startup_saved",
+            extra={
+                "event": "db.startup_saved",
+                "startup_name": startup.get('name'),
+                "url": startup.get('url'),
+                "source": startup.get('source'),
+            },
+        )
     except sqlite3.IntegrityError:
         # URL already exists
-        pass
+        logger.warning(
+            "db.startup_duplicate",
+            extra={
+                "event": "db.startup_duplicate",
+                "startup_name": startup.get('name'),
+                "url": startup.get('url'),
+            },
+        )
     finally:
         conn.close()
 
@@ -127,7 +164,16 @@ def get_startup_by_id(startup_id: int) -> Optional[dict]:
         (startup_id,),
     ).fetchone()
     conn.close()
-    return _row_to_dict(row) if row else None
+    result = _row_to_dict(row) if row else None
+    logger.debug(
+        "db.get_startup_by_id",
+        extra={
+            "event": "db.get_startup_by_id",
+            "startup_id": startup_id,
+            "found": bool(result),
+        },
+    )
+    return result
 
 
 def get_related_startups(source: str, exclude_id: int, limit: int = 4) -> list[dict]:
@@ -143,7 +189,18 @@ def get_related_startups(source: str, exclude_id: int, limit: int = 4) -> list[d
         (source, exclude_id, limit),
     ).fetchall()
     conn.close()
-    return [_row_to_dict(row) for row in rows]
+    results = [_row_to_dict(row) for row in rows]
+    logger.debug(
+        "db.get_related_startups",
+        extra={
+            "event": "db.get_related_startups",
+            "source": source,
+            "exclude_id": exclude_id,
+            "limit": limit,
+            "returned": len(results),
+        },
+    )
+    return results
 
 
 def get_startups_by_sources(where_clause: str, params: Iterable, limit: Optional[int] = None, offset: Optional[int] = None) -> list[dict]:
@@ -166,7 +223,18 @@ def get_startups_by_sources(where_clause: str, params: Iterable, limit: Optional
     conn = _connect()
     rows = conn.execute(query, args).fetchall()
     conn.close()
-    return [_row_to_dict(row) for row in rows]
+    results = [_row_to_dict(row) for row in rows]
+    logger.debug(
+        "db.get_startups_by_sources",
+        extra={
+            "event": "db.get_startups_by_sources",
+            "where": where_clause,
+            "limit": limit,
+            "offset": offset,
+            "returned": len(results),
+        },
+    )
+    return results
 
 
 def count_startups_by_sources(where_clause: str, params: Iterable) -> int:
@@ -174,34 +242,64 @@ def count_startups_by_sources(where_clause: str, params: Iterable) -> int:
     conn = _connect()
     (count,) = conn.execute(query, params).fetchone()
     conn.close()
+    logger.debug(
+        "db.count_startups_by_sources",
+        extra={
+            "event": "db.count_startups_by_sources",
+            "where": where_clause,
+            "count": count,
+        },
+    )
     return count
 
 def get_startups_by_source_key(source_key: str, limit: Optional[int] = None, offset: Optional[int] = None) -> list[dict]:
     if source_key == "github":
-        return get_startups_by_sources("source = ?", ["GitHub Trending"], limit, offset)
-    if source_key == "hackernews":
-        return get_startups_by_sources(
+        results = get_startups_by_sources("source = ?", ["GitHub Trending"], limit, offset)
+    elif source_key == "hackernews":
+        results = get_startups_by_sources(
             "source LIKE ? OR source LIKE ?",
             ["Hacker News%", "Show HN%"],
             limit,
             offset,
         )
-    if source_key == "producthunt":
-        return get_startups_by_sources("source = ?", ["Product Hunt"], limit, offset)
-    return get_all_startups(limit, offset)
+    elif source_key == "producthunt":
+        results = get_startups_by_sources("source = ?", ["Product Hunt"], limit, offset)
+    else:
+        results = get_all_startups(limit, offset)
+    logger.debug(
+        "db.get_startups_by_source_key",
+        extra={
+            "event": "db.get_startups_by_source_key",
+            "source_key": source_key,
+            "limit": limit,
+            "offset": offset,
+            "returned": len(results),
+        },
+    )
+    return results
 
 
 def count_startups_by_source_key(source_key: str) -> int:
     if source_key == "github":
-        return count_startups_by_sources("source = ?", ["GitHub Trending"])
-    if source_key == "hackernews":
-        return count_startups_by_sources(
+        count = count_startups_by_sources("source = ?", ["GitHub Trending"])
+    elif source_key == "hackernews":
+        count = count_startups_by_sources(
             "source LIKE ? OR source LIKE ?",
             ["Hacker News%", "Show HN%"],
         )
-    if source_key == "producthunt":
-        return count_startups_by_sources("source = ?", ["Product Hunt"])
-    return count_all_startups()
+    elif source_key == "producthunt":
+        count = count_startups_by_sources("source = ?", ["Product Hunt"])
+    else:
+        count = count_all_startups()
+    logger.debug(
+        "db.count_startups_by_source_key",
+        extra={
+            "event": "db.count_startups_by_source_key",
+            "source_key": source_key,
+            "count": count,
+        },
+    )
+    return count
 
 
 def get_source_counts() -> dict:
@@ -229,6 +327,10 @@ def get_source_counts() -> dict:
             summary["producthunt"] += count
         else:
             summary["other"] += count
+    logger.debug(
+        "db.get_source_counts",
+        extra={"event": "db.get_source_counts", "summary": summary},
+    )
     return summary
 
 def get_all_startups(limit: Optional[int] = None, offset: Optional[int] = None):
@@ -251,13 +353,27 @@ def get_all_startups(limit: Optional[int] = None, offset: Optional[int] = None):
     rows = conn.execute(query, params).fetchall()
     conn.close()
 
-    return [_row_to_dict(row) for row in rows]
+    results = [_row_to_dict(row) for row in rows]
+    logger.debug(
+        "db.get_all_startups",
+        extra={
+            "event": "db.get_all_startups",
+            "limit": limit,
+            "offset": offset,
+            "returned": len(results),
+        },
+    )
+    return results
 
 
 def count_all_startups() -> int:
     conn = _connect()
     (count,) = conn.execute('SELECT COUNT(*) FROM startups').fetchone()
     conn.close()
+    logger.debug(
+        "db.count_all_startups",
+        extra={"event": "db.count_all_startups", "count": count},
+    )
     return count
 
 def search_startups(query: str, limit: int = 20, offset: int = 0):
@@ -279,7 +395,18 @@ def search_startups(query: str, limit: int = 20, offset: int = 0):
     ).fetchall()
     conn.close()
 
-    return [_row_to_dict(row) for row in rows]
+    results = [_row_to_dict(row) for row in rows]
+    logger.debug(
+        "db.search_startups",
+        extra={
+            "event": "db.search_startups",
+            "query": query,
+            "limit": limit,
+            "offset": offset,
+            "returned": len(results),
+        },
+    )
+    return results
 
 
 def count_search_results(query: str) -> int:
@@ -294,6 +421,10 @@ def count_search_results(query: str) -> int:
         (query,),
     ).fetchone()
     conn.close()
+    logger.debug(
+        "db.count_search_results",
+        extra={"event": "db.count_search_results", "query": query, "count": count},
+    )
     return count
 
 def get_startup_by_url(url):
@@ -305,7 +436,12 @@ def get_startup_by_url(url):
     ''', (url,)).fetchone()
     conn.close()
 
-    return _row_to_dict(row) if row else None
+    result = _row_to_dict(row) if row else None
+    logger.debug(
+        "db.get_startup_by_url",
+        extra={"event": "db.get_startup_by_url", "url": url, "found": bool(result)},
+    )
+    return result
 
 def record_scrape_completion(scrapers_run=None):
     """Record that a scrape has completed"""
@@ -321,6 +457,13 @@ def record_scrape_completion(scrapers_run=None):
 
     conn.commit()
     conn.close()
+    logger.info(
+        "db.scrape_log_updated",
+        extra={
+            "event": "db.scrape_log_updated",
+            "scrapers_run": scrapers_run,
+        },
+    )
 
 def get_last_scrape_time():
     """Get the timestamp of the last completed scrape"""
@@ -331,5 +474,13 @@ def get_last_scrape_time():
     conn.close()
     
     if row:
+        logger.debug(
+            "db.get_last_scrape_time",
+            extra={"event": "db.get_last_scrape_time", "last_scrape": row[0]},
+        )
         return row[0]
+    logger.debug(
+        "db.get_last_scrape_time",
+        extra={"event": "db.get_last_scrape_time", "last_scrape": None},
+    )
     return None

@@ -1,4 +1,3 @@
-from dotenv import load_dotenv
 import json
 import os
 import threading
@@ -8,6 +7,9 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import Dict, Iterable, List, Optional
 
 import openai
+from dotenv import load_dotenv
+
+from logging_config import get_logger, logging_context
 
 # Load environment variables from .env file
 load_dotenv()
@@ -24,6 +26,8 @@ LLMObs.enable(
 
 # Set up OpenAI client
 client = openai.OpenAI(api_key=os.getenv('OPENAI_API_KEY'))
+
+logger = get_logger("devtools.ai")
 
 # Feature flags and tuning knobs
 _CACHE_ENABLED = os.getenv("AI_CLASSIFIER_DISABLE_CACHE", "0") != "1"
@@ -100,6 +104,16 @@ def _call_openai(messages: List[Dict[str, str]], max_tokens: int, temperature: f
     last_exc = None
     for attempt in range(_MAX_RETRIES):
         try:
+            logger.debug(
+                "openai.request",
+                extra={
+                    "event": "openai.request",
+                    "attempt": attempt + 1,
+                    "max_tokens": max_tokens,
+                    "temperature": temperature,
+                    "response_format": bool(response_format),
+                },
+            )
             return client.chat.completions.create(
                 model="gpt-3.5-turbo",
                 messages=messages,
@@ -110,6 +124,14 @@ def _call_openai(messages: List[Dict[str, str]], max_tokens: int, temperature: f
         except Exception as exc:  # pragma: no cover - relies on API behaviour
             last_exc = exc
             message = str(exc).lower()
+            logger.warning(
+                "openai.error",
+                extra={
+                    "event": "openai.error",
+                    "attempt": attempt + 1,
+                    "error": str(exc),
+                },
+            )
             if attempt == _MAX_RETRIES - 1 or ("rate limit" not in message and "timeout" not in message and "429" not in message):
                 raise
             time.sleep(delay)
@@ -133,16 +155,30 @@ def classify_candidates(candidates: Iterable[Dict[str, str]]) -> Dict[str, bool]
         cid = candidate["id"]
         name = candidate.get("name", "")
         text = candidate.get("text", "")
-        if not has_devtools_keywords(text, name):
-            results[cid] = False
-            continue
-        key = _cache_key(name, text)
-        cached = _classification_cache.get(key)
-        if cached is not None:
-            results[cid] = cached
-        else:
-            candidate["_cache_key"] = key
-            pending.append(candidate)
+        with logging_context(candidate_id=cid, candidate_name=name):
+            if not has_devtools_keywords(text, name):
+                logger.debug(
+                    "classifier.keyword_filter",
+                    extra={
+                        "event": "classifier.keyword_filter",
+                    },
+                )
+                results[cid] = False
+                continue
+            key = _cache_key(name, text)
+            cached = _classification_cache.get(key)
+            if cached is not None:
+                logger.debug(
+                    "classifier.cache_hit",
+                    extra={
+                        "event": "classifier.cache_hit",
+                        "outcome": cached,
+                    },
+                )
+                results[cid] = cached
+            else:
+                candidate["_cache_key"] = key
+                pending.append(candidate)
 
     if not pending:
         return results
@@ -186,20 +222,32 @@ def classify_candidates(candidates: Iterable[Dict[str, str]]) -> Dict[str, bool]
             data = json.loads(content)
             result_map = data.get("results", {})
         except Exception as exc:
-            print(f"Batch classification failed: {exc}. Falling back to per-item.")
+            logger.exception(
+                "classifier.batch_failure",
+                extra={"event": "classifier.batch_failure", "error": str(exc)},
+            )
             result_map = {}
 
         if not result_map:
             for candidate in chunk:
-                outcome = _classify_single(candidate.get("name", ""), candidate.get("text", ""))
-                _classification_cache.set(candidate["_cache_key"], outcome)
-                results[candidate["id"]] = outcome
+                with logging_context(candidate_id=candidate["id"], candidate_name=candidate.get("name")):
+                    outcome = _classify_single(candidate.get("name", ""), candidate.get("text", ""))
+                    _classification_cache.set(candidate["_cache_key"], outcome)
+                    results[candidate["id"]] = outcome
         else:
             for candidate in chunk:
-                answer = result_map.get(candidate["id"])
-                outcome = str(answer).strip().lower() == "yes"
-                _classification_cache.set(candidate["_cache_key"], outcome)
-                results[candidate["id"]] = outcome
+                with logging_context(candidate_id=candidate["id"], candidate_name=candidate.get("name")):
+                    answer = result_map.get(candidate["id"])
+                    outcome = str(answer).strip().lower() == "yes"
+                    logger.debug(
+                        "classifier.batch_result",
+                        extra={
+                            "event": "classifier.batch_result",
+                            "outcome": outcome,
+                        },
+                    )
+                    _classification_cache.set(candidate["_cache_key"], outcome)
+                    results[candidate["id"]] = outcome
 
     with ThreadPoolExecutor(max_workers=min(_MAX_CONCURRENCY, len(chunks))) as executor:
         futures = [executor.submit(worker, chunk) for chunk in chunks]
@@ -213,7 +261,10 @@ def _classify_single(name: str, text: str) -> bool:
     if not has_devtools_keywords(text, name):
         return False
     if not _has_openai_key():
-        print("Warning: OPENAI_API_KEY not set. Falling back to keyword matching.")
+        logger.warning(
+            "classifier.no_api_key",
+            extra={"event": "classifier.no_api_key"},
+        )
         return is_devtools_related_fallback(text)
 
     prompt = f"""
@@ -259,11 +310,21 @@ def _classify_single(name: str, text: str) -> bool:
         )
         answer = response.choices[0].message.content.strip().lower()
         if answer not in {"yes", "no"}:
-            print(f"Unexpected classifier output: {answer!r}")
+            logger.warning(
+                "classifier.unexpected_answer",
+                extra={
+                    "event": "classifier.unexpected_answer",
+                    "answer": answer,
+                    "tool_name": name,
+                },
+            )
             return is_devtools_related_fallback(text)
         return answer == "yes"
     except Exception as exc:
-        print(f"OpenAI API error: {exc}. Falling back to keyword matching.")
+        logger.exception(
+            "classifier.single_error",
+            extra={"event": "classifier.single_error", "tool_name": name},
+        )
         return is_devtools_related_fallback(text)
 
 
@@ -370,8 +431,19 @@ def get_devtools_category(text: str, name: str = "") -> Optional[str]:
 
         category = response.choices[0].message.content.strip()
         _category_cache.set(key, category)
+        logger.debug(
+            "classifier.category",
+            extra={
+                "event": "classifier.category",
+                "tool_name": name,
+                "category": category,
+            },
+        )
         return category
 
     except Exception as e:
-        print(f"OpenAI API error: {e}")
+        logger.exception(
+            "classifier.category_error",
+            extra={"event": "classifier.category_error", "tool_name": name},
+        )
         return None
