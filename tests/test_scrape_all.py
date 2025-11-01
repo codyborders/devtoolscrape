@@ -1,0 +1,105 @@
+import types
+
+
+class LoaderWrapper:
+    def __init__(self, factory):
+        self.factory = factory
+
+    def create_module(self, spec):
+        return types.ModuleType(spec.name)
+
+    def exec_module(self, module):
+        self.factory(module)
+
+
+def configure_loader(monkeypatch, factories):
+    import importlib.machinery
+    import scrape_all
+
+    def fake_spec_from_file_location(name, path):
+        factory = factories[name]
+        loader = LoaderWrapper(factory)
+        return importlib.machinery.ModuleSpec(name, loader)
+
+    def fake_module_from_spec(spec):
+        module = spec.loader.create_module(spec)
+        module.__spec__ = spec
+        return module
+
+    monkeypatch.setattr("scrape_all.importlib.util.spec_from_file_location", fake_spec_from_file_location)
+    monkeypatch.setattr("scrape_all.importlib.util.module_from_spec", fake_module_from_spec)
+
+
+def test_run_scraper_variants(monkeypatch):
+    import scrape_all
+
+    calls = []
+
+    factories = {
+        "scrape_github_trending": lambda module: module.__dict__.update(
+            {"scrape_github_trending": lambda: calls.append("github")}
+        ),
+        "scrape_hackernews": lambda module: module.__dict__.update(
+            {
+                "scrape_hackernews": lambda: calls.append("hn-top"),
+                "scrape_hackernews_show": lambda: calls.append("hn-show"),
+            }
+        ),
+        "scrape_producthunt_api": lambda module: module.__dict__.update(
+            {"scrape_producthunt_api": lambda: calls.append("ph")}
+        ),
+        "missing_main": lambda module: module.__dict__.update({"some_other": lambda: None}),
+        "broken": lambda module: (_ for _ in ()).throw(RuntimeError("boom")),
+    }
+
+    configure_loader(monkeypatch, factories)
+
+    assert scrape_all.run_scraper("scrape_github_trending", "GitHub")
+    assert scrape_all.run_scraper("scrape_hackernews", "HN")
+    assert scrape_all.run_scraper("scrape_producthunt_api", "PH")
+    assert scrape_all.run_scraper("missing_main", "No main")
+    assert not scrape_all.run_scraper("broken", "Broken")
+
+    assert calls == ["github", "hn-top", "hn-show", "ph"]
+
+
+def test_scrape_all_main_records_results(monkeypatch):
+    import scrape_all
+
+    sequence = iter([True, False, True])
+    monkeypatch.setattr("scrape_all.run_scraper", lambda name, desc: next(sequence))
+    monkeypatch.setattr("scrape_all.init_db", lambda: None)
+    recorded = []
+    monkeypatch.setattr("scrape_all.record_scrape_completion", lambda summary: recorded.append(summary))
+
+    scrape_all.main()
+    assert recorded == ["GitHub Trending Repositories, Hacker News & Show HN"]
+
+
+def test_scrape_all_main_guard(monkeypatch):
+    import importlib.machinery
+    import runpy
+
+    factories = {
+        "scrape_github_trending": lambda module: module.__dict__.update({"scrape_github_trending": lambda: None}),
+        "scrape_hackernews": lambda module: module.__dict__.update(
+            {"scrape_hackernews": lambda: None, "scrape_hackernews_show": lambda: None}
+        ),
+        "scrape_producthunt_api": lambda module: module.__dict__.update({"scrape_producthunt_api": lambda: None}),
+    }
+
+    def fake_spec_from_file_location(name, path):
+        loader = LoaderWrapper(factories[name])
+        return importlib.machinery.ModuleSpec(name, loader)
+
+    def fake_module_from_spec(spec):
+        module = spec.loader.create_module(spec)
+        module.__spec__ = spec
+        return module
+
+    monkeypatch.setattr("importlib.util.spec_from_file_location", fake_spec_from_file_location)
+    monkeypatch.setattr("importlib.util.module_from_spec", fake_module_from_spec)
+    monkeypatch.setattr("database.init_db", lambda: None)
+    monkeypatch.setattr("database.record_scrape_completion", lambda summary: None)
+
+    runpy.run_module("scrape_all", run_name="__main__")
