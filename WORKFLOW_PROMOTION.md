@@ -19,17 +19,41 @@ This document captures how code moves from a local machine into the "green" cana
    This publishes the current commit to GitHub Container Registry under both the immutable SHA tag and the moving `:green` tag.
 2. After the Depot build finishes, push the code to GitHub (`git push`). There is **no build step in CI**, so pushing before the Depot build would deploy an old image.
 
-## 2. GitHub Actions: deploy to green only
+## 2. GitHub Actions: CI gate + green deploy
 
-- A workflow `.github/workflows/deploy-green.yml` triggers on pushes to the branch you want (e.g., `main`).
-- The job SSHes into the droplet and runs:
-  ```bash
-  docker pull ghcr.io/<org>/<repo>:green
-  cd /root/devtoolscrape
-  docker compose -f docker-compose.blue-green.yml up -d --no-deps web-green
-  docker image prune -af
+- Add a workflow `.github/workflows/deploy-green.yml` that triggers on pushes to `main` (or your target branch).
+- **CI job** (recommended):
+  ```yaml
+  jobs:
+    ci:
+      runs-on: ubuntu-latest
+      steps:
+        - uses: actions/checkout@v4
+        - uses: actions/setup-python@v5
+          with:
+            python-version: "3.11"
+        - run: pip install -r requirements.txt
+        - run: pytest
   ```
-- The compose file in production has separate services for `web-blue`, `web-green`, and an `router` fronting them.
+  This gives you reproducible logs and prevents a bad commit from reaching the canary.
+- **Deploy job** depends on the CI job and simply restarts the green service:
+  ```yaml
+  deploy-green:
+    needs: ci
+    runs-on: ubuntu-latest
+    steps:
+      - uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.DO_HOST }}
+          username: ${{ secrets.DO_USER }}
+          key: ${{ secrets.DO_SSH_KEY }}
+          script: |
+            docker pull ghcr.io/<org>/<repo>:green
+            cd /root/devtoolscrape
+            docker compose -f docker-compose.blue-green.yml up -d --no-deps web-green
+            docker image prune -af
+  ```
+- The compose file in production has separate services for `web-blue`, `web-green`, and a `router` fronting them.
 - Because Depot already pushed `:green`, this step simply updates the green service with the latest image.
 
 ## 3. Datadog Synthetic Monitoring
