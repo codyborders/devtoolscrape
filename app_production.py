@@ -39,6 +39,52 @@ init_db()
 app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'dev-secret-key-change-in-production')
 app.config['DEBUG'] = False
 
+
+def _build_datadog_rum_config():
+    application_id = os.getenv("DATADOG_RUM_APPLICATION_ID")
+    client_token = os.getenv("DATADOG_RUM_CLIENT_TOKEN")
+    if not application_id or not client_token:
+        return None
+
+    site = (
+        os.getenv("DATADOG_RUM_SITE")
+        or os.getenv("DATADOG_SITE")
+        or os.getenv("DD_SITE")
+        or "datadoghq.com"
+    )
+    region_map = {
+        "datadoghq.com": "us1",
+        "us3.datadoghq.com": "us3",
+        "us5.datadoghq.com": "us5",
+        "ap1.datadoghq.com": "ap1",
+        "datadoghq.eu": "eu",
+    }
+    script_region = region_map.get(site, "us1")
+    script_url = f"https://www.datadoghq-browser-agent.com/{script_region}/v5/datadog-rum.js"
+
+    return {
+        "applicationId": application_id,
+        "clientToken": client_token,
+        "site": site,
+        "scriptUrl": script_url,
+        "service": os.getenv("DATADOG_RUM_SERVICE", os.getenv("DD_SERVICE")),
+        "env": os.getenv("DATADOG_RUM_ENV", os.getenv("DD_ENV")),
+        "version": os.getenv("DATADOG_RUM_VERSION", os.getenv("DD_VERSION")),
+        "sessionSampleRate": float(os.getenv("DATADOG_RUM_SESSION_SAMPLE_RATE", "100")),
+        "sessionReplaySampleRate": float(os.getenv("DATADOG_RUM_SESSION_REPLAY_SAMPLE_RATE", "100")),
+        "profilingSampleRate": float(os.getenv("DATADOG_RUM_PROFILING_SAMPLE_RATE", "100")),
+        "trackResources": os.getenv("DATADOG_RUM_TRACK_RESOURCES", "true").lower() == "true",
+        "trackLongTasks": os.getenv("DATADOG_RUM_TRACK_LONG_TASKS", "true").lower() == "true",
+        "trackUserInteractions": os.getenv("DATADOG_RUM_TRACK_USER_INTERACTIONS", "true").lower() == "true",
+    }
+
+
+app.config["DATADOG_RUM_CONFIG"] = _build_datadog_rum_config()
+
+@app.context_processor
+def inject_datadog_rum_config():
+    return {"datadog_rum_config": app.config.get("DATADOG_RUM_CONFIG")}
+
 if not app.debug:
     from werkzeug.middleware.proxy_fix import ProxyFix
     app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1)

@@ -29,6 +29,15 @@
             box-shadow: 0 10px 25px rgba(0,0,0,0.1);
         }
     </style>
+    {% if datadog_rum_config %}
+    <script src="{{ datadog_rum_config.scriptUrl }}" crossorigin="anonymous"></script>
+    <script>
+        window.DD_RUM && window.DD_RUM.init({{ datadog_rum_config | tojson }});
+        if (window.DD_RUM && window.DD_RUM.startSessionReplayRecording) {
+            window.DD_RUM.startSessionReplayRecording();
+        }
+    </script>
+    {% endif %}
 </head>
 <body class="bg-gray-50 min-h-screen">
     <!-- Navigation -->

@@ -23,3 +23,7 @@
 - Investigated the missing RUM data on the dev droplet by curling the gunicorn port (`146.190.133.225:8000`) and confirming the rendered HTML from `templates/base.html` lacks any Datadog snippet, so the browser never initializes `DD_RUM`.
 - Compared that with traffic flowing through Nginx/TLS (port 443), which injects the RUM config defined in `/etc/nginx/nginx.conf`, and verified only those requests include the Datadog browser agent.
 - Captured the nginx module errors showing it cannot reach `localhost:8126` for remote configuration and noted the Datadog agent actually listens on `127.0.0.1:8126`, which further explains the noisy logs while not affecting injection for 443 traffic. Documented that hitting port 8000 bypasses Nginx entirely, which is why no sessions land in Datadog when QA uses the bare gunicorn port.
+
+### 2025-11-08T23:45:08Z
+- Added server-side plumbing (`app_production.py`) that reads `DATADOG_RUM_*` secrets from `.env`, builds a normalized config (including the correct browser SDK URL per site), and exposes it to Jinja via a context processor.
+- Updated `templates/base.html` to conditionally load the Datadog browser agent and initialize `DD_RUM` whenever the config is present, so traffic that hits Gunicorn directly (port 8000) now emits RUM telemetry without depending on nginx injection.
