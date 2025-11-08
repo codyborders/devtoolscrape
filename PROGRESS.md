@@ -18,3 +18,8 @@
 ### 2025-11-08T22:27:55Z
 - Updated `ai_classifier.py` to honor `DD_LLMOBS_ML_APP`, `DD_SERVICE`, and `DD_ENV` (with sensible fallbacks) when enabling `LLMObs`, ensuring LLM spans inherit the correct app/service/env metadata.
 - Made `scrape_all.py` load the project `.env` before importing modules so manual scraper runs pick up `DD_*` settings; mirrored the `.env` additions on the dev droplet and reran the scraper to confirm logs now show `service=devtoolscrape-dev env=dev`.
+
+### 2025-11-08T23:42:46Z
+- Investigated the missing RUM data on the dev droplet by curling the gunicorn port (`146.190.133.225:8000`) and confirming the rendered HTML from `templates/base.html` lacks any Datadog snippet, so the browser never initializes `DD_RUM`.
+- Compared that with traffic flowing through Nginx/TLS (port 443), which injects the RUM config defined in `/etc/nginx/nginx.conf`, and verified only those requests include the Datadog browser agent.
+- Captured the nginx module errors showing it cannot reach `localhost:8126` for remote configuration and noted the Datadog agent actually listens on `127.0.0.1:8126`, which further explains the noisy logs while not affecting injection for 443 traffic. Documented that hitting port 8000 bypasses Nginx entirely, which is why no sessions land in Datadog when QA uses the bare gunicorn port.

@@ -28,3 +28,20 @@ I had to circle back once more when we noticed the LLM Observability app label w
 To make spot-checking foolproof, I also audited the droplet for any stray `DD_LLMOBS_*` variables and now export the sanctioned pair (`DD_LLMOBS_ENABLED=1`, `DD_LLMOBS_ML_APP=devtoolscrape-dev`) whenever I run the scrapers by hand. That keeps ad-hoc investigations consistent with what systemd runs under the hood, and ensures every LLM span—automated or manual—lands in Datadog with the same `devtoolscrape-dev` labeling.
 
 One last snag: the classifier script had the ML app name hard-coded and none of the CLI tooling loaded `.env` before wiring up logging, so Datadog still saw `service=devtoolscrape env=local`. I refactored `ai_classifier.py` to pull `DD_LLMOBS_ML_APP`, `DD_SERVICE`, and `DD_ENV` directly from the environment (falling back to safe defaults) when calling `LLMObs.enable`, and taught `scrape_all.py` to load the repository’s `.env` before importing `database`/`logging_config`. With those changes deployed to the droplet—and the `.env` file updated to define the `DD_*` variables—manual scrape runs now emit `service=devtoolscrape-dev env=dev`, so the LLM Observability UI finally mirrors the APM tags.
+
+## 2025-11-08 - RUM Debugging On The Dev Droplet
+Today’s deep dive into “missing” RUM sessions started with the server everyone is actually using: the raw Gunicorn listener at `146.190.133.225:8000`. Curling that endpoint showed exactly what Flask renders from `templates/base.html`—no Datadog snippet anywhere—so the browser never even attempts to boot `DD_RUM`. That explained the empty dashboards immediately, but I kept tracing the pipeline to be sure this wasn’t a Datadog intake problem.
+
+Once I hit the same droplet through Nginx (443), the injected HTML included the expected bootstrap:
+
+```nginx
+datadog_rum on;
+datadog_rum_config "v5" {
+    "applicationId" "db5d092e-055d-4d4d-a4ca-b8f257fb4dcf";
+    "clientToken" "pubbf870a54b30d159dc08f02bfff4159f9";
+    "service" "devtoolscrape-dev";
+    "env" "dev";
+}
+```
+
+Those responses do light up Datadog, which means the module works; it’s just that everyone bypasses it by talking directly to port 8000. The nginx error log is still noisy because the Datadog module tries `localhost:8126` (IPv6 first) while the trace agent listens on `127.0.0.1:8126`, but that’s orthogonal to the missing sessions. The real fix is either to route dev traffic through the proxy (accepting the certificate warning) or to embed an environment-guarded RUM snippet in the base template so Gunicorn can serve it without nginx in the middle. Until we do one of those, there simply won’t be any RUM telemetry for the workflows that stay on 146.190.133.225:8000.
