@@ -7,6 +7,12 @@ import importlib.util
 import sys
 import uuid
 from datetime import datetime
+from pathlib import Path
+
+from dotenv import load_dotenv
+
+BASE_DIR = Path(__file__).resolve().parent
+load_dotenv(BASE_DIR / ".env")
 
 from database import init_db, record_scrape_completion
 from logging_config import get_logger, logging_context

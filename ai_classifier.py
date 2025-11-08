@@ -9,20 +9,37 @@ from typing import Dict, Iterable, List, Optional
 import openai
 from dotenv import load_dotenv
 
-from logging_config import get_logger, logging_context
+from pathlib import Path
 
-# Load environment variables from .env file
-load_dotenv()
+# Load environment variables from .env file before importing modules that depend on them
+BASE_DIR = Path(__file__).resolve().parent
+load_dotenv(BASE_DIR / ".env")
+
+from logging_config import get_logger, logging_context
 
 # Initialize LLM Observability before creating OpenAI client
 from ddtrace.llmobs import LLMObs
 
-LLMObs.enable(
-    ml_app="devtoolscrape",
-    api_key=os.getenv('DATADOG_API_KEY'),
-    site="datadoghq.com",
-    agentless_enabled=False,
+def _strtobool(val: Optional[str]) -> bool:
+    return str(val).lower() not in {"0", "false", "none", "", "null"}
+
+_llmobs_enabled = _strtobool(os.getenv("DD_LLMOBS_ENABLED", "1"))
+_llmobs_ml_app = (
+    os.getenv("DD_LLMOBS_ML_APP")
+    or os.getenv("LLMOBS_ML_APP")
+    or os.getenv("DD_SERVICE")
+    or "devtoolscrape"
 )
+
+if _llmobs_enabled:
+    LLMObs.enable(
+        ml_app=_llmobs_ml_app,
+        api_key=os.getenv("DATADOG_API_KEY"),
+        site=os.getenv("DD_SITE", "datadoghq.com"),
+        agentless_enabled=False,
+        env=os.getenv("DD_ENV"),
+        service=os.getenv("DD_SERVICE"),
+    )
 
 # Set up OpenAI client
 client = openai.OpenAI(api_key=os.getenv('OPENAI_API_KEY'))

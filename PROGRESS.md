@@ -14,3 +14,7 @@
 ### 2025-11-08T22:16:45Z
 - Audited the dev droplet for stray `DD_LLMOBS_*` environment variables, confirmed only the desired `DD_LLMOBS_ENABLED`/`DD_LLMOBS_ML_APP` pair exists, and exported them explicitly for ad-hoc scrape runs.
 - Reran `python scrape_all.py` with `DD_LLMOBS_ML_APP=devtoolscrape-dev` in the shell environment so every new LLM span in Datadog is tagged to the dev app name.
+
+### 2025-11-08T22:27:55Z
+- Updated `ai_classifier.py` to honor `DD_LLMOBS_ML_APP`, `DD_SERVICE`, and `DD_ENV` (with sensible fallbacks) when enabling `LLMObs`, ensuring LLM spans inherit the correct app/service/env metadata.
+- Made `scrape_all.py` load the project `.env` before importing modules so manual scraper runs pick up `DD_*` settings; mirrored the `.env` additions on the dev droplet and reran the scraper to confirm logs now show `service=devtoolscrape-dev env=dev`.
