@@ -1,0 +1,95 @@
+load_module /opt/datadog-nginx/ngx_http_datadog_module.so;
+
+user www-data;
+worker_processes auto;
+pid /run/nginx.pid;
+error_log /var/log/nginx/error.log;
+
+# Make Datadog RUM settings available to workers. Define these in .env
+# (then export to the service manager) so they never need to live in the
+# committed config.
+env DATADOG_RUM_APPLICATION_ID;
+env DATADOG_RUM_CLIENT_TOKEN;
+env DATADOG_RUM_SITE;
+env DATADOG_RUM_SERVICE;
+env DATADOG_RUM_ENV;
+env DATADOG_RUM_VERSION;
+env DATADOG_RUM_SESSION_SAMPLE_RATE;
+env DATADOG_RUM_SESSION_REPLAY_SAMPLE_RATE;
+env DATADOG_RUM_PROFILING_SAMPLE_RATE;
+env DATADOG_RUM_TRACK_RESOURCES;
+env DATADOG_RUM_TRACK_LONG_TASKS;
+env DATADOG_RUM_TRACK_USER_INTERACTIONS;
+
+events {
+    worker_connections 1024;
+}
+
+http {
+    # Default RUM settings if the env vars are missing.
+    map $DATADOG_RUM_SITE $dd_rum_site {
+        default $DATADOG_RUM_SITE;
+        "" datadoghq.com;
+    }
+
+    map $DATADOG_RUM_SESSION_SAMPLE_RATE $dd_rum_session_sample_rate {
+        default $DATADOG_RUM_SESSION_SAMPLE_RATE;
+        "" 100;
+    }
+
+    map $DATADOG_RUM_SESSION_REPLAY_SAMPLE_RATE $dd_rum_session_replay_sample_rate {
+        default $DATADOG_RUM_SESSION_REPLAY_SAMPLE_RATE;
+        "" 100;
+    }
+
+    map $DATADOG_RUM_PROFILING_SAMPLE_RATE $dd_rum_profiling_sample_rate {
+        default $DATADOG_RUM_PROFILING_SAMPLE_RATE;
+        "" 100;
+    }
+
+    map $DATADOG_RUM_TRACK_RESOURCES $dd_rum_track_resources {
+        default $DATADOG_RUM_TRACK_RESOURCES;
+        "" true;
+    }
+
+    map $DATADOG_RUM_TRACK_LONG_TASKS $dd_rum_track_long_tasks {
+        default $DATADOG_RUM_TRACK_LONG_TASKS;
+        "" true;
+    }
+
+    map $DATADOG_RUM_TRACK_USER_INTERACTIONS $dd_rum_track_user_interactions {
+        default $DATADOG_RUM_TRACK_USER_INTERACTIONS;
+        "" true;
+    }
+
+    map $dd_rum_site $dd_rum_script_region {
+        default us1;
+        datadoghq.com us1;
+        datadoghq.eu eu;
+        us3.datadoghq.com us3;
+        us5.datadoghq.com us5;
+        ap1.datadoghq.com ap1;
+    }
+
+    datadog_agent_url http://127.0.0.1:8126;
+    datadog_tracing off; # dev nginx only injects RUM
+
+    datadog_rum on;
+    datadog_rum_config "v5" {
+        "applicationId" "$DATADOG_RUM_APPLICATION_ID";
+        "clientToken" "$DATADOG_RUM_CLIENT_TOKEN";
+        "site" "$dd_rum_site";
+        "service" "$DATADOG_RUM_SERVICE";
+        "env" "$DATADOG_RUM_ENV";
+        "version" "$DATADOG_RUM_VERSION";
+        "sessionSampleRate" "$dd_rum_session_sample_rate";
+        "sessionReplaySampleRate" "$dd_rum_session_replay_sample_rate";
+        "profilingSampleRate" "$dd_rum_profiling_sample_rate";
+        "trackResources" "$dd_rum_track_resources";
+        "trackLongTasks" "$dd_rum_track_long_tasks";
+        "trackUserInteractions" "$dd_rum_track_user_interactions";
+    }
+
+    # Serve the devtoolscrape app via the existing site definition.
+    include nginx-devtools-scraper.conf;
+}

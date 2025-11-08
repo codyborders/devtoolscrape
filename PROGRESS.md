@@ -27,3 +27,7 @@
 ### 2025-11-08T23:45:08Z
 - Added server-side plumbing (`app_production.py`) that reads `DATADOG_RUM_*` secrets from `.env`, builds a normalized config (including the correct browser SDK URL per site), and exposes it to Jinja via a context processor.
 - Updated `templates/base.html` to conditionally load the Datadog browser agent and initialize `DD_RUM` whenever the config is present, so traffic that hits Gunicorn directly (port 8000) now emits RUM telemetry without depending on nginx injection.
+
+### 2025-11-08T23:49:25Z
+- Backed out the Flask/Jinja RUM injection so telemetry remains managed entirely by nginx per the architecture requirements.
+- Added `nginx.conf.dev`, which loads the Datadog nginx module, reads the `DATADOG_RUM_*` values exported from `.env`, and configures the `datadog_rum_config` block (including regional script selection and sane defaults) before including `nginx-devtools-scraper.conf`.
