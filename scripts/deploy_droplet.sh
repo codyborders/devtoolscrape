@@ -29,7 +29,8 @@ REMOTE_BACKUP_DIR="${REMOTE_BACKUP_DIR:-$REMOTE_REPO_DIR/backups}"
 REMOTE_DB_PRIMARY="${REMOTE_DB_PRIMARY:-$REMOTE_REPO_DIR/startups.db}"
 REMOTE_DB_SECONDARY="${REMOTE_DB_SECONDARY:-$REMOTE_REPO_DIR/data/startups.db}"
 REMOTE_HEALTH_URL="${REMOTE_HEALTH_URL:-http://127.0.0.1:8000/health}"
-REMOTE_COMPOSE_CMD="${REMOTE_COMPOSE_CMD:-docker compose}"
+REMOTE_SERVICE_NAME="${REMOTE_SERVICE_NAME:-devtools-scraper}"
+REMOTE_VENV_PATH="${REMOTE_VENV_PATH:-$REMOTE_REPO_DIR/venv}"
 
 if ! command -v sshpass >/dev/null 2>&1; then
   echo "sshpass is required to run this script. Install it and retry." >&2
@@ -47,8 +48,9 @@ BACKUP_DIR="$REMOTE_BACKUP_DIR"
 DB_PRIMARY="$REMOTE_DB_PRIMARY"
 DB_SECONDARY="$REMOTE_DB_SECONDARY"
 HEALTH_URL="$REMOTE_HEALTH_URL"
-COMPOSE_CMD="$REMOTE_COMPOSE_CMD"
-export DB_PRIMARY DB_SECONDARY
+SERVICE_NAME="$REMOTE_SERVICE_NAME"
+VENV_PATH="$REMOTE_VENV_PATH"
+export DB_PRIMARY DB_SECONDARY SERVICE_NAME VENV_PATH
 
 echo "==> Working directory: \$REPO_DIR"
 if [[ ! -d "\$REPO_DIR/.git" ]]; then
@@ -59,6 +61,13 @@ fi
 cd "\$REPO_DIR"
 
 echo "==> Fetching and checking out branch \$BRANCH"
+REMOTE_URL=\$(git remote get-url origin)
+if [[ "\$REMOTE_URL" =~ ^git@github.com:(.+)\.git$ ]]; then
+  HTTPS_URL="https://github.com/\${BASH_REMATCH[1]}.git"
+  echo "    Switching remote from '\$REMOTE_URL' to '\$HTTPS_URL' for password-less fetch."
+  git remote set-url origin "\$HTTPS_URL"
+fi
+
 git fetch origin
 git checkout "\$BRANCH"
 git reset --hard "origin/\$BRANCH"
@@ -80,11 +89,22 @@ else
   echo "    No sqlite database file found; continuing without backup."
 fi
 
-echo "==> Restarting application via \$COMPOSE_CMD"
-\$COMPOSE_CMD down || true
-\$COMPOSE_CMD up -d --build
+echo "==> Installing Python dependencies"
+if [[ -d "\$VENV_PATH" ]]; then
+  source "\$VENV_PATH/bin/activate"
+else
+  python3 -m venv "\$VENV_PATH"
+  source "\$VENV_PATH/bin/activate"
+fi
+pip install --upgrade pip >/dev/null
+pip install -r requirements.txt >/dev/null
 
-echo "==> Waiting for containers to settle"
+echo "==> Restarting systemd service \$SERVICE_NAME"
+systemctl daemon-reload
+systemctl enable "\$SERVICE_NAME"
+systemctl restart "\$SERVICE_NAME"
+
+echo "==> Waiting for service to settle"
 sleep 5
 
 echo "==> Validating application health at \$HEALTH_URL"
