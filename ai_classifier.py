@@ -147,6 +147,9 @@ def _call_openai(messages: List[Dict[str, str]], max_tokens: int, temperature: f
                     "openai.message_count": len(messages),
                 },
             ) as span:
+                if span:
+                    span.set_tag("span.kind", "client")
+                    span.set_tag("component", "openai")
                 response = client.chat.completions.create(
                     model=_OPENAI_MODEL,
                     messages=messages,
