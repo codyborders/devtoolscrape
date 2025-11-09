@@ -23,6 +23,7 @@ services:
       - DD_DYNAMIC_INSTRUMENTATION_ENABLED=true
       - DD_LLMOBS_ENABLED=1
       - DD_LLMOBS_ML_APP=devtoolscrape
+      - GUNICORN_BIND=0.0.0.0:9000
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:9000/health"]
