@@ -136,7 +136,6 @@ def _call_openai(messages: List[Dict[str, str]], max_tokens: int, temperature: f
             with trace_external_call(
                 "openai.chat.completion",
                 resource="classifier.batch",
-                service="devtoolscrape.ai",
                 span_type="llm",
                 tags={
                     "openai.model": _OPENAI_MODEL,

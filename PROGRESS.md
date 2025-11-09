@@ -4,6 +4,10 @@
 - Triggered the production scraper manually to confirm the new spans appear alongside the existing runner trace, ensuring third-party APIs (GitHub/HN/Product Hunt/OpenAI) now show up in Datadog again.
 - Marked the OpenAI spans with `span.kind=client`/`component=openai` so LLM Observability can ingest them without throwing warnings during batch runs.
 
+### 2025-11-09T18:25:14Z
+- Pointed the tracing helpers at `DD_SERVICE` (defaulting to `devtoolscrape`) so every child span—including OpenAI—stays under the single `devtoolscrape` service instead of spawning `devtoolscrape.scraper` / `devtoolscrape.ai` sub-services.
+- Dropped the explicit service override in the OpenAI instrumentation to keep the span tree flat, matching the observability strategy.
+
 ### 2025-11-09T17:05:42Z
 - Resolved the merge between `codex-review` and `main` by layering the RUM SDK v6 log entries ahead of the tracing/LLM diary so we preserve the full history without conflict markers.
 - Bumped every `DD_VERSION` default (docker-compose + cron wrapper) to `1.1` while double-checking that the `DD_ENV`, `DD_SERVICE`, and LLM tags stayed untouched, so Datadog clearly shows the new build without forking tag cardinality.
