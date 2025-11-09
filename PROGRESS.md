@@ -2,6 +2,7 @@
 - Added `observability.py` helpers so we can consistently wrap outbound HTTP/LLM calls in Datadog spans even when ddtrace is missing in tests.
 - Instrumented the GitHub Trending, Hacker News (top + Show HN), Product Hunt RSS/API scrapers, and all OpenAI classifier calls with the new tracing helpers to capture status codes, retry attempts, and model metadata.
 - Triggered the production scraper manually to confirm the new spans appear alongside the existing runner trace, ensuring third-party APIs (GitHub/HN/Product Hunt/OpenAI) now show up in Datadog again.
+- Marked the OpenAI spans with `span.kind=client`/`component=openai` so LLM Observability can ingest them without throwing warnings during batch runs.
 
 ### 2025-11-09T17:05:42Z
 - Resolved the merge between `codex-review` and `main` by layering the RUM SDK v6 log entries ahead of the tracing/LLM diary so we preserve the full history without conflict markers.
