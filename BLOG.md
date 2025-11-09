@@ -109,3 +109,8 @@ datadog_rum_config "v5" {
 ```
 
 After `nginx -t && systemctl reload nginx`, curls against `https://devtoolscrape.com` finally show the Datadog browser agent plus a `DD_RUM.init` payload that matches the prod metadata (service/env/version/sample rates). That proves every user hitting the public domain now downloads the RUM SDK straight from nginx, without app-layer changes.
+
+## 2025-11-09 - RUM Rollback On Dev
+Product asked us to hit pause on RUM entirely, so I stripped everything back to the pre-instrumented dev build. The npm toolchain (`package.json`, `assets/rum/index.js`, `static/js/datadog-rum.bundle.js`) is gone, `.gitignore` no longer watches `node_modules/`, and `app_production.py` is back to plain Flask routing with no `/rum-config` helper. The template’s footer lost the bundle include as well, so browsers just get Tailwind + our own scripts.
+
+While I was in there I tidied the nginx templates: `nginx.conf.dev` now documents the proxy role without mentioning Datadog, and `nginx-devtools-scraper.conf` simply forwards traffic to Gunicorn on the port we already fronted (still useful even without RUM). I wrote up the rollback in `PROGRESS.md` so everyone knows RUM is disabled for now, and we can revisit the instrumentation later once there’s a clearer plan for capturing browser telemetry.

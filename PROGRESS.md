@@ -45,3 +45,7 @@
 - Re-ran Datadog’s RUM auto-instrumentation installer on the prod droplet, pointing it at the Dockerized `dd-agent` (`http://172.17.0.2:8126`) so the module could register successfully and drop `ngx_http_datadog_module.so` plus the base config into `/etc/nginx/nginx.conf`.
 - Replaced the generated `datadog_rum_config` stanza with the requested settings (app ID `5fcf523d-8cfe-417e-b822-bbc4dc2b3034`, service `devtoolscrape`, env `prod`, version `1.0`, all sampling switches at 100%, resource/interaction/long-task tracking enabled), validated the file via `nginx -t`, and reloaded nginx.
 - Spot-checked `https://devtoolscrape.com` to confirm the injected HTML now includes the Datadog browser SDK plus a `DD_RUM.init` payload that matches the prod configuration.
+
+### 2025-11-09T02:02:49Z
+- Backed out the npm-based Datadog bundle entirely: removed `package.json`/`package-lock.json`, deleted `assets/rum/index.js`, nuked `static/js/datadog-rum.bundle.js`, and restored `.gitignore`, `app_production.py`, and `templates/base.html` to their pre-RUM state (no `/rum-config` endpoint, no client-side loader).
+- Left the simplified `nginx.conf.dev`/`nginx-devtools-scraper.conf` in place but stripped any Datadog references so nginx simply proxies to Gunicorn without injecting telemetry; documented the rollback so the team knows RUM is disabled for now.
