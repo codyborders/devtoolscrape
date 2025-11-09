@@ -40,8 +40,3 @@
 ### 2025-11-09T00:52:40Z
 - Loaded the `.env` secrets locally, SSH’d into `root@147.182.194.230`, and enumerated `/etc/nginx/nginx.conf` plus `sites-enabled/devtools-scraper` to check for Datadog RUM directives.
 - Verified that neither file enables `datadog_rum` nor references the browser agent (no `datadogRum`/`datadog_rum_config` blocks), so the production nginx layer is not injecting the Datadog RUM snippet today.
-
-### 2025-11-09T00:59:17Z
-- Re-ran Datadog’s RUM auto-instrumentation installer on the prod droplet, pointing it at the Dockerized `dd-agent` (`http://172.17.0.2:8126`) so the module could register successfully and drop `ngx_http_datadog_module.so` plus the base config into `/etc/nginx/nginx.conf`.
-- Replaced the generated `datadog_rum_config` stanza with the requested settings (app ID `5fcf523d-8cfe-417e-b822-bbc4dc2b3034`, service `devtoolscrape`, env `prod`, version `1.0`, all sampling switches at 100%, resource/interaction/long-task tracking enabled), validated the file via `nginx -t`, and reloaded nginx.
-- Spot-checked `https://devtoolscrape.com` to confirm the injected HTML now includes the Datadog browser SDK plus a `DD_RUM.init` payload that matches the prod configuration.
