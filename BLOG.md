@@ -68,3 +68,20 @@ After copying the generated config into place, I restarted `devtools-scraper` (t
 ```
 
 so every dev-only session hits the same Datadog project without relying on the TLS hosts. The nginx error log is finally quiet (agent URL points at `127.0.0.1:8126`), and the RUM explorer started populating `service:devtoolscrape-dev env:dev` within a couple of minutes of the cutover.
+
+## 2025-11-09 - Prod RUM Audit
+Today’s ask was to confirm whether the production droplet injects Datadog RUM at the nginx layer. I sourced the local `.env` for the droplet credentials, hopped onto `root@147.182.194.230`, and walked the usual config paths—`/etc/nginx/nginx.conf` plus `/etc/nginx/sites-enabled/devtools-scraper`. A quick `grep -R 'datadog' /etc/nginx` also came up empty, which already hinted that the RUM module is absent on this box.
+
+Reading the configs line-by-line sealed it. The main include tree just loads `conf.d/*.conf` and `sites-enabled/*`, and the active virtual host is a minimal TLS proxy:
+
+```nginx
+server {
+    listen 443 ssl;
+    server_name devtoolscrape.com;
+    location / {
+        proxy_pass http://localhost:8000;
+    }
+}
+```
+
+No `datadog_rum on;`, no `datadog_rum_config { ... }`, and nothing that rewrites responses to append the browser SDK. That matches the empty grep result and confirms the edge proxy isn’t injecting the Datadog snippet in prod. If we want RUM coverage there, we need to repeat the dev-side nginx module setup (or reintroduce the Flask/Jinja snippet) so browsers ever download `datadog-rum.js`.
