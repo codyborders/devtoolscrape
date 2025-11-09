@@ -85,3 +85,27 @@ server {
 ```
 
 No `datadog_rum on;`, no `datadog_rum_config { ... }`, and nothing that rewrites responses to append the browser SDK. That matches the empty grep result and confirms the edge proxy isn’t injecting the Datadog snippet in prod. If we want RUM coverage there, we need to repeat the dev-side nginx module setup (or reintroduce the Flask/Jinja snippet) so browsers ever download `datadog-rum.js`.
+
+## 2025-11-09 - Prod RUM Enablement
+With the gap documented, I went back to the prod droplet and ran Datadog’s proxy installer so nginx could load `ngx_http_datadog_module.so`. The host can’t reach the `dd-agent` via `localhost:8126` because the agent rides inside Docker, so the installer kept failing until I inspected `docker inspect dd-agent` and pointed `--agentUri` at the bridge IP (`http://172.17.0.2:8126`). Once that connection string was in place the script downloaded the module, backed up `/etc/nginx/nginx.conf`, and injected the scaffolding automatically.
+
+The out-of-the-box config only set `applicationId`, `clientToken`, and `remoteConfigurationId`, so I replaced the stanza with the explicit prod settings we care about:
+
+```nginx
+datadog_rum_config "v5" {
+    "applicationId" "5fcf523d-8cfe-417e-b822-bbc4dc2b3034";
+    "clientToken" "pub3adab38f79d9d2e618af8ca4362113af";
+    "site" "datadoghq.com";
+    "service" "devtoolscrape";
+    "env" "prod";
+    "version" "1.0";
+    "sessionSampleRate" "100";
+    "profilingSampleRate" "100";
+    "sessionReplaySampleRate" "100";
+    "trackResources" "true";
+    "trackLongTasks" "true";
+    "trackUserInteractions" "true";
+}
+```
+
+After `nginx -t && systemctl reload nginx`, curls against `https://devtoolscrape.com` finally show the Datadog browser agent plus a `DD_RUM.init` payload that matches the prod metadata (service/env/version/sample rates). That proves every user hitting the public domain now downloads the RUM SDK straight from nginx, without app-layer changes.
