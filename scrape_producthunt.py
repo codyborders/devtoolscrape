@@ -7,6 +7,7 @@ from bs4 import BeautifulSoup
 from database import init_db, save_startup
 from dev_utils import is_devtools_related
 from logging_config import get_logger, logging_context
+from observability import trace_http_call
 
 logger = get_logger("devtools.scraper.producthunt_rss")
 
@@ -15,7 +16,10 @@ def scrape_producthunt_rss():
     run_id = str(uuid.uuid4())
     with logging_context(scraper="producthunt_rss", scrape_run_id=run_id):
         try:
-            resp = requests.get(url, timeout=10)
+            with trace_http_call("producthunt.rss", "GET", url) as span:
+                resp = requests.get(url, timeout=10)
+                if span:
+                    span.set_tag("http.status_code", resp.status_code)
             resp.raise_for_status()
             logger.info(
                 "scraper.response",

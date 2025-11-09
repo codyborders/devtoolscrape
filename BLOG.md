@@ -12,6 +12,18 @@ With the repo coherent I can now push `main`, roll those bits straight onto the 
 
 To keep Nginx on the droplet fronting everything through port 8000 I remapped the compose service so host port 8000 forwards to Gunicorn’s new 9000 listener, pointed the container health check at `/health` on that port, and added a `GUNICORN_BIND` override so the container binds to `0.0.0.0` while the default still targets loopback.
 
+## 2025-11-09 - Scraper Span Coverage
+Datadog showed the latest scrape run as a single span because the outbound calls (GitHub Trending, Hacker News, Product Hunt, and OpenAI) never created their own children. We fixed that once before by running under `ddtrace-run`, but the scrapers fan out across threads and subprocesses, so automatic instrumentation isn’t enough to keep context. I added a tiny `observability.py` helper that safely wraps external calls even if `ddtrace` is missing in tests:
+
+```python
+with trace_http_call("github.trending", "GET", url) as span:
+    resp = requests.get(url, timeout=10)
+    if span:
+        span.set_tag("http.status_code", resp.status_code)
+```
+
+Each scraper now uses that helper (and the OpenAI classifier wraps `_call_openai` with `trace_external_call`), so every request out to GitHub, the Hacker News Firebase API, the Product Hunt OAuth/GraphQL endpoints, and the OpenAI Chat Completions API emits its own Datadog span with status codes, attempts, and token counts. I reran `scrape_all.py` in the prod container and verified the trace shows the nested spans again, which means we can finally correlate slow third-party APIs with spikes in scrape latency.
+
 ## 2025-11-09 - RUM SDK v6 Rollout
 Datadog just published browser-sdk v6.23.0, so I started by querying the GitHub releases API to see exactly what changed and to confirm we should be targeting the v6 family instead of the older v5 builds. Once I had the release tag, I hopped onto the prod droplet and rewrote the Datadog nginx module stanza from `datadog_rum_config "v5"` to `"v6"`, then ran `nginx -t` to make sure there were no syntax surprises before reloading the service. The rest of the config (app ID, client token, service/env/version metadata, and the sampling flags) stayed untouched so the browser payload only changed in terms of SDK bits.
 

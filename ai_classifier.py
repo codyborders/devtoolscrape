@@ -16,6 +16,7 @@ BASE_DIR = Path(__file__).resolve().parent
 load_dotenv(BASE_DIR / ".env")
 
 from logging_config import get_logger, logging_context
+from observability import trace_external_call
 
 # Initialize LLM Observability before creating OpenAI client
 from ddtrace.llmobs import LLMObs
@@ -43,6 +44,7 @@ if _llmobs_enabled:
 
 # Set up OpenAI client
 client = openai.OpenAI(api_key=os.getenv('OPENAI_API_KEY'))
+_OPENAI_MODEL = os.getenv("OPENAI_MODEL", "gpt-3.5-turbo")
 
 logger = get_logger("devtools.ai")
 
@@ -131,13 +133,33 @@ def _call_openai(messages: List[Dict[str, str]], max_tokens: int, temperature: f
                     "response_format": bool(response_format),
                 },
             )
-            return client.chat.completions.create(
-                model="gpt-3.5-turbo",
-                messages=messages,
-                max_tokens=max_tokens,
-                temperature=temperature,
-                response_format=response_format,
-            )
+            with trace_external_call(
+                "openai.chat.completion",
+                resource="classifier.batch",
+                service="devtoolscrape.ai",
+                span_type="llm",
+                tags={
+                    "openai.model": _OPENAI_MODEL,
+                    "openai.attempt": attempt + 1,
+                    "openai.max_tokens": max_tokens,
+                    "openai.temperature": temperature,
+                    "openai.response_format": bool(response_format),
+                    "openai.message_count": len(messages),
+                },
+            ) as span:
+                response = client.chat.completions.create(
+                    model=_OPENAI_MODEL,
+                    messages=messages,
+                    max_tokens=max_tokens,
+                    temperature=temperature,
+                    response_format=response_format,
+                )
+                if span and getattr(response, "usage", None):
+                    usage = response.usage
+                    span.set_tag("openai.prompt_tokens", getattr(usage, "prompt_tokens", 0))
+                    span.set_tag("openai.completion_tokens", getattr(usage, "completion_tokens", 0))
+                    span.set_tag("openai.total_tokens", getattr(usage, "total_tokens", 0))
+                return response
         except Exception as exc:  # pragma: no cover - relies on API behaviour
             last_exc = exc
             message = str(exc).lower()

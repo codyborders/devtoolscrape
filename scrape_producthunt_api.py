@@ -8,6 +8,7 @@ from dotenv import load_dotenv
 from ai_classifier import classify_candidates, get_devtools_category
 from database import init_db, save_startup
 from logging_config import get_logger, logging_context
+from observability import trace_http_call
 
 # Load environment variables from .env file
 load_dotenv()
@@ -35,7 +36,10 @@ def get_producthunt_token():
     }
     
     try:
-        token_resp = requests.post(token_url, data=token_data, timeout=10)
+        with trace_http_call("producthunt.token", "POST", token_url) as span:
+            token_resp = requests.post(token_url, data=token_data, timeout=10)
+            if span:
+                span.set_tag("http.status_code", token_resp.status_code)
         token_resp.raise_for_status()
         token_info = token_resp.json()
         return token_info.get('access_token')
@@ -95,7 +99,10 @@ def scrape_producthunt_api():
         }
         
         try:
-            resp = requests.post(url, json={'query': query}, headers=headers, timeout=10)
+            with trace_http_call("producthunt.graphql", "POST", url) as span:
+                resp = requests.post(url, json={'query': query}, headers=headers, timeout=10)
+                if span:
+                    span.set_tag("http.status_code", resp.status_code)
             resp.raise_for_status()
             logger.info(
                 "scraper.response",

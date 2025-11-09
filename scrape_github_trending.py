@@ -6,6 +6,7 @@ import requests
 from ai_classifier import classify_candidates, get_devtools_category
 from database import init_db, save_startup
 from logging_config import get_logger, logging_context
+from observability import trace_http_call
 
 logger = get_logger("devtools.scraper.github_trending")
 
@@ -18,7 +19,10 @@ def scrape_github_trending():
     
     with logging_context(scraper="github_trending", scrape_run_id=run_id):
         try:
-            resp = requests.get(url, headers=headers, timeout=10)
+            with trace_http_call("github.trending", "GET", url) as span:
+                resp = requests.get(url, headers=headers, timeout=10)
+                if span:
+                    span.set_tag("http.status_code", resp.status_code)
             resp.raise_for_status()
             logger.info(
                 "scraper.response",

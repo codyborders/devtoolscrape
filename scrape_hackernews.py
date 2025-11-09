@@ -6,6 +6,7 @@ import requests
 from ai_classifier import classify_candidates, get_devtools_category
 from database import init_db, save_startup
 from logging_config import get_logger, logging_context
+from observability import trace_http_call
 
 logger = get_logger("devtools.scraper.hackernews")
 
@@ -14,7 +15,11 @@ def scrape_hackernews():
     run_id = str(uuid.uuid4())
     with logging_context(scraper="hackernews", scrape_run_id=run_id):
         try:
-            top_stories_resp = requests.get('https://hacker-news.firebaseio.com/v0/topstories.json', timeout=10)
+            top_stories_url = 'https://hacker-news.firebaseio.com/v0/topstories.json'
+            with trace_http_call("hackernews.topstories", "GET", top_stories_url) as span:
+                top_stories_resp = requests.get(top_stories_url, timeout=10)
+                if span:
+                    span.set_tag("http.status_code", top_stories_resp.status_code)
             top_stories_resp.raise_for_status()
             top_story_ids = top_stories_resp.json()[:50]
             
@@ -26,7 +31,12 @@ def scrape_hackernews():
             story_cache = {}
             candidates = []
             for story_id in top_story_ids:
-                story_resp = requests.get(f'https://hacker-news.firebaseio.com/v0/item/{story_id}.json', timeout=10)
+                story_url = f'https://hacker-news.firebaseio.com/v0/item/{story_id}.json'
+                with trace_http_call("hackernews.story", "GET", story_url) as span:
+                    story_resp = requests.get(story_url, timeout=10)
+                    if span:
+                        span.set_tag("http.status_code", story_resp.status_code)
+                        span.set_tag("hackernews.story_id", story_id)
                 story_resp.raise_for_status()
                 story = story_resp.json()
 
@@ -94,7 +104,11 @@ def scrape_hackernews_show():
     run_id = str(uuid.uuid4())
     with logging_context(scraper="hackernews_show", scrape_run_id=run_id):
         try:
-            show_hn_resp = requests.get('https://hacker-news.firebaseio.com/v0/showstories.json', timeout=10)
+            show_hn_url = 'https://hacker-news.firebaseio.com/v0/showstories.json'
+            with trace_http_call("hackernews.showstories", "GET", show_hn_url) as span:
+                show_hn_resp = requests.get(show_hn_url, timeout=10)
+                if span:
+                    span.set_tag("http.status_code", show_hn_resp.status_code)
             show_hn_resp.raise_for_status()
             show_story_ids = show_hn_resp.json()[:30]
             
@@ -106,7 +120,12 @@ def scrape_hackernews_show():
             story_cache = {}
             candidates = []
             for story_id in show_story_ids:
-                story_resp = requests.get(f'https://hacker-news.firebaseio.com/v0/item/{story_id}.json', timeout=10)
+                story_url = f'https://hacker-news.firebaseio.com/v0/item/{story_id}.json'
+                with trace_http_call("hackernews.story", "GET", story_url) as span:
+                    story_resp = requests.get(story_url, timeout=10)
+                    if span:
+                        span.set_tag("http.status_code", story_resp.status_code)
+                        span.set_tag("hackernews.story_id", story_id)
                 story_resp.raise_for_status()
                 story = story_resp.json()
 
