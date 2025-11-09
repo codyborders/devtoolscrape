@@ -148,3 +148,16 @@ The dev droplet at `DIGITALOCEAN_IP` doesn’t run inside Docker, so I mirrored 
 ```
 
 After loading that line with `printf ... | crontab -`, a quick `crontab -l` confirmed the job is scheduled exactly every four hours and logs to the same rolling file we already tail for scraper output. Both droplets will now kick off `scrape_all.py` on the same timeline, which keeps the datasets aligned without relying on manual runs.
+
+## 2025-11-09 - Fixing Cron’s Missing Python On Prod
+Nine hours without a prod scrape turned out to be a cron PATH issue. The job that runs inside the container references plain `python3`, but Debian’s cron daemon only exposes `/usr/bin:/bin` by default, so it couldn’t find `/usr/local/bin/python3` after the last rebuild. The smoking gun was `/var/log/cron.log` ending with `/bin/sh: 1: python3: not found`.
+
+I patched `entrypoint.sh` to resolve the absolute Python path before templating `/etc/cron.d/scrape_all`:
+
+```bash
+PYTHON_BIN=\"$(command -v python3 || true)\"
+[ -z \"$PYTHON_BIN\" ] && PYTHON_BIN=\"python3\"
+echo \"0 */4 * * * cd /app && ${PYTHON_BIN} scrape_all.py >> /var/log/cron.log 2>&1\" > /etc/cron.d/scrape_all
+```
+
+After copying the updated entrypoint to the prod droplet I rebuilt the container (`docker-compose up -d --build devtoolscrape`), removed the stale instance that triggered the `ContainerConfig` error, and relaunched the stack. The new `/etc/cron.d/scrape_all` now hard-codes `/usr/local/bin/python3`. I also ran `cd /app && /usr/local/bin/python3 scrape_all.py >> /var/log/cron.log 2>&1` inside the container to seed fresh output—`/var/log/cron.log` ends with a successful run at `2025-11-09 07:18:35`, so the cron daemon should resume publishing every four hours without intervention.

@@ -61,3 +61,9 @@
 ### 2025-11-09T03:49:49Z
 - Captured the scrape cron spec from the prod container (`docker exec devtoolscrape_devtoolscrape_1 cat /etc/cron.d/scrape_all`) so we can mirror the exact `0 */4 * * *` cadence elsewhere.
 - Applied the same schedule on `DIGITALOCEAN_IP` by pushing `0 */4 * * * cd /root/devtoolscrape && /root/devtoolscrape/venv/bin/python3 scrape_all.py >> /var/log/devtoolscrape/scraper.log 2>&1` into root’s crontab and verified it with `crontab -l`, ensuring the dev box now runs `scrape_all.py` every four hours too.
+
+### 2025-11-09T07:18:54Z
+- Investigated the “missing scrapes” on prod and found cron spewing `/bin/sh: 1: python3: not found` because Debian’s cron PATH omits `/usr/local/bin`, so the containerized job never located Python after the last rebuild.
+- Updated `entrypoint.sh` to resolve the absolute `python3` path (falling back if needed) before writing `/etc/cron.d/scrape_all`, copied the change to the droplet, and rebuilt the Docker image (`docker-compose up -d --build devtoolscrape`) so new containers bake in the fix.
+- Cleared the stale container to dodge the compose `ContainerConfig` error, relaunched `devtoolscrape_devtoolscrape_1`, and verified `/etc/cron.d/scrape_all` now calls `/usr/local/bin/python3`.
+- Manually ran `cd /app && /usr/local/bin/python3 scrape_all.py >> /var/log/cron.log 2>&1` inside the container; the log now shows a successful run finishing at `2025-11-09 07:18:35`, confirming cron will pick it up on the next 4‑hour tick.

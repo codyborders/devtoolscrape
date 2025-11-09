@@ -20,8 +20,12 @@ fi
 # Keep legacy path in place for older code paths that reference startups.db directly.
 ln -sf "$DB_FILE" "$LEGACY_DB"
 
-# Write out the cron job to run every 4 hours
-echo "0 */4 * * * cd /app && python3 scrape_all.py >> /var/log/cron.log 2>&1" > /etc/cron.d/scrape_all
+# Write out the cron job to run every 4 hours using the absolute Python path cron can see.
+PYTHON_BIN="$(command -v python3 || true)"
+if [ -z "$PYTHON_BIN" ]; then
+    PYTHON_BIN="python3"
+fi
+echo "0 */4 * * * cd /app && ${PYTHON_BIN} scrape_all.py >> /var/log/cron.log 2>&1" > /etc/cron.d/scrape_all
 chmod 0644 /etc/cron.d/scrape_all
 crontab /etc/cron.d/scrape_all
 
