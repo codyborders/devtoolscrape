@@ -1,0 +1,7 @@
+{
+  "scenario": "baseline",
+  "records": 200,
+  "elapsed_ms": 1239.0885419445112,
+  "openai_calls": 200,
+  "classified": 200
+}

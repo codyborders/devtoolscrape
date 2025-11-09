@@ -1,0 +1,23 @@
+# Nginx front-end for the dev server. Keeps port 8000 on nginx so we can
+# manage headers/assets consistently while proxying back to Gunicorn.
+user www-data;
+worker_processes auto;
+pid /run/nginx.pid;
+error_log /var/log/nginx/error.log;
+include /etc/nginx/modules-enabled/*.conf;
+
+events {
+    worker_connections 1024;
+}
+
+http {
+    include /etc/nginx/mime.types;
+    default_type application/octet-stream;
+
+    sendfile on;
+    tcp_nopush on;
+    keepalive_timeout 65;
+    types_hash_max_size 2048;
+
+    include /root/devtoolscrape/nginx-devtools-scraper.conf;
+}

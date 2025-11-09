@@ -1,0 +1,49 @@
+version: "3.8"
+
+x-app-base: &app-base
+  build:
+    context: .
+  env_file:
+    - .env
+  networks:
+    - devtools-local
+  restart: unless-stopped
+
+services:
+  web-blue:
+    <<: *app-base
+    container_name: devtools-local-blue
+    environment:
+      PYTHONUNBUFFERED: "1"
+      LOG_DIR: /var/log/devtoolscrape
+      STACK_COLOR: blue
+    volumes:
+      - ./logs/blue:/var/log/devtoolscrape
+      - ./data:/app/data
+
+  web-green:
+    <<: *app-base
+    container_name: devtools-local-green
+    environment:
+      PYTHONUNBUFFERED: "1"
+      LOG_DIR: /var/log/devtoolscrape
+      STACK_COLOR: green
+    volumes:
+      - ./logs/green:/var/log/devtoolscrape
+      - ./data:/app/data
+
+  router:
+    image: nginx:1.27-alpine
+    container_name: devtools-local-router
+    depends_on:
+      - web-blue
+      - web-green
+    networks:
+      - devtools-local
+    ports:
+      - "8080:80"
+    volumes:
+      - ./deploy/nginx/local/default.conf:/etc/nginx/conf.d/default.conf:ro
+
+networks:
+  devtools-local:

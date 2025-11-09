@@ -28,6 +28,7 @@
                 Search
             </button>
         </div>
+        <input type="hidden" name="per_page" value="{{ per_page }}">
     </form>
 </div>
 
@@ -38,7 +39,11 @@
         Search Results for "{{ query }}"
     </h2>
     <p class="text-gray-600">
-        Found {{ startups|length }} result{% if startups|length != 1 %}s{% endif %}
+        {% if total_results %}
+            Showing {{ first_item }}&ndash;{{ last_item }} of {{ total_results }} result{% if total_results != 1 %}s{% endif %}
+        {% else %}
+            No results yet
+        {% endif %}
     </p>
 </div>
 {% endif %}
@@ -108,6 +113,24 @@
     <div class="text-gray-400 text-6xl mb-4">🔍</div>
     <h3 class="text-xl font-medium text-gray-900 mb-2">Ready to search</h3>
     <p class="text-gray-600">Enter a search term above to find devtools.</p>
+</div>
+{% endif %}
+
+{% if query and total_pages > 1 %}
+<div class="mt-8 flex items-center justify-center gap-4">
+    {% set prev_page = page - 1 %}
+    {% set next_page = page + 1 %}
+    {% if page > 1 %}
+        <a href="?q={{ query }}&page={{ prev_page }}&per_page={{ per_page }}" class="px-4 py-2 bg-white border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition">Previous</a>
+    {% else %}
+        <span class="px-4 py-2 bg-gray-100 border border-gray-200 rounded-lg text-gray-400 cursor-not-allowed">Previous</span>
+    {% endif %}
+    <span class="text-gray-600 text-sm">Page {{ page }} of {{ total_pages }}</span>
+    {% if page < total_pages %}
+        <a href="?q={{ query }}&page={{ next_page }}&per_page={{ per_page }}" class="px-4 py-2 bg-white border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition">Next</a>
+    {% else %}
+        <span class="px-4 py-2 bg-gray-100 border border-gray-200 rounded-lg text-gray-400 cursor-not-allowed">Next</span>
+    {% endif %}
 </div>
 {% endif %}
 {% endblock %} 
