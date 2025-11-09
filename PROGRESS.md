@@ -53,3 +53,7 @@
 ### 2025-11-09T02:52:20Z
 - SSH’d into the prod droplet with the DIGITALOCEAN credentials, flipped `/etc/nginx/nginx.conf` back to `datadog_rum_config "v5"`, validated via `nginx -t`, and reloaded nginx so the browser agent downgrades immediately.
 - Restarted the Dockerized app with `docker-compose restart devtoolscrape`, waited for the health check to return `healthy`, and verified `https://devtoolscrape.com` now references `www.datadoghq-browser-agent.com/us1/v5/datadog-rum.js`.
+
+### 2025-11-09T03:30:27Z
+- Inserted `DD_PROFILING_TIMELINE_ENABLED=true` into `devtoolscrape/docker-compose.yml` on the prod droplet so Gunicorn launches with Datadog’s profiling timeline feature enabled alongside the existing profiler flags.
+- Recreated the `devtoolscrape_devtoolscrape_1` container via `docker-compose up -d devtoolscrape`, waited for the health check to report `healthy`, and confirmed the new env var is present with `docker inspect ... | grep DD_PROFILING_TIMELINE_ENABLED`.

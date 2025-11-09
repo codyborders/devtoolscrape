@@ -126,3 +126,14 @@ datadog_rum_config "v5" {
 ```
 
 Because the web app itself runs in Docker, I also ran `docker-compose restart devtoolscrape` so Gunicorn cycles alongside nginx. The container took a few seconds to report `healthy`, but once it did, curls against port 8000 (through nginx) and 443 both showed the same v5 payload, which was the gating criterion from the product team. Everything is now back to the previous Datadog baseline.
+
+## 2025-11-09 - Profiling Timeline Toggle In Prod
+Datadog asked for more granular profiling timelines, so I added `DD_PROFILING_TIMELINE_ENABLED=true` to the production `docker-compose.yml` right next to the existing `DD_PROFILING_ENABLED` flag. That keeps all of the tracing/profiling knobs co-located in source control and makes it obvious which ones are safe to tweak without touching secrets; the `.env` file remains unchanged.
+
+```yaml
+    environment:
+      - DD_PROFILING_ENABLED=true
+      - DD_PROFILING_TIMELINE_ENABLED=true
+```
+
+After editing the compose file on the droplet I recreated the Gunicorn container with `docker-compose up -d devtoolscrape` (the plain restart wouldn’t pick up env changes). Once the health check flipped back to `healthy`, I ran `docker inspect devtoolscrape_devtoolscrape_1 | grep DD_PROFILING_TIMELINE_ENABLED` to prove the new variable is baked into the runtime environment. A final `curl -sk https://devtoolscrape.com` sanity check confirmed the app responded over TLS, so the profiler timeline data should start flowing into Datadog on the next scrape cycle.
