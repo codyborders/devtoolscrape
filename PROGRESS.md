@@ -2,6 +2,7 @@
 - Resolved the merge between `codex-review` and `main` by layering the RUM SDK v6 log entries ahead of the tracing/LLM diary so we preserve the full history without conflict markers.
 - Bumped every `DD_VERSION` default (docker-compose + cron wrapper) to `1.1` while double-checking that the `DD_ENV`, `DD_SERVICE`, and LLM tags stayed untouched, so Datadog clearly shows the new build without forking tag cardinality.
 - Prepped the no-blue/green deploy requested for today: once this commit lands on GitHub, I’ll push to production by SSH’ing to the droplet, running `git pull origin main`, restarting the systemd service, and verifying `/health`, cron logs, and Datadog telemetry all reflect version `1.1`.
+- Updated both compose files so host port `8000` forwards to the container’s new Gunicorn listener on `9000` and so the container health check probes `http://localhost:9000/health`, which keeps Nginx’s reverse proxy working without rewriting the droplet config.
 
 ### 2025-11-09T01:40:17Z
 - Looked up the latest Datadog Browser SDK release (v6.23.0) via the GitHub API so we could pin the edge proxy to the newest build.

@@ -4,7 +4,7 @@ services:
   devtoolscrape:
     build: .
     ports:
-      - "8000:8000"
+      - "8000:9000"
     volumes:
       - ./data:/app/data
       - ./logs:/var/log
@@ -25,7 +25,7 @@ services:
       - DD_LLMOBS_ML_APP=devtoolscrape
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/"]
+      test: ["CMD", "curl", "-f", "http://localhost:9000/health"]
       interval: 30s
       timeout: 10s
       retries: 3 

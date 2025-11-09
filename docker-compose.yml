@@ -4,17 +4,30 @@ services:
   devtoolscrape:
     build: .
     ports:
-      - "8000:8000"
+      - "8000:9000"
     volumes:
       - ./data:/app/data
       - ./logs:/var/log
     environment:
       - PYTHONUNBUFFERED=1
+      - DD_ENV=prod
+      - DD_SERVICE=devtoolscrape
+      - DD_VERSION=1.1
+      - DD_AGENT_HOST=dd-agent
+      - DD_APM_ENABLED=true
+      - DD_TRACE_ENABLED=true
+      - DD_PROFILING_ENABLED=true
+      - DD_PROFILING_TIMELINE_ENABLED=true
+      - DD_RUNTIME_METRICS_ENABLED=true
+      - DD_RUNTIME_METRICS_RUNTIME_ID_ENABLED=true
+      - DD_DYNAMIC_INSTRUMENTATION_ENABLED=true
+      - DD_LLMOBS_ENABLED=1
+      - DD_LLMOBS_ML_APP=devtoolscrape
     env_file:
       - .env
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/"]
+      test: ["CMD", "curl", "-f", "http://localhost:9000/health"]
       interval: 30s
       timeout: 10s
       retries: 3 
