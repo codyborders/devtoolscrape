@@ -1,5 +1,6 @@
 # Gunicorn configuration file
-bind = "0.0.0.0:8000"
+# Bind to localhost so nginx can front requests (and inject RUM) on the public ports.
+bind = "127.0.0.1:9000"
 workers = 2
 worker_class = "sync"
 worker_connections = 1000

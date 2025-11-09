@@ -31,3 +31,8 @@
 ### 2025-11-08T23:49:25Z
 - Backed out the Flask/Jinja RUM injection so telemetry remains managed entirely by nginx per the architecture requirements.
 - Added `nginx.conf.dev`, which loads the Datadog nginx module, reads the `DATADOG_RUM_*` values exported from `.env`, and configures the `datadog_rum_config` block (including regional script selection and sane defaults) before including `nginx-devtools-scraper.conf`.
+
+### 2025-11-09T00:03:03Z
+- Shifted Gunicorn to bind on `127.0.0.1:9000` (`gunicorn.conf.py`) and taught `nginx-devtools-scraper.conf` to listen on `:8000`, proxy to the new upstream, and serve `/static` so every request now traverses nginx (and picks up the Datadog RUM injection) even when QA hits `146.190.133.225:8000` directly.
+- Rebuilt `nginx.conf.dev` as an envsubst template: it’s committed without secrets, but can be materialized on the host by sourcing `.env` (which now stores `DATADOG_RUM_*` tokens) and running `envsubst ... > /etc/nginx/nginx.conf`. Added a systemd drop-in so nginx inherits the `.env` content, then reloaded nginx + `devtools-scraper` to apply the new port layout.
+- Verified the end-to-end fix by curling `http://146.190.133.225:8000` (now served via nginx) and confirming the injected `DD_RUM.init` block matches the Datadog credentials, ensuring RUM sessions land even without touching the TLS endpoints.

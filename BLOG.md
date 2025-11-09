@@ -55,3 +55,16 @@ I went with the template approach to unblock QA immediately. The Flask app now r
 We ultimately reverted the Flask-side snippet so there’s a single source of truth for RUM. The new `nginx.conf.dev` mirrors what’s running on the droplet: it loads the Datadog module, enables `datadog_rum`, and pulls every browser setting from exported `DATADOG_RUM_*` env vars (with defaults for site, sample rates, and interaction tracking). The config also derives the correct browser SDK URL (`www.datadoghq-browser-agent.com/<region>/v5/datadog-rum.js`) automatically, so swapping to eu/us3/ap1 is just a matter of updating `.env` before restarting nginx.
 
 Because the RUM block now lives alongside the proxy definition, the app templates stay clean and the team can keep injecting telemetry exclusively at the edge—exactly how prod behaves. Anyone spinning up a dev proxy just drops their tokens into `.env`, exports them for systemd, and reuses `nginx.conf.dev` without having to touch Flask again.
+
+## 2025-11-09 - Putting Nginx In Front Of Port 8000
+“Just hit :8000” turned into an architectural wrinkle: that port was owned by Gunicorn, so nginx never saw the traffic and Datadog couldn’t inject anything. I flipped the layout so Gunicorn now binds to `127.0.0.1:9000` while nginx claims `:8000`, proxies to the loopback upstream, and keeps serving `/static` from `/root/devtoolscrape/static`. The new `nginx.conf.dev` is a template rather than a secret dump; we keep the `DATADOG_RUM_*` values in `.env`, run `envsubst` to materialize `/etc/nginx/nginx.conf`, and rely on a systemd drop-in to load that environment whenever nginx starts.
+
+After copying the generated config into place, I restarted `devtools-scraper` (to pick up the new Gunicorn bind) and then nginx. Curling `http://146.190.133.225:8000` now returns HTML with:
+
+```html
+<script>
+  window.DD_RUM.init({"applicationId":"db5d092e-055d-4d4d-a4ca-b8f257fb4dcf","clientToken":"pubbf870a54b30d159dc08f02bfff4159f9","site":"datadoghq.com","service":"devtoolscrape-dev","env":"dev"});
+</script>
+```
+
+so every dev-only session hits the same Datadog project without relying on the TLS hosts. The nginx error log is finally quiet (agent URL points at `127.0.0.1:8126`), and the RUM explorer started populating `service:devtoolscrape-dev env:dev` within a couple of minutes of the cutover.
