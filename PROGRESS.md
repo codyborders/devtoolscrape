@@ -57,3 +57,7 @@
 ### 2025-11-09T03:30:27Z
 - Inserted `DD_PROFILING_TIMELINE_ENABLED=true` into `devtoolscrape/docker-compose.yml` on the prod droplet so Gunicorn launches with Datadog’s profiling timeline feature enabled alongside the existing profiler flags.
 - Recreated the `devtoolscrape_devtoolscrape_1` container via `docker-compose up -d devtoolscrape`, waited for the health check to report `healthy`, and confirmed the new env var is present with `docker inspect ... | grep DD_PROFILING_TIMELINE_ENABLED`.
+
+### 2025-11-09T03:49:49Z
+- Captured the scrape cron spec from the prod container (`docker exec devtoolscrape_devtoolscrape_1 cat /etc/cron.d/scrape_all`) so we can mirror the exact `0 */4 * * *` cadence elsewhere.
+- Applied the same schedule on `DIGITALOCEAN_IP` by pushing `0 */4 * * * cd /root/devtoolscrape && /root/devtoolscrape/venv/bin/python3 scrape_all.py >> /var/log/devtoolscrape/scraper.log 2>&1` into root’s crontab and verified it with `crontab -l`, ensuring the dev box now runs `scrape_all.py` every four hours too.

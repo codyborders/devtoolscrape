@@ -137,3 +137,14 @@ Datadog asked for more granular profiling timelines, so I added `DD_PROFILING_TI
 ```
 
 After editing the compose file on the droplet I recreated the Gunicorn container with `docker-compose up -d devtoolscrape` (the plain restart wouldn’t pick up env changes). Once the health check flipped back to `healthy`, I ran `docker inspect devtoolscrape_devtoolscrape_1 | grep DD_PROFILING_TIMELINE_ENABLED` to prove the new variable is baked into the runtime environment. A final `curl -sk https://devtoolscrape.com` sanity check confirmed the app responded over TLS, so the profiler timeline data should start flowing into Datadog on the next scrape cycle.
+
+## 2025-11-09 - Cron Parity Between Prod And Dev
+To keep the scraper cadence consistent, I first grabbed the prod schedule straight from the running container: `docker exec devtoolscrape_devtoolscrape_1 cat /etc/cron.d/scrape_all` shows a single `0 */4 * * *` entry that cds into `/app` before running `python3 scrape_all.py`. That confirms we expect fresh data every four hours, regardless of where the scraper runs.
+
+The dev droplet at `DIGITALOCEAN_IP` doesn’t run inside Docker, so I mirrored the cadence via root’s crontab instead. The installed entry now reads:
+
+```cron
+0 */4 * * * cd /root/devtoolscrape && /root/devtoolscrape/venv/bin/python3 scrape_all.py >> /var/log/devtoolscrape/scraper.log 2>&1
+```
+
+After loading that line with `printf ... | crontab -`, a quick `crontab -l` confirmed the job is scheduled exactly every four hours and logs to the same rolling file we already tail for scraper output. Both droplets will now kick off `scrape_all.py` on the same timeline, which keeps the datasets aligned without relying on manual runs.
