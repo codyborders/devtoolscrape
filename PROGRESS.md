@@ -49,3 +49,7 @@
 ### 2025-11-09T02:02:49Z
 - Backed out the npm-based Datadog bundle entirely: removed `package.json`/`package-lock.json`, deleted `assets/rum/index.js`, nuked `static/js/datadog-rum.bundle.js`, and restored `.gitignore`, `app_production.py`, and `templates/base.html` to their pre-RUM state (no `/rum-config` endpoint, no client-side loader).
 - Left the simplified `nginx.conf.dev`/`nginx-devtools-scraper.conf` in place but stripped any Datadog references so nginx simply proxies to Gunicorn without injecting telemetry; documented the rollback so the team knows RUM is disabled for now.
+
+### 2025-11-09T02:52:20Z
+- SSH’d into the prod droplet with the DIGITALOCEAN credentials, flipped `/etc/nginx/nginx.conf` back to `datadog_rum_config "v5"`, validated via `nginx -t`, and reloaded nginx so the browser agent downgrades immediately.
+- Restarted the Dockerized app with `docker-compose restart devtoolscrape`, waited for the health check to return `healthy`, and verified `https://devtoolscrape.com` now references `www.datadoghq-browser-agent.com/us1/v5/datadog-rum.js`.

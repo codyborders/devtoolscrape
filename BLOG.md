@@ -114,3 +114,15 @@ After `nginx -t && systemctl reload nginx`, curls against `https://devtoolscrape
 Product asked us to hit pause on RUM entirely, so I stripped everything back to the pre-instrumented dev build. The npm toolchain (`package.json`, `assets/rum/index.js`, `static/js/datadog-rum.bundle.js`) is gone, `.gitignore` no longer watches `node_modules/`, and `app_production.py` is back to plain Flask routing with no `/rum-config` helper. The template’s footer lost the bundle include as well, so browsers just get Tailwind + our own scripts.
 
 While I was in there I tidied the nginx templates: `nginx.conf.dev` now documents the proxy role without mentioning Datadog, and `nginx-devtools-scraper.conf` simply forwards traffic to Gunicorn on the port we already fronted (still useful even without RUM). I wrote up the rollback in `PROGRESS.md` so everyone knows RUM is disabled for now, and we can revisit the instrumentation later once there’s a clearer plan for capturing browser telemetry.
+
+## 2025-11-09 - RUM Downgrade And App Restart
+Prod changed course again and wanted the browser SDK back on the v5 train, so I SSH’d into the droplet with the DIGITALOCEAN secrets and edited `/etc/nginx/nginx.conf` to swap `datadog_rum_config "v6"` back to `"v5"`. Even though it was a one-line tweak, I still ran `nginx -t` before hitting `systemctl reload nginx` to make sure nothing else drifted in the config. A quick `curl -sk https://devtoolscrape.com | grep datadoghq-browser-agent` afterwards confirmed nginx is injecting `www.datadoghq-browser-agent.com/us1/v5/datadog-rum.js`, so browsers immediately pick up the downgraded bundle.
+
+```nginx
+datadog_rum_config "v5" {
+    "applicationId" "5fcf523d-8cfe-417e-b822-bbc4dc2b3034";
+    "clientToken" "pub3adab38f79d9d2e618af8ca4362113af";
+}
+```
+
+Because the web app itself runs in Docker, I also ran `docker-compose restart devtoolscrape` so Gunicorn cycles alongside nginx. The container took a few seconds to report `healthy`, but once it did, curls against port 8000 (through nginx) and 443 both showed the same v5 payload, which was the gating criterion from the product team. Everything is now back to the previous Datadog baseline.
