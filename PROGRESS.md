@@ -67,3 +67,9 @@
 - Updated `entrypoint.sh` to resolve the absolute `python3` path (falling back if needed) before writing `/etc/cron.d/scrape_all`, copied the change to the droplet, and rebuilt the Docker image (`docker-compose up -d --build devtoolscrape`) so new containers bake in the fix.
 - Cleared the stale container to dodge the compose `ContainerConfig` error, relaunched `devtoolscrape_devtoolscrape_1`, and verified `/etc/cron.d/scrape_all` now calls `/usr/local/bin/python3`.
 - Manually ran `cd /app && /usr/local/bin/python3 scrape_all.py >> /var/log/cron.log 2>&1` inside the container; the log now shows a successful run finishing at `2025-11-09 07:18:35`, confirming cron will pick it up on the next 4‑hour tick.
+
+### 2025-11-09T14:31:47Z
+- Root-caused the missing Datadog scraper spans: cron executed `python3` directly, bypassing `ddtrace-run`, so no APM instrumentation wrapped the GitHub/HN/Product Hunt calls even though the app container itself was traced.
+- Extended `entrypoint.sh` to resolve both `python3` and `ddtrace-run`, inject the Datadog env vars explicitly (`DD_ENV`, `DD_SERVICE`, etc.), and emit a cron line that runs `env ... ddtrace-run /usr/local/bin/python3 scrape_all.py`.
+- Deployed the updated entrypoint to prod, rebuilt the image, recreated `devtoolscrape_devtoolscrape_1`, and verified `/etc/cron.d/scrape_all` now contains the traced command.
+- Manually executed `env DD_ENV=prod ... /usr/local/bin/ddtrace-run /usr/local/bin/python3 scrape_all.py` in the container; the run completed at `2025-11-09 14:30:40` and should now emit spans for every outbound scraper call.

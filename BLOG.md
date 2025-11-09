@@ -161,3 +161,14 @@ echo \"0 */4 * * * cd /app && ${PYTHON_BIN} scrape_all.py >> /var/log/cron.log 2
 ```
 
 After copying the updated entrypoint to the prod droplet I rebuilt the container (`docker-compose up -d --build devtoolscrape`), removed the stale instance that triggered the `ContainerConfig` error, and relaunched the stack. The new `/etc/cron.d/scrape_all` now hard-codes `/usr/local/bin/python3`. I also ran `cd /app && /usr/local/bin/python3 scrape_all.py >> /var/log/cron.log 2>&1` inside the container to seed fresh output—`/var/log/cron.log` ends with a successful run at `2025-11-09 07:18:35`, so the cron daemon should resume publishing every four hours without intervention.
+
+## 2025-11-09 - Restoring Datadog Spans For Scrapers
+Once cron could see Python again, we noticed the Datadog dashboards still showed zero scraper spans. The reason was straightforward: the cron job called plain `python3 scrape_all.py`, so none of the requests to GitHub, Hacker News, Product Hunt, or OpenAI were wrapped with `ddtrace-run`. Gunicorn traffic was traced (its entrypoint uses `ddtrace-run`), but the batch job bypassed instrumentation entirely.
+
+To fix that I taught `entrypoint.sh` to resolve both the Python interpreter and `ddtrace-run`, gather the Datadog env vars, and emit a cron line that looks like:
+
+```bash
+0 */4 * * * cd /app && env DD_ENV=prod DD_SERVICE=devtoolscrape ... /usr/local/bin/ddtrace-run /usr/local/bin/python3 scrape_all.py >> /var/log/cron.log 2>&1
+```
+
+After copying the updated script to the prod droplet I rebuilt the image, removed the stale container (to avoid the compose `ContainerConfig` bug), and relaunched `devtoolscrape_devtoolscrape_1`. `/etc/cron.d/scrape_all` now shows the traced command, and a manual run at `2025-11-09 14:30:40` confirmed the scraper still succeeds while emitting spans through `ddtrace-run`. The next scheduled run should appear under `service:devtoolscrape env:prod` with the GitHub/HN/Product Hunt calls fully instrumented again.
