@@ -1,3 +1,15 @@
+## 2025-11-16 - Dependency Cleanup Plan
+Spent today tracing the last several commits to inventory every chunk of bespoke infrastructure code that could shrink if we let common libraries carry the load. The output is `2025-11-16-refactor.md`, a short field guide for the next engineer to reach for cachetools/tenacity in `ai_classifier.py`, an ORM/paginator pairing in the view/database stack, and structlog (or similar) in place of our handcrafted logging scaffolding. Getting that onto paper means the refactor discussion can stay focused on design trade-offs rather than rediscovering where the boilerplate lives.
+
+The tricky part was proving these aren’t speculative wins—each bullet is tied to a specific commit where we added sizable amounts of custom code. I sampled those diffs to confirm we can now delete more lines than we add, then captured them as actionable items other folks can dive into. For easy skimming I used the same terse mapping I relied on while reading the history:
+
+```text
+- ai_classifier.py -> cachetools.TTLCache + tenacity/backoff
+- database.py -> SQLAlchemy/SQLModel/peewee
+- app_production.py -> Flask-Paginate (or equivalent)
+- logging_config.py -> structlog/loguru
+```
+
 ## 2025-11-09 - Mainline Merge & Prod Redeploy
 Collapsed the long-running `codex-review` changeset onto `main` so the observability work, pagination fixes, and deployment scripts finally travel together. The only interactive bits were the knowledge-base files (`BLOG.md`, `PROGRESS.md`), so I replayed the RUM SDK v6 chronology from `main` ahead of the tracing/profiling diary entries we’ve been keeping on the branch. While I was there I scrubbed the Datadog defaults to make sure the environment/service tags survived the merge and upped the reported build to `1.1` everywhere our containers or cron jobs emit telemetry.
 

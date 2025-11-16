@@ -1,3 +1,7 @@
+### 2025-11-16T16:10:21Z
+- Captured the high-impact dependency refactors (cachetools/tenacity for the classifier, ORM/pagination helpers for persistence + views, and structlog-based logging) in `2025-11-16-refactor.md` so another engineer can pick them up without re-reading the git history.
+- Left the codebase untouched otherwise; this pass was purely documentation to guide the upcoming refactor, so no runtime changes needed verification.
+
 ### 2025-11-09T17:48:24Z
 - Added `observability.py` helpers so we can consistently wrap outbound HTTP/LLM calls in Datadog spans even when ddtrace is missing in tests.
 - Instrumented the GitHub Trending, Hacker News (top + Show HN), Product Hunt RSS/API scrapers, and all OpenAI classifier calls with the new tracing helpers to capture status codes, retry attempts, and model metadata.
