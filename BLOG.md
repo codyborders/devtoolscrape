@@ -13,6 +13,16 @@ def _call_openai(...):
                 return client.chat.completions.create(...)
 ```
 
+## 2025-11-16 - Dependency Branch Sync
+Pulled the `task-ai-classifier-cachetools-tenacity` worktree into `dependency-optimizations` so the shared branch now includes the cachetools-backed classifier cache, the tenacity retry wrapper, and the expanded pytest fixture scaffolding. The fast-forward was a clean hop from `9fa0419` to `63f5526`, which keeps the dependency planning docs plus the refactor implementation on the same branch, making future dependency cleanups easier to coordinate.
+
+After the merge I activated the repo venv and re-ran the targeted classifier suite to make sure the retry instrumentation and TTL cache still behave exactly as they did on the feature branch (14 tests pass with the lone pythonjsonlogger warning I expect from upstream):
+
+```bash
+source .venv/bin/activate
+pytest tests/test_ai_classifier.py
+```
+
 ## 2025-11-16 - Task Decomposition for Dependency Cleanup
 Followed up on yesterday’s refactor assessment by turning each dependency opportunity into a standalone task doc. The idea is to make it trivial for any engineer to grab a slice—caching/retry work in `ai_classifier.py`, ORM migration for `database.py`, pagination cleanup in `app_production.py`, or the logging overhaul—and understand the why/what/how without spelunking through commit history. Each `task-*.md` captures the current pain points, acceptance criteria, suggested libraries, and the files/tests that will need love.
 
