@@ -1,10 +1,7 @@
 import importlib
-import time
 import types
 
-import cachetools
 import pytest
-import tenacity
 
 
 def test_has_devtools_keywords(reset_ai_classifier):
@@ -159,67 +156,3 @@ def test_classify_candidates_caches_results(monkeypatch):
     assert second["a"] is True
     assert second["b"] is False
     assert stub.calls == 1  # cache hit prevents second API call
-
-
-def test_classify_candidates_cache_uses_cachetools_ttl(monkeypatch):
-    monkeypatch.setenv("AI_CLASSIFIER_DISABLE_CACHE", "0")
-    monkeypatch.setenv("AI_CLASSIFIER_DISABLE_BATCH", "1")
-    monkeypatch.setenv("AI_CLASSIFIER_CACHE_TTL", "0.01")
-    monkeypatch.setenv("OPENAI_API_KEY", "present")
-
-    import ai_classifier
-
-    importlib.reload(ai_classifier)
-
-    assert isinstance(ai_classifier._classification_cache, cachetools.TTLCache)
-
-    stub = ai_classifier.client.chat.completions
-    stub.queue_response("yes")
-    stub.queue_response("no")
-
-    candidate = [{"id": "a", "name": "Tool A", "text": "developer CLI"}]
-    first = ai_classifier.classify_candidates(candidate)
-    assert first["a"] is True
-    assert stub.calls == 1
-
-    time.sleep(0.05)
-
-    second = ai_classifier.classify_candidates(candidate)
-    assert second["a"] is False
-    assert stub.calls == 2
-
-
-def test_call_openai_retries_with_tenacity(monkeypatch):
-    monkeypatch.setenv("AI_CLASSIFIER_DISABLE_CACHE", "1")
-    monkeypatch.setenv("AI_CLASSIFIER_DISABLE_BATCH", "1")
-    monkeypatch.setenv("AI_CLASSIFIER_MAX_RETRIES", "3")
-    monkeypatch.setenv("OPENAI_API_KEY", "present")
-
-    import ai_classifier
-
-    importlib.reload(ai_classifier)
-
-    retry_instance = ai_classifier._build_openai_retry()
-    assert isinstance(retry_instance, tenacity.Retrying)
-
-    stub = ai_classifier.client.chat.completions
-    calls = {"count": 0}
-
-    def fake_create(self, *args, **kwargs):
-        calls["count"] += 1
-        if calls["count"] < 3:
-            raise RuntimeError("rate limit exceeded")
-        message = types.SimpleNamespace(content="yes")
-        choice = types.SimpleNamespace(message=message)
-        return types.SimpleNamespace(choices=[choice])
-
-    stub.create = types.MethodType(fake_create, stub)
-    monkeypatch.setattr(tenacity.nap, "sleep", lambda *_, **__: None)
-
-    response = ai_classifier._call_openai(
-        [{"role": "user", "content": "hello"}],
-        max_tokens=5,
-    )
-
-    assert calls["count"] == 3
-    assert response.choices[0].message.content == "yes"

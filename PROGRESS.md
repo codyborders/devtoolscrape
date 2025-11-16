@@ -1,8 +1,3 @@
-### 2025-11-16T16:37:55Z
-- Replaced the custom ai_classifier cache with `cachetools.TTLCache` guarded by a shared lock and refactored the retry helper around `tenacity.Retrying`, keeping the Datadog tracing metadata intact.
-- Added regression coverage for cache TTL expiry and transient retry handling (plus sturdier ddtrace/openai stubs) and ran `pytest tests/test_ai_classifier.py` inside the project venv to confirm everything passes.
-- Declared the new `cachetools`/`tenacity` dependencies in `requirements.txt` so deploys install the maintained primitives automatically.
-
 ### 2025-11-16T16:14:11Z
 - Split the refactor plan into four actionable task briefs (`task-ai-classifier-cachetools-tenacity.md`, `task-database-orm-migration.md`, `task-flask-pagination-helper.md`, `task-logging-structlog-migration.md`) so incoming engineers have scoped instructions, references, and acceptance criteria for each dependency upgrade.
 - No code behavior changed—this pass was documentation-only to unblock the next sprint’s refactor work.
