@@ -1,3 +1,7 @@
+### 2025-11-16T16:14:11Z
+- Split the refactor plan into four actionable task briefs (`task-ai-classifier-cachetools-tenacity.md`, `task-database-orm-migration.md`, `task-flask-pagination-helper.md`, `task-logging-structlog-migration.md`) so incoming engineers have scoped instructions, references, and acceptance criteria for each dependency upgrade.
+- No code behavior changed—this pass was documentation-only to unblock the next sprint’s refactor work.
+
 ### 2025-11-16T16:10:21Z
 - Captured the high-impact dependency refactors (cachetools/tenacity for the classifier, ORM/pagination helpers for persistence + views, and structlog-based logging) in `2025-11-16-refactor.md` so another engineer can pick them up without re-reading the git history.
 - Left the codebase untouched otherwise; this pass was purely documentation to guide the upcoming refactor, so no runtime changes needed verification.
