@@ -1,13 +1,13 @@
 import json
 import os
 import threading
-import time
-from collections import OrderedDict
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import Dict, Iterable, List, Optional
 
+from cachetools import TTLCache
 import openai
 from dotenv import load_dotenv
+from tenacity import Retrying, retry_if_exception, stop_after_attempt, wait_exponential
 
 from pathlib import Path
 
@@ -60,46 +60,23 @@ def _has_openai_key() -> bool:
     return bool(os.getenv('OPENAI_API_KEY'))
 
 
-class TTLCache:
-    def __init__(self, maxsize: int, ttl: float):
-        self.maxsize = maxsize
-        self.ttl = ttl
-        self._data: OrderedDict[str, tuple[float, object]] = OrderedDict()
-        self._lock = threading.Lock()
-
-    def get(self, key: str):
-        if not _CACHE_ENABLED:
-            return None
-        now = time.monotonic()
-        with self._lock:
-            record = self._data.get(key)
-            if not record:
-                return None
-            expires_at, value = record
-            if expires_at and expires_at < now:
-                del self._data[key]
-                return None
-            self._data.move_to_end(key)
-            return value
-
-    def set(self, key: str, value):
-        if not _CACHE_ENABLED:
-            return
-        with self._lock:
-            expires = time.monotonic() + self.ttl if self.ttl else None
-            self._data[key] = (expires, value)
-            self._data.move_to_end(key)
-            while len(self._data) > self.maxsize:
-                self._data.popitem(last=False)
-
-    def clear(self):
-        with self._lock:
-            self._data.clear()
-
-
 _classification_cache = TTLCache(_CACHE_SIZE, _CACHE_TTL)
 _category_cache = TTLCache(_CACHE_SIZE, _CACHE_TTL)
-_cache_lock = threading.Lock()
+_cache_lock = threading.RLock()
+
+
+def _cache_get(cache: TTLCache, key: str):
+    if not _CACHE_ENABLED:
+        return None
+    with _cache_lock:
+        return cache.get(key)
+
+
+def _cache_set(cache: TTLCache, key: str, value) -> None:
+    if not _CACHE_ENABLED:
+        return
+    with _cache_lock:
+        cache[key] = value
 
 def has_devtools_keywords(text: str, name: str = "") -> bool:
     """Quick keyword pre-filter to avoid unnecessary API calls"""
@@ -118,67 +95,77 @@ def _cache_key(name: str, text: str) -> str:
     return f"{name.strip().lower()}|{text.strip().lower()}"
 
 
+def _is_retryable_error(exc: Exception) -> bool:
+    if exc is None:
+        return False
+    message = str(exc).lower()
+    return any(keyword in message for keyword in ("rate limit", "timeout", "429"))
+
+
+def _build_openai_retry() -> Retrying:
+    return Retrying(
+        stop=stop_after_attempt(_MAX_RETRIES),
+        wait=wait_exponential(multiplier=1, min=1),
+        retry=retry_if_exception(_is_retryable_error),
+        reraise=True,
+    )
+
+
 def _call_openai(messages: List[Dict[str, str]], max_tokens: int, temperature: float = 0.0, response_format=None):
-    delay = 1.0
-    last_exc = None
-    for attempt in range(_MAX_RETRIES):
-        try:
+    retrying = _build_openai_retry()
+    for attempt in retrying:
+        with attempt:
+            attempt_number = attempt.retry_state.attempt_number
             logger.debug(
                 "openai.request",
                 extra={
                     "event": "openai.request",
-                    "attempt": attempt + 1,
+                    "attempt": attempt_number,
                     "max_tokens": max_tokens,
                     "temperature": temperature,
                     "response_format": bool(response_format),
                 },
             )
-            with trace_external_call(
-                "openai.chat.completion",
-                resource="classifier.batch",
-                span_type="llm",
-                tags={
-                    "openai.model": _OPENAI_MODEL,
-                    "openai.attempt": attempt + 1,
-                    "openai.max_tokens": max_tokens,
-                    "openai.temperature": temperature,
-                    "openai.response_format": bool(response_format),
-                    "openai.message_count": len(messages),
-                },
-            ) as span:
-                if span:
-                    span.set_tag("span.kind", "client")
-                    span.set_tag("component", "openai")
-                response = client.chat.completions.create(
-                    model=_OPENAI_MODEL,
-                    messages=messages,
-                    max_tokens=max_tokens,
-                    temperature=temperature,
-                    response_format=response_format,
+            try:
+                with trace_external_call(
+                    "openai.chat.completion",
+                    resource="classifier.batch",
+                    span_type="llm",
+                    tags={
+                        "openai.model": _OPENAI_MODEL,
+                        "openai.attempt": attempt_number,
+                        "openai.max_tokens": max_tokens,
+                        "openai.temperature": temperature,
+                        "openai.response_format": bool(response_format),
+                        "openai.message_count": len(messages),
+                    },
+                ) as span:
+                    if span:
+                        span.set_tag("span.kind", "client")
+                        span.set_tag("component", "openai")
+                    response = client.chat.completions.create(
+                        model=_OPENAI_MODEL,
+                        messages=messages,
+                        max_tokens=max_tokens,
+                        temperature=temperature,
+                        response_format=response_format,
+                    )
+                    if span and getattr(response, "usage", None):
+                        usage = response.usage
+                        span.set_tag("openai.prompt_tokens", getattr(usage, "prompt_tokens", 0))
+                        span.set_tag("openai.completion_tokens", getattr(usage, "completion_tokens", 0))
+                        span.set_tag("openai.total_tokens", getattr(usage, "total_tokens", 0))
+                    return response
+            except Exception as exc:  # pragma: no cover - relies on API behaviour
+                logger.warning(
+                    "openai.error",
+                    extra={
+                        "event": "openai.error",
+                        "attempt": attempt_number,
+                        "error": str(exc),
+                    },
                 )
-                if span and getattr(response, "usage", None):
-                    usage = response.usage
-                    span.set_tag("openai.prompt_tokens", getattr(usage, "prompt_tokens", 0))
-                    span.set_tag("openai.completion_tokens", getattr(usage, "completion_tokens", 0))
-                    span.set_tag("openai.total_tokens", getattr(usage, "total_tokens", 0))
-                return response
-        except Exception as exc:  # pragma: no cover - relies on API behaviour
-            last_exc = exc
-            message = str(exc).lower()
-            logger.warning(
-                "openai.error",
-                extra={
-                    "event": "openai.error",
-                    "attempt": attempt + 1,
-                    "error": str(exc),
-                },
-            )
-            if attempt == _MAX_RETRIES - 1 or ("rate limit" not in message and "timeout" not in message and "429" not in message):
                 raise
-            time.sleep(delay)
-            delay *= 2
-    if last_exc:
-        raise last_exc
 
 
 def classify_candidates(candidates: Iterable[Dict[str, str]]) -> Dict[str, bool]:
@@ -207,7 +194,7 @@ def classify_candidates(candidates: Iterable[Dict[str, str]]) -> Dict[str, bool]
                 results[cid] = False
                 continue
             key = _cache_key(name, text)
-            cached = _classification_cache.get(key)
+            cached = _cache_get(_classification_cache, key)
             if cached is not None:
                 logger.debug(
                     "classifier.cache_hit",
@@ -227,7 +214,7 @@ def classify_candidates(candidates: Iterable[Dict[str, str]]) -> Dict[str, bool]
     if not _has_openai_key() or not _USE_BATCH or len(pending) == 1:
         for candidate in pending:
             outcome = _classify_single(candidate.get("name", ""), candidate.get("text", ""))
-            _classification_cache.set(candidate["_cache_key"], outcome)
+            _cache_set(_classification_cache, candidate["_cache_key"], outcome)
             results[candidate["id"]] = outcome
         return results
 
@@ -273,7 +260,7 @@ def classify_candidates(candidates: Iterable[Dict[str, str]]) -> Dict[str, bool]
             for candidate in chunk:
                 with logging_context(candidate_id=candidate["id"], candidate_name=candidate.get("name")):
                     outcome = _classify_single(candidate.get("name", ""), candidate.get("text", ""))
-                    _classification_cache.set(candidate["_cache_key"], outcome)
+                    _cache_set(_classification_cache, candidate["_cache_key"], outcome)
                     results[candidate["id"]] = outcome
         else:
             for candidate in chunk:
@@ -287,7 +274,7 @@ def classify_candidates(candidates: Iterable[Dict[str, str]]) -> Dict[str, bool]
                             "outcome": outcome,
                         },
                     )
-                    _classification_cache.set(candidate["_cache_key"], outcome)
+                    _cache_set(_classification_cache, candidate["_cache_key"], outcome)
                     results[candidate["id"]] = outcome
 
     with ThreadPoolExecutor(max_workers=min(_MAX_CONCURRENCY, len(chunks))) as executor:
@@ -375,11 +362,11 @@ def is_devtools_related_ai(text: str, name: str = "") -> bool:
     Returns True if it's devtools, False otherwise.
     """
     key = _cache_key(name, text)
-    cached = _classification_cache.get(key)
+    cached = _cache_get(_classification_cache, key)
     if cached is not None:
         return cached
     result = classify_candidates([{"id": "_single", "name": name, "text": text}]).get("_single", False)
-    _classification_cache.set(key, result)
+    _cache_set(_classification_cache, key, result)
     return result
 
 def is_devtools_related_fallback(text: str) -> bool:
@@ -405,7 +392,7 @@ def get_devtools_category(text: str, name: str = "") -> Optional[str]:
         return None
 
     key = _cache_key(name, text)
-    cached = _category_cache.get(key)
+    cached = _cache_get(_category_cache, key)
     if cached is not None:
         return cached
     
@@ -471,7 +458,7 @@ def get_devtools_category(text: str, name: str = "") -> Optional[str]:
         )
 
         category = response.choices[0].message.content.strip()
-        _category_cache.set(key, category)
+        _cache_set(_category_cache, key, category)
         logger.debug(
             "classifier.category",
             extra={
