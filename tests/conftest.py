@@ -1,5 +1,6 @@
 import importlib
 import json
+import os
 import pathlib
 import sys
 import threading
@@ -9,6 +10,9 @@ import pytest
 
 # Ensure project root is importable regardless of test runner cwd
 ROOT = pathlib.Path(__file__).resolve().parents[1]
+LOG_DIR = ROOT / "logs"
+LOG_DIR.mkdir(parents=True, exist_ok=True)
+os.environ.setdefault("LOG_DIR", str(LOG_DIR))
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
@@ -19,6 +23,7 @@ def stub_external_sdks():
     # Stub ddtrace.llmobs.LLMObs.enable
     ddtrace_module = types.ModuleType("ddtrace")
     llmobs_module = types.ModuleType("ddtrace.llmobs")
+    tracer_module = types.ModuleType("ddtrace.tracer")
 
     class _FakeLLMObs:
         calls = []
@@ -27,10 +32,28 @@ def stub_external_sdks():
         def enable(cls, *args, **kwargs):
             cls.calls.append((args, kwargs))
 
+    class _FakeSpan:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, exc_type, exc_val, exc_tb):
+            return False
+
+        def set_tag(self, *args, **kwargs):
+            return None
+
+    class _FakeTracer:
+        def trace(self, *args, **kwargs):
+            return _FakeSpan()
+
     llmobs_module.LLMObs = _FakeLLMObs
     ddtrace_module.llmobs = llmobs_module
+    fake_tracer = _FakeTracer()
+    ddtrace_module.tracer = fake_tracer
+    tracer_module.trace = fake_tracer.trace
     sys.modules["ddtrace"] = ddtrace_module
     sys.modules["ddtrace.llmobs"] = llmobs_module
+    sys.modules["ddtrace.tracer"] = tracer_module
 
     # Stub openai.OpenAI client
     openai_module = types.ModuleType("openai")
@@ -76,6 +99,7 @@ def stub_external_sdks():
     # Ensure stubs cleaned up for any downstream imports
     sys.modules.pop("ddtrace", None)
     sys.modules.pop("ddtrace.llmobs", None)
+    sys.modules.pop("ddtrace.tracer", None)
     sys.modules.pop("openai", None)
 
 

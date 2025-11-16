@@ -1,3 +1,18 @@
+## 2025-11-16 - Cachetools + Tenacity In The Classifier
+Spent the afternoon ripping out the hand-rolled TTL cache in `ai_classifier.py` and replacing it with `cachetools.TTLCache`. The new `_cache_get` / `_cache_set` helpers keep a single re-entrant lock around both the classification and category caches so we still get deterministic behavior when the batch classifier fans out across threads. With that in place the caches finally respect the existing `AI_CLASSIFIER_CACHE_TTL`/`AI_CLASSIFIER_CACHE_SIZE` env knobs without hundreds of lines of bespoke eviction code.
+
+I also swapped the ad-hoc exponential backoff loop for a declarative `tenacity.Retrying` strategy so `_call_openai` can emit trace tags for every attempt while letting Tenacity handle sleeps and retry conditions. The builder returns a fresh retry object each call, which made it trivial to expose in tests (`assert isinstance(_build_openai_retry(), tenacity.Retrying)`) and to keep `openai.attempt` tags accurate. The one surprise was our ddtrace stub missing a tracer object, so I expanded the session fixture to provide a fake tracer/span implementation before reloading the classifier.
+
+The new tests cover both TTL expiration and transient retry flows. Once we patched `tenacity.nap.sleep` to a no-op the suite flies, and the classifier now trusts the maintained libraries shown below:
+
+```python
+def _call_openai(...):
+    for attempt in _build_openai_retry():
+        with attempt:
+            with trace_external_call("openai.chat.completion", ...):
+                return client.chat.completions.create(...)
+```
+
 ## 2025-11-16 - Task Decomposition for Dependency Cleanup
 Followed up on yesterday’s refactor assessment by turning each dependency opportunity into a standalone task doc. The idea is to make it trivial for any engineer to grab a slice—caching/retry work in `ai_classifier.py`, ORM migration for `database.py`, pagination cleanup in `app_production.py`, or the logging overhaul—and understand the why/what/how without spelunking through commit history. Each `task-*.md` captures the current pain points, acceptance criteria, suggested libraries, and the files/tests that will need love.
 
