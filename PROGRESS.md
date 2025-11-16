@@ -1,8 +1,3 @@
-### 2025-11-16T17:20:10Z
-- Fast-forwarded `dependency-optimizations` with the `task-ai-classifier-cachetools-tenacity` branch so the cachetools/tenacity classifier refactor and its tests now ride with the dependency workstream.
-- Recreated the venv run of `pytest tests/test_ai_classifier.py` after the merge (14 passing tests, 1 warning) to prove the shared branch keeps the retry/cache behavior sane.
-- Captured the branch sync plus regression results in `BLOG.md` so teammates know the dependency fixes now live on the coordination branch.
-
 ### 2025-11-16T16:37:55Z
 - Replaced the custom ai_classifier cache with `cachetools.TTLCache` guarded by a shared lock and refactored the retry helper around `tenacity.Retrying`, keeping the Datadog tracing metadata intact.
 - Added regression coverage for cache TTL expiry and transient retry handling (plus sturdier ddtrace/openai stubs) and ran `pytest tests/test_ai_classifier.py` inside the project venv to confirm everything passes.
