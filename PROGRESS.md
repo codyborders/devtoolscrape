@@ -1,3 +1,8 @@
+### 2025-11-16T17:35:50Z
+- Reverted the two revert commits on `main` so the cachetools-backed classifier cache and tenacity retry helper are reinstated without dragging the revert history into the default branch.
+- Restored the dependency branch documentation entry that tracks how the cache/refactor work is coordinated across branches.
+- Reactivated the project venv and re-ran `pytest tests/test_ai_classifier.py` (14 passing, 1 known warning) to ensure the classifier behavior matches the restored implementation.
+
 ### 2025-11-16T17:20:10Z
 - Fast-forwarded `dependency-optimizations` with the `task-ai-classifier-cachetools-tenacity` branch so the cachetools/tenacity classifier refactor and its tests now ride with the dependency workstream.
 - Recreated the venv run of `pytest tests/test_ai_classifier.py` after the merge (14 passing tests, 1 warning) to prove the shared branch keeps the retry/cache behavior sane.

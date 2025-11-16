@@ -1,3 +1,18 @@
+## 2025-11-16 - Restoring Cachetools + Tenacity On Main
+Pulled `main` back into alignment with the classifier branch after the two revert commits slipped into the default branch. Instead of rewriting history, I reverted the reverts so the cachetools-backed caches, the tenacity retry builder, and the expanded ddtrace stubs are reinstated exactly as they lived on the feature branch. That approach keeps the branch-only undo commits out of the current changeset while giving us a tidy audit trail that shows precisely why the classifier code flipped back to using the maintained libraries.
+
+Once the dust settled I fired up the repo venv and re-ran `pytest tests/test_ai_classifier.py` to make sure all fourteen classifier tests (including the TTL expiry + retry scenarios) still sail through with the expected pythonjsonlogger warning. The restored code path once again leans on the clean cachetools/tenacity primitives:
+
+```python
+_classification_cache = TTLCache(_CACHE_SIZE, _CACHE_TTL)
+for attempt in _build_openai_retry():
+    with attempt:
+        with trace_external_call("openai.chat.completion", tags):
+            return client.chat.completions.create(...)
+```
+
+I also re-added the quick note about syncing `dependency-optimizations` with the classifier branch so future merges understand why these changes now live together.
+
 ## 2025-11-16 - Cachetools + Tenacity In The Classifier
 Spent the afternoon ripping out the hand-rolled TTL cache in `ai_classifier.py` and replacing it with `cachetools.TTLCache`. The new `_cache_get` / `_cache_set` helpers keep a single re-entrant lock around both the classification and category caches so we still get deterministic behavior when the batch classifier fans out across threads. With that in place the caches finally respect the existing `AI_CLASSIFIER_CACHE_TTL`/`AI_CLASSIFIER_CACHE_SIZE` env knobs without hundreds of lines of bespoke eviction code.
 
