@@ -41,3 +41,21 @@ jobs:
           DD_CIVISIBILITY_AGENTLESS_ENABLED: "true"
           DD_TEST_SESSION_NAME: "${{ github.workflow }}-${{ github.run_number }}"
         run: ddtrace-run pytest
+
+  deploy:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy to prod droplet
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.DIGITALOCEAN_PROD_IP }}
+          username: root
+          password: ${{ secrets.DIGITALOCEAN_PASSWORD }}
+          script: |
+            cd /root/devtoolscrape
+            git pull
+            docker-compose down --remove-orphans
+            docker-compose up -d --build
+            docker-compose ps
