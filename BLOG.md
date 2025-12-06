@@ -1,3 +1,13 @@
+## 2025-12-06 - Enabling Datadog Exception Replay
+Datadog’s backend Exception Replay only needs a single toggle on Python services, so I threaded `DD_EXCEPTION_REPLAY_ENABLED=true` through every compose variant and the cron runner string in `entrypoint.sh` to keep the scheduled `ddtrace-run python3 scrape_all.py` job consistent with the web container. Because the stack runs in Docker, flipping the flag centrally was the lowest-friction option—no code imports or instrumentation tweaks needed, just an env check alongside the other APM settings.
+
+After baking the new env into the images I redeployed to the prod droplet (`147.182.194.230`) with a full `docker-compose down --remove-orphans && docker-compose up -d --build`, then confirmed both `devtoolscrape` and `dd-agent` reported `healthy`. A manual scrape under `ddtrace-run` with LLM Observability tags (`DD_LLMOBS_ENABLED=1 DD_LLMOBS_ML_APP=devtoolscrape`) finished cleanly and shipped spans/logs with the replay flag set, so Datadog should now surface exception snapshots for any backend errors the scrapers hit. The compose diff was just the new env export:
+
+```yaml
+    environment:
+      - DD_EXCEPTION_REPLAY_ENABLED=true
+```
+
 ## 2025-12-06 - Wiring Datadog Source Code Metadata
 I followed Datadog’s source code integration guide for Python containers and picked the Docker build-arg path instead of the setuptools/hatch variants. This app isn’t packaged, runs from a slim image, and keeps `.git` out of the build context, so baking `DD_GIT_REPOSITORY_URL` and `DD_GIT_COMMIT_SHA` into the image at build time is the only reliable way to tag traces/logs with commit info. The other options in the doc either need setuptools hooks or expect runtime env injection; neither matches how this container starts via `ddtrace-run` inside `entrypoint.sh`.
 
