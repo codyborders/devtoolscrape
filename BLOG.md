@@ -21,6 +21,9 @@ The new compose service (`locustio/locust:2.32.1`) mounts the tests read-only, r
 
 Retargeted the Locust host to `https://devtoolscrape.com` so the smoke tests now hit the public site rather than the internal container port. The next deploy will carry the new host flag into the running service.
 
+## 2025-12-06 - Datadog Test Optimization in CI
+Set up a GitHub Actions workflow (`.github/workflows/tests.yml`) to wire Datadog Test Optimization into our Python test run. The job checks out the repo, installs deps/pytest, uses `datadog/test-visibility-github-action@v2` with `languages: python` plus the repo’s `DD_API_KEY` secret, and runs `ddtrace-run pytest` with agentless test visibility + optimization toggles (`DD_TEST_OPTIMIZATION_ENABLED`, `DD_CIVISIBILITY_AGENTLESS_ENABLED`, and a session name derived from the workflow/run). With this in place, CI test runs should report to Datadog and benefit from test selection when available.
+
 ## 2025-12-06 - Enabling Datadog Exception Replay
 Datadog’s backend Exception Replay only needs a single toggle on Python services, so I threaded `DD_EXCEPTION_REPLAY_ENABLED=true` through every compose variant and the cron runner string in `entrypoint.sh` to keep the scheduled `ddtrace-run python3 scrape_all.py` job consistent with the web container. Because the stack runs in Docker, flipping the flag centrally was the lowest-friction option—no code imports or instrumentation tweaks needed, just an env check alongside the other APM settings.
 
