@@ -1,3 +1,7 @@
+### 2025-12-06T20:03:05Z
+- Enabled Datadog AppSec + IAST across all compose variants and the cron runner by exporting `DD_APPSEC_ENABLED=true`, `DD_IAST_ENABLED=true`, and `DD_IAST_REQUEST_SAMPLING=100` alongside the existing tracing/profiling flags so both the web process and scheduled scrapes emit IAST data.
+- Prepared to redeploy the production stack with the new env wiring and re-run a traced scrape to confirm health with IAST enabled.
+
 ### 2025-12-06T19:49:22Z
 - Enabled Datadog backend Exception Replay by setting `DD_EXCEPTION_REPLAY_ENABLED=true` across every compose variant and the cron runner env in `entrypoint.sh`, keeping scheduled scrapes aligned with the live app containers.
 - Rebuilt and restarted the production stack on `147.182.194.230` (app and agent now healthy) and verified a full traced scrape run under `ddtrace-run` with `DD_LLMOBS_ENABLED=1 DD_LLMOBS_ML_APP=devtoolscrape` to emit spans/logs with the new replay flag.

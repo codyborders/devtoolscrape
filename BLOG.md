@@ -1,3 +1,14 @@
+## 2025-12-06 - Turning On Datadog IAST
+Followed the IAST setup guide and opted for the env-flag path (fits our containerized, `ddtrace-run` boot flow). I added `DD_APPSEC_ENABLED=true`, `DD_IAST_ENABLED=true`, and `DD_IAST_REQUEST_SAMPLING=100` to every compose variant plus the cron runner env in `entrypoint.sh`, so both Gunicorn and the scheduled scrapes emit AppSec/IAST data without any code changes or framework hooks. With the tracer already wrapping the process via `ddtrace-run`, flipping the flags is all the Python tracer needs to start reporting vulnerabilities.
+
+After pushing the change I’ll rebuild the prod stack on `147.182.194.230` and rerun a traced scrape with the new env baked in to confirm the app and agent stay healthy while IAST is active. The only code diff was the new env exports:
+
+```yaml
+      - DD_APPSEC_ENABLED=true
+      - DD_IAST_ENABLED=true
+      - DD_IAST_REQUEST_SAMPLING=100
+```
+
 ## 2025-12-06 - Enabling Datadog Exception Replay
 Datadog’s backend Exception Replay only needs a single toggle on Python services, so I threaded `DD_EXCEPTION_REPLAY_ENABLED=true` through every compose variant and the cron runner string in `entrypoint.sh` to keep the scheduled `ddtrace-run python3 scrape_all.py` job consistent with the web container. Because the stack runs in Docker, flipping the flag centrally was the lowest-friction option—no code imports or instrumentation tweaks needed, just an env check alongside the other APM settings.
 

@@ -22,6 +22,9 @@ services:
       STACK_COLOR: blue
       DD_CODE_ORIGIN_FOR_SPANS_ENABLED: "true"
       DD_EXCEPTION_REPLAY_ENABLED: "true"
+      DD_APPSEC_ENABLED: "true"
+      DD_IAST_ENABLED: "true"
+      DD_IAST_REQUEST_SAMPLING: "100"
     volumes:
       - ./logs/blue:/var/log/devtoolscrape
       - ./data:/app/data
@@ -35,6 +38,9 @@ services:
       STACK_COLOR: green
       DD_CODE_ORIGIN_FOR_SPANS_ENABLED: "true"
       DD_EXCEPTION_REPLAY_ENABLED: "true"
+      DD_APPSEC_ENABLED: "true"
+      DD_IAST_ENABLED: "true"
+      DD_IAST_REQUEST_SAMPLING: "100"
     volumes:
       - ./logs/green:/var/log/devtoolscrape
       - ./data:/app/data
