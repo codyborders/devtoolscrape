@@ -21,6 +21,7 @@ services:
       LOG_DIR: /var/log/devtoolscrape
       STACK_COLOR: blue
       DD_CODE_ORIGIN_FOR_SPANS_ENABLED: "true"
+      DD_EXCEPTION_REPLAY_ENABLED: "true"
     volumes:
       - ./logs/blue:/var/log/devtoolscrape
       - ./data:/app/data
@@ -33,6 +34,7 @@ services:
       LOG_DIR: /var/log/devtoolscrape
       STACK_COLOR: green
       DD_CODE_ORIGIN_FOR_SPANS_ENABLED: "true"
+      DD_EXCEPTION_REPLAY_ENABLED: "true"
     volumes:
       - ./logs/green:/var/log/devtoolscrape
       - ./data:/app/data
