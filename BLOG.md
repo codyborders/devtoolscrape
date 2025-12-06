@@ -342,3 +342,16 @@ docker-compose exec -T devtoolscrape \
 ```
 
 Both `devtoolscrape` and `dd-agent` came back healthy; the traced scrape completed and should provide fresh correlated data points in Datadog.
+
+## 2025-12-06 - Sourcemaps And Error Linking
+To link RUM errors back to source, I introduced a tiny static bundle (`static/js/app.js`) plus a source map and hooked `templates/base.html` to load it. I added `@datadog/datadog-ci` via `package.json`/`package-lock.json` and a helper script that reads `DD_SITE`, `DD_SERVICE`, and `DD_VERSION` to upload sourcemaps for `https://devtoolscrape.com/static/js` along with the GitHub repository URL. After exporting `.env` (`set -a && source .env && set +a`), `npm run upload:sourcemaps` pushed the map to Datadog.
+
+With the assets and upload in place, I redeployed the stack on the prod droplet (`docker-compose down --remove-orphans && docker-compose up -d --build`), confirmed both containers were healthy, and ran a traced scrape with:
+
+```bash
+docker-compose exec -T devtoolscrape \
+  env DD_ENV=prod DD_SERVICE=devtoolscrape DD_VERSION=1.1 DD_AGENT_HOST=dd-agent \
+  ddtrace-run python3 scrape_all.py
+```
+
+That run emits fresh spans and errors with sourcemap coverage so Datadog can correlate browser issues back to the source code.

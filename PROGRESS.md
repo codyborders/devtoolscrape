@@ -154,6 +154,12 @@
 - Pushed the change to `main`, pulled it on the prod droplet, and rebuilt the stack (`docker-compose down --remove-orphans && docker-compose up -d --build`); confirmed `devtoolscrape` and `dd-agent` both healthy.
 - Manually ran the scraper with tracing via `docker-compose exec -T devtoolscrape env DD_ENV=prod DD_SERVICE=devtoolscrape DD_VERSION=1.1 DD_AGENT_HOST=dd-agent ddtrace-run python3 scrape_all.py` to emit fresh spans after the deploy.
 
+### 2025-12-06T19:19:46Z
+- Added a minimal static JS bundle (`static/js/app.js`) plus source map so client errors can be resolved back to source, and wired the page to load it via `templates/base.html`.
+- Introduced `@datadog/datadog-ci` tooling (`package.json`, `package-lock.json`) and an `npm run upload:sourcemaps` helper that targets `https://devtoolscrape.com/static/js`, releases `DD_VERSION`, and repository URL metadata for error linking.
+- Uploaded the new source map to Datadog using `set -a && source .env && npm run upload:sourcemaps` so RUM errors can link to source immediately.
+- Deployed the updated image to the prod droplet (`docker-compose down --remove-orphans && docker-compose up -d --build`), verified both containers healthy, and reran the traced scrape job via `docker-compose exec -T devtoolscrape env DD_ENV=prod DD_SERVICE=devtoolscrape DD_VERSION=1.1 DD_AGENT_HOST=dd-agent ddtrace-run python3 scrape_all.py`.
+
 ### 2025-12-06T18:17:13Z
 - Added a request-scoped Datadog RUM context builder that reads tokens plus service/env/version from `.env`, defaults `allowedTracingUrls` to the current host when unset, and pins `tracePropagationMode` to `datadog` so browser requests inject trace headers that backend spans can consume.
 - Injected a guarded RUM loader into `templates/base.html` that pulls the CDN script, initializes `DD_RUM` with the JSON-ified config, and optionally starts session replay when `DATADOG_RUM_SESSION_REPLAY` is true—keeping correlation wiring contained to one place.
