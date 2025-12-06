@@ -1,0 +1,11 @@
+{
+  "name": "devtoolscrape",
+  "version": "1.1.0",
+  "private": true,
+  "scripts": {
+    "upload:sourcemaps": "DD_SITE=${DD_SITE:-datadoghq.com} npx @datadog/datadog-ci sourcemaps upload ./static/js --service ${DD_SERVICE:-devtoolscrape} --release-version ${DD_VERSION:-1.1} --minified-path-prefix ${DATADOG_MINIFIED_PATH_PREFIX:-https://devtoolscrape.com/static/js} --project-path . --repository-url ${DD_GIT_REPOSITORY_URL:-https://github.com/codyborders/devtoolscrape}"
+  },
+  "devDependencies": {
+    "@datadog/datadog-ci": "^2.37.0"
+  }
+}
