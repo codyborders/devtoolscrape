@@ -164,6 +164,9 @@
 - Re-enabled Datadog log collection by turning on `DD_LOGS_ENABLED`/`DD_LOGS_CONFIG_CONTAINER_COLLECT_ALL` for the agent and mounting the Docker socket + proc/cgroup paths across all compose variants.
 - Pushed the change to main, redeployed on the prod droplet (`docker-compose down --remove-orphans && docker-compose up -d --build`), verified both services healthy, and reran the traced scraper (`docker-compose exec -T devtoolscrape env DD_ENV=prod DD_SERVICE=devtoolscrape DD_VERSION=1.1 DD_AGENT_HOST=dd-agent ddtrace-run python3 scrape_all.py`) to emit fresh telemetry with logs flowing again.
 
+### 2025-12-06T19:29:16Z
+- Pulled the logging-enabled compose changes to prod, rebuilt the stack, confirmed `devtoolscrape` and `dd-agent` healthy, and reran the scraper with explicit LLM Observability vars (`DD_LLMOBS_ENABLED=1 DD_LLMOBS_ML_APP=devtoolscrape`) to verify traces/logs/LLM spans emit together.
+
 ### 2025-12-06T18:17:13Z
 - Added a request-scoped Datadog RUM context builder that reads tokens plus service/env/version from `.env`, defaults `allowedTracingUrls` to the current host when unset, and pins `tracePropagationMode` to `datadog` so browser requests inject trace headers that backend spans can consume.
 - Injected a guarded RUM loader into `templates/base.html` that pulls the CDN script, initializes `DD_RUM` with the JSON-ified config, and optionally starts session replay when `DATADOG_RUM_SESSION_REPLAY` is true—keeping correlation wiring contained to one place.
