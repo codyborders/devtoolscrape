@@ -5,6 +5,9 @@
 ### 2025-12-06T20:15:34Z
 - Bumped `ddtrace` to the latest release (4.0.0) in `requirements.txt` to pick up the newest tracer/AppSec/IAST improvements before rebuilding and redeploying.
 
+### 2025-12-06T20:19:07Z
+- Rebuilt and redeployed the production stack on `147.182.194.230` with `ddtrace` 4.0.0, confirmed both app and agent containers returned healthy, and ran a traced scrape with AppSec/IAST/LLMObs envs to seed telemetry under the upgraded tracer.
+
 ### 2025-12-06T19:49:22Z
 - Enabled Datadog backend Exception Replay by setting `DD_EXCEPTION_REPLAY_ENABLED=true` across every compose variant and the cron runner env in `entrypoint.sh`, keeping scheduled scrapes aligned with the live app containers.
 - Rebuilt and restarted the production stack on `147.182.194.230` (app and agent now healthy) and verified a full traced scrape run under `ddtrace-run` with `DD_LLMOBS_ENABLED=1 DD_LLMOBS_ML_APP=devtoolscrape` to emit spans/logs with the new replay flag.

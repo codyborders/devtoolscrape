@@ -12,6 +12,8 @@ After pushing the change I rebuilt the prod stack on `147.182.194.230`, waited f
 ## 2025-12-06 - Upgrading ddtrace to 4.0.0
 Kept pace with the tracer by pinning `ddtrace==4.0.0` in `requirements.txt`. We were already on 2.x, so pulling in the latest release brings the newest APM/AppSec/IAST features and fixes. This is the last change before rebuilding and redeploying the stack so the running containers pick up the upgraded tracer.
 
+After the bump I rebuilt and redeployed on `147.182.194.230`, waited for both containers to go healthy, and reran the traced scrape with AppSec/IAST/LLMObs envs so Datadog ingests data from the new tracer version. The scrape finished (expected dogstatsd refusals/LLMObs span-kind warnings still appear), which confirms the upgrade didn’t break the cron-equivalent path.
+
 ## 2025-12-06 - Enabling Datadog Exception Replay
 Datadog’s backend Exception Replay only needs a single toggle on Python services, so I threaded `DD_EXCEPTION_REPLAY_ENABLED=true` through every compose variant and the cron runner string in `entrypoint.sh` to keep the scheduled `ddtrace-run python3 scrape_all.py` job consistent with the web container. Because the stack runs in Docker, flipping the flag centrally was the lowest-friction option—no code imports or instrumentation tweaks needed, just an env check alongside the other APM settings.
 
