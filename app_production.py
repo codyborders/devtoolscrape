@@ -87,8 +87,13 @@ def _build_rum_context():
     environment = os.getenv("DATADOG_RUM_ENV", os.getenv("DD_ENV", "prod"))
     version = os.getenv("DATADOG_RUM_VERSION", os.getenv("DD_VERSION", "1.1"))
     allowed_tracing_urls = _parse_csv_env("DATADOG_RUM_ALLOWED_TRACING_URLS")
-    if not allowed_tracing_urls and request:
-        allowed_tracing_urls.append(request.host_url.rstrip("/"))
+    if not allowed_tracing_urls:
+        allowed_tracing_urls = [
+            "https://devtoolscrape.com",
+            "https://*.devtoolscrape.com",
+        ]
+        if request:
+            allowed_tracing_urls.append(request.host_url.rstrip("/"))
 
     rum_config = {
         "applicationId": application_id,
