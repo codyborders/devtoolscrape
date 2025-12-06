@@ -1,7 +1,7 @@
 ## 2025-12-06 - Turning On Datadog IAST
 Followed the IAST setup guide and opted for the env-flag path (fits our containerized, `ddtrace-run` boot flow). I added `DD_APPSEC_ENABLED=true`, `DD_IAST_ENABLED=true`, and `DD_IAST_REQUEST_SAMPLING=100` to every compose variant plus the cron runner env in `entrypoint.sh`, so both Gunicorn and the scheduled scrapes emit AppSec/IAST data without any code changes or framework hooks. With the tracer already wrapping the process via `ddtrace-run`, flipping the flags is all the Python tracer needs to start reporting vulnerabilities.
 
-After pushing the change I’ll rebuild the prod stack on `147.182.194.230` and rerun a traced scrape with the new env baked in to confirm the app and agent stay healthy while IAST is active. The only code diff was the new env exports:
+After pushing the change I rebuilt the prod stack on `147.182.194.230`, waited for both containers to go healthy, and reran a traced scrape with the AppSec/IAST/LLMObs envs injected. The scrape completed and seeded Datadog with spans/logs under the new IAST configuration (expected dogstatsd refusals still pop up at start, but the job finishes). The only code diff was the new env exports:
 
 ```yaml
       - DD_APPSEC_ENABLED=true
