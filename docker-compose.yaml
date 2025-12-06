@@ -61,3 +61,20 @@ services:
       - /proc/:/host/proc/:ro
       - /sys/fs/cgroup/:/host/sys/fs/cgroup:ro
     restart: unless-stopped
+
+  locust:
+    image: locustio/locust:2.32.1
+    depends_on:
+      - devtoolscrape
+    env_file:
+      - .env
+    volumes:
+      - ./loadtests:/mnt/locust:ro
+    command: >
+      -f /mnt/locust/locustfile.py
+      --headless
+      --users 6
+      --spawn-rate 6
+      --host http://devtoolscrape:9000
+      --autostart
+    restart: unless-stopped
