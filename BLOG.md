@@ -1,3 +1,15 @@
+## 2025-12-06 - Wiring Datadog Source Code Metadata
+I followed Datadog’s source code integration guide for Python containers and picked the Docker build-arg path instead of the setuptools/hatch variants. This app isn’t packaged, runs from a slim image, and keeps `.git` out of the build context, so baking `DD_GIT_REPOSITORY_URL` and `DD_GIT_COMMIT_SHA` into the image at build time is the only reliable way to tag traces/logs with commit info. The other options in the doc either need setuptools hooks or expect runtime env injection; neither matches how this container starts via `ddtrace-run` inside `entrypoint.sh`.
+
+The build now accepts git metadata, preserves it as environment for ddtrace, and compose/build tooling will pass the values automatically. I added the args + ENV to `Dockerfile`, threaded the args through all compose variants (single stack and blue/green), and taught `build.sh` to compute the origin URL and SHA before building. A quick rebuild/recreate with the new args showed the container reporting the expected git tags and `/health` staying green:
+
+```dockerfile
+ARG DD_GIT_REPOSITORY_URL=""
+ARG DD_GIT_COMMIT_SHA=""
+ENV DD_GIT_REPOSITORY_URL=${DD_GIT_REPOSITORY_URL}
+ENV DD_GIT_COMMIT_SHA=${DD_GIT_COMMIT_SHA}
+```
+
 ## 2025-12-06 - Refreshing The Compose Stack
 Started by confirming the repo already had a populated `.env` and picked the env_file-aware `docker-compose.yml` to avoid the variant that skips secrets. I tried to follow the usual ritual of reviewing `PRD.md` and `PYTHON.md`, but neither file exists in this tree, so I leaned on the compose defaults that ship with the repo to guide the spin-up. Once that was settled I kicked off a rebuild/recreate of the `devtoolscrape` service so the container would pick up the latest code and env wiring.
 

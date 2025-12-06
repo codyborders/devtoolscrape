@@ -1,3 +1,7 @@
+### 2025-12-06T17:07:33Z
+- Enabled Datadog source code integration for the containerized Flask app by passing git metadata into the image build (Dockerfile build args -> ENV) and wiring compose/build scripts to supply `DD_GIT_REPOSITORY_URL`/`DD_GIT_COMMIT_SHA`.
+- Rebuilt the `devtoolscrape` image with the current origin URL and commit SHA, recreated the container via `docker compose up -d`, and verified `/health` plus the in-container env show the git tags Datadog expects.
+
 ### 2025-12-06T16:52:12Z
 - Verified the existing `.env` and used `docker-compose.yml` (the env_file-aware definition) to rebuild the `devtoolscrape` image and recreate the container with `docker compose -f docker-compose.yml up -d`.
 - Waited for the container health check to go healthy on port 9000 (exposed as 8000) and confirmed `/health` returns HTTP 200 with `database=connected`.

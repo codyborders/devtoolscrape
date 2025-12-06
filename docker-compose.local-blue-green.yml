@@ -3,6 +3,9 @@ version: "3.8"
 x-app-base: &app-base
   build:
     context: .
+    args:
+      DD_GIT_REPOSITORY_URL: ${DD_GIT_REPOSITORY_URL:-}
+      DD_GIT_COMMIT_SHA: ${DD_GIT_COMMIT_SHA:-}
   env_file:
     - .env
   networks:
