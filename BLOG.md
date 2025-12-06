@@ -15,6 +15,8 @@ Followed Datadog’s Code Origin instructions for Python tracers and flipped `DD
 
 After a rebuild/recreate, the running container exposes `DD_CODE_ORIGIN_FOR_SPANS_ENABLED=true` and `/health` stays at 200. That means any trace reaching the agent (including cron-driven scrapes) will now ship code-origin context alongside the git tags we already bake in.
 
+To get the data into Datadog, I also spun up a local `dd-agent` sidecar in every compose file, wiring it to the `.env` API key, assigning a stable hostname, and opening 8126 for APM. With the agent reachable (`curl http://dd-agent:8126/info` returns 200 from the app container), rerunning `ddtrace-run python3 scrape_all.py` no longer drops traces, so Code Origin + git metadata should now appear in APM for this build.
+
 ## 2025-12-06 - Refreshing The Compose Stack
 Started by confirming the repo already had a populated `.env` and picked the env_file-aware `docker-compose.yml` to avoid the variant that skips secrets. I tried to follow the usual ritual of reviewing `PRD.md` and `PYTHON.md`, but neither file exists in this tree, so I leaned on the compose defaults that ship with the repo to guide the spin-up. Once that was settled I kicked off a rebuild/recreate of the `devtoolscrape` service so the container would pick up the latest code and env wiring.
 

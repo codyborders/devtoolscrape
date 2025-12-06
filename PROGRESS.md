@@ -6,6 +6,10 @@
 - Enabled Datadog Code Origin by adding `DD_CODE_ORIGIN_FOR_SPANS_ENABLED=true` to all compose definitions and the cron runner env in `entrypoint.sh` so both the app and scheduled scrapes emit code-origin tags with spans.
 - Rebuilt the image and recreated the container; verified `/health` is 200 and the running env exposes `DD_CODE_ORIGIN_FOR_SPANS_ENABLED=true`.
 
+### 2025-12-06T17:30:15Z
+- Added a Datadog Agent service to every compose variant (with hostname + API key from `.env`) so the app can actually deliver traces/code-origin data to an intake.
+- Brought the agent up, confirmed `/info` is reachable from the app container, and reran `ddtrace-run python3 scrape_all.py`; spans now send without the prior `dd-agent` DNS failures, so APM should show code-origin tags on the latest scrape.
+
 ### 2025-12-06T16:52:12Z
 - Verified the existing `.env` and used `docker-compose.yml` (the env_file-aware definition) to rebuild the `devtoolscrape` image and recreate the container with `docker compose -f docker-compose.yml up -d`.
 - Waited for the container health check to go healthy on port 9000 (exposed as 8000) and confirmed `/health` returns HTTP 200 with `database=connected`.

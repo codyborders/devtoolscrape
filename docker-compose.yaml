@@ -35,3 +35,20 @@ services:
       interval: 30s
       timeout: 10s
       retries: 3 
+
+  dd-agent:
+    image: gcr.io/datadoghq/agent:7
+    hostname: dd-agent
+    env_file:
+      - .env
+    environment:
+      - DD_API_KEY=${DATADOG_API_KEY}
+      - DD_SITE=${DD_SITE:-datadoghq.com}
+      - DD_HOSTNAME=devtoolscrape-dd-agent
+      - DD_APM_ENABLED=true
+      - DD_APM_NON_LOCAL_TRAFFIC=true
+      - DD_LOGS_ENABLED=false
+      - DD_PROCESS_AGENT_ENABLED=false
+    ports:
+      - "8126:8126"
+    restart: unless-stopped
