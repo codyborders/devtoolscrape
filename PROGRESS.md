@@ -149,6 +149,11 @@
 - Verified both containers reported `healthy` and `/health` responded locally on port 8000.
 - Ran a traced scrape via `docker-compose exec -T devtoolscrape env DD_ENV=prod DD_SERVICE=devtoolscrape DD_VERSION=1.1 DD_AGENT_HOST=dd-agent ddtrace-run python3 scrape_all.py` to seed fresh spans/logs after the deploy.
 
+### 2025-12-06T19:03:03Z
+- Hardcoded RUM `allowedTracingUrls` to `https://devtoolscrape.com` and `https://*.devtoolscrape.com` in `app_production.py` so browser correlation works even when env vars are absent.
+- Pushed the change to `main`, pulled it on the prod droplet, and rebuilt the stack (`docker-compose down --remove-orphans && docker-compose up -d --build`); confirmed `devtoolscrape` and `dd-agent` both healthy.
+- Manually ran the scraper with tracing via `docker-compose exec -T devtoolscrape env DD_ENV=prod DD_SERVICE=devtoolscrape DD_VERSION=1.1 DD_AGENT_HOST=dd-agent ddtrace-run python3 scrape_all.py` to emit fresh spans after the deploy.
+
 ### 2025-12-06T18:17:13Z
 - Added a request-scoped Datadog RUM context builder that reads tokens plus service/env/version from `.env`, defaults `allowedTracingUrls` to the current host when unset, and pins `tracePropagationMode` to `datadog` so browser requests inject trace headers that backend spans can consume.
 - Injected a guarded RUM loader into `templates/base.html` that pulls the CDN script, initializes `DD_RUM` with the JSON-ified config, and optionally starts session replay when `DATADOG_RUM_SESSION_REPLAY` is true—keeping correlation wiring contained to one place.

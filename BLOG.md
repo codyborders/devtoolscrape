@@ -327,3 +327,18 @@ docker-compose exec -T devtoolscrape \
 ```
 
 The run finished cleanly, emitting the usual GitHub/HN/Product Hunt telemetry plus APM and LLMObs spans. That should give the Datadog dashboards up-to-date traces tagged to the new code origin and RUM correlation changes.
+
+## 2025-12-06 - Hardcoding RUM Correlation Origins
+Datadog wasn’t seeing RUM↔APM linkage yet, so I baked the allowed origins directly into the app: `allowedTracingUrls` now defaults to `https://devtoolscrape.com` and `https://*.devtoolscrape.com` (still overridable via `DATADOG_RUM_ALLOWED_TRACING_URLS`). With that in place I pushed `main`, cycled the prod stack, and ran the scraper under `ddtrace-run` so new spans reflect the change.
+
+Deploy steps on the droplet:
+
+```bash
+docker-compose down --remove-orphans
+docker-compose up -d --build
+docker-compose exec -T devtoolscrape \
+  env DD_ENV=prod DD_SERVICE=devtoolscrape DD_VERSION=1.1 DD_AGENT_HOST=dd-agent \
+  ddtrace-run python3 scrape_all.py
+```
+
+Both `devtoolscrape` and `dd-agent` came back healthy; the traced scrape completed and should provide fresh correlated data points in Datadog.
