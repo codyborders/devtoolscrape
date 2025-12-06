@@ -298,3 +298,19 @@ To fix that I taught `entrypoint.sh` to resolve both the Python interpreter and 
 ```
 
 After copying the updated script to the prod droplet I rebuilt the image, removed the stale container (to avoid the compose `ContainerConfig` bug), and relaunched `devtoolscrape_devtoolscrape_1`. `/etc/cron.d/scrape_all` now shows the traced command, and a manual run at `2025-11-09 14:30:40` confirmed the scraper still succeeds while emitting spans through `ddtrace-run`. The next scheduled run should appear under `service:devtoolscrape env:prod` with the GitHub/HN/Product Hunt calls fully instrumented again.
+
+## 2025-12-06 - RUM To APM Correlation
+Datadog’s RUM/APM guide calls for trace context propagation from the browser, so I added a request-scoped helper in `app_production.py` that only emits when `DATADOG_RUM_APPLICATION_ID` and `DATADOG_RUM_CLIENT_TOKEN` exist. It folds in the `DD_SERVICE`/`DD_ENV`/`DD_VERSION` defaults, lets `DATADOG_RUM_ALLOWED_TRACING_URLS` override the target list, and otherwise points `allowedTracingUrls` at the current host so fetch/XHR traffic automatically carries Datadog headers back to Gunicorn. The config also fixes `tracePropagationMode` to `datadog`, keeps the sampling knobs at 100 by default, and honors an optional `DATADOG_RUM_SESSION_REPLAY` flag to seed replay when needed.
+
+```python
+rum_config = {
+    "applicationId": "...",
+    "clientToken": "...",
+    "service": service_name,
+    "env": environment,
+    "tracePropagationMode": "datadog",
+    "allowedTracingUrls": allowed_tracing_urls,
+}
+```
+
+`templates/base.html` now pulls the CDN loader and calls `DD_RUM.init()` with that JSON-ified payload behind a simple `{% if datadog_rum %}` guard, starting session replay when the toggle is present and leaving the page untouched when secrets are missing. I rebuilt the compose service so the running container carries the new snippet; once the RUM tokens land in `.env`, browser sessions should stitch cleanly to backend spans without touching the nginx injector.

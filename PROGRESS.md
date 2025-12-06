@@ -142,3 +142,8 @@
 - Extended `entrypoint.sh` to resolve both `python3` and `ddtrace-run`, inject the Datadog env vars explicitly (`DD_ENV`, `DD_SERVICE`, etc.), and emit a cron line that runs `env ... ddtrace-run /usr/local/bin/python3 scrape_all.py`.
 - Deployed the updated entrypoint to prod, rebuilt the image, recreated `devtoolscrape_devtoolscrape_1`, and verified `/etc/cron.d/scrape_all` now contains the traced command.
 - Manually executed `env DD_ENV=prod ... /usr/local/bin/ddtrace-run /usr/local/bin/python3 scrape_all.py` in the container; the run completed at `2025-11-09 14:30:40` and should now emit spans for every outbound scraper call.
+
+### 2025-12-06T18:17:13Z
+- Added a request-scoped Datadog RUM context builder that reads tokens plus service/env/version from `.env`, defaults `allowedTracingUrls` to the current host when unset, and pins `tracePropagationMode` to `datadog` so browser requests inject trace headers that backend spans can consume.
+- Injected a guarded RUM loader into `templates/base.html` that pulls the CDN script, initializes `DD_RUM` with the JSON-ified config, and optionally starts session replay when `DATADOG_RUM_SESSION_REPLAY` is true—keeping correlation wiring contained to one place.
+- Rebuilt `devtoolscrape` via `docker compose up -d --build --no-deps devtoolscrape` so the running container now includes the correlation-ready template and config helpers while the Datadog agent sidecar stays healthy.

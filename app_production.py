@@ -39,6 +39,92 @@ init_db()
 app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'dev-secret-key-change-in-production')
 app.config['DEBUG'] = False
 
+def _truthy_env(var_name: str, default: bool = False) -> bool:
+    value = os.getenv(var_name)
+    if value is None:
+        return default
+    return value.lower() in {"1", "true", "yes", "on"}
+
+
+def _safe_float_env(var_name: str, default: float) -> float:
+    raw_value = os.getenv(var_name)
+    if raw_value is None:
+        return default
+    try:
+        return float(raw_value)
+    except (TypeError, ValueError):
+        return default
+
+
+def _parse_csv_env(var_name: str) -> list[str]:
+    raw_value = os.getenv(var_name, "")
+    return [item.strip() for item in raw_value.split(",") if item.strip()]
+
+
+def _rum_script_source(site: str) -> str:
+    region_map = {
+        "datadoghq.com": "us1",
+        "datadoghq.eu": "eu1",
+        "us3.datadoghq.com": "us3",
+        "us5.datadoghq.com": "us5",
+        "ap1.datadoghq.com": "ap1",
+        "ddog-gov.com": "us1-gov",
+    }
+    region = region_map.get(site.lower(), "us1")
+    version = os.getenv("DATADOG_RUM_BROWSER_VERSION", "v6")
+    version_segment = version if version.startswith("v") else f"v{version}"
+    return f"https://www.datadoghq-browser-agent.com/{region}/{version_segment}/datadog-rum.js"
+
+
+def _build_rum_context():
+    application_id = os.getenv("DATADOG_RUM_APPLICATION_ID")
+    client_token = os.getenv("DATADOG_RUM_CLIENT_TOKEN")
+    if not application_id or not client_token:
+        return None
+
+    site = os.getenv("DATADOG_RUM_SITE", os.getenv("DD_SITE", "datadoghq.com"))
+    service_name = os.getenv("DATADOG_RUM_SERVICE", os.getenv("DD_SERVICE", "devtoolscrape"))
+    environment = os.getenv("DATADOG_RUM_ENV", os.getenv("DD_ENV", "prod"))
+    version = os.getenv("DATADOG_RUM_VERSION", os.getenv("DD_VERSION", "1.1"))
+    allowed_tracing_urls = _parse_csv_env("DATADOG_RUM_ALLOWED_TRACING_URLS")
+    if not allowed_tracing_urls and request:
+        allowed_tracing_urls.append(request.host_url.rstrip("/"))
+
+    rum_config = {
+        "applicationId": application_id,
+        "clientToken": client_token,
+        "site": site,
+        "service": service_name,
+        "env": environment,
+        "version": version,
+        "sampleRate": _safe_float_env("DATADOG_RUM_SAMPLE_RATE", 100.0),
+        "traceSampleRate": _safe_float_env("DATADOG_RUM_TRACE_SAMPLE_RATE", 100.0),
+        "tracePropagationMode": os.getenv("DATADOG_RUM_TRACE_PROPAGATION_MODE", "datadog"),
+        "trackUserInteractions": _truthy_env("DATADOG_RUM_TRACK_USER_INTERACTIONS", True),
+        "trackResources": _truthy_env("DATADOG_RUM_TRACK_RESOURCES", True),
+        "trackLongTasks": _truthy_env("DATADOG_RUM_TRACK_LONG_TASKS", True),
+        "defaultPrivacyLevel": os.getenv("DATADOG_RUM_DEFAULT_PRIVACY_LEVEL", "mask-user-input"),
+        "allowedTracingUrls": allowed_tracing_urls,
+    }
+
+    session_replay_enabled = _truthy_env("DATADOG_RUM_SESSION_REPLAY", False)
+    if session_replay_enabled:
+        rum_config["sessionReplaySampleRate"] = _safe_float_env(
+            "DATADOG_RUM_SESSION_REPLAY_SAMPLE_RATE",
+            _safe_float_env("DATADOG_RUM_SAMPLE_RATE", 100.0),
+        )
+
+    return {
+        "config": rum_config,
+        "script_src": os.getenv("DATADOG_RUM_SCRIPT_SRC", _rum_script_source(site)),
+        "enable_session_replay": session_replay_enabled,
+    }
+
+
+@app.context_processor
+def inject_datadog_rum():
+    return {"datadog_rum": _build_rum_context()}
+
 if not app.debug:
     from werkzeug.middleware.proxy_fix import ProxyFix
     app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1)
