@@ -314,3 +314,16 @@ rum_config = {
 ```
 
 `templates/base.html` now pulls the CDN loader and calls `DD_RUM.init()` with that JSON-ified payload behind a simple `{% if datadog_rum %}` guard, starting session replay when the toggle is present and leaving the page untouched when secrets are missing. I rebuilt the compose service so the running container carries the new snippet; once the RUM tokens land in `.env`, browser sessions should stitch cleanly to backend spans without touching the nginx injector.
+
+## 2025-12-06 - Shipping RUM→APM Correlation To Prod
+With the correlation plumbing merged, I pushed `main` and deployed straight to the prod droplet (`147.182.194.230`). The deploy was the usual compose cycle: `docker-compose down --remove-orphans` to clear the stale network, `docker-compose up -d --build` to rebuild `devtoolscrape` plus the `dd-agent` sidecar, and a quick `/health` curl on port 8000 to make sure Gunicorn was happy behind the proxy. Both containers reported healthy and the Datadog agent came back up on 8126.
+
+To seed Datadog with fresh spans under the new build I ran the scraper manually inside the container, keeping the agent host and service/env metadata explicit:
+
+```bash
+docker-compose exec -T devtoolscrape \
+  env DD_ENV=prod DD_SERVICE=devtoolscrape DD_VERSION=1.1 DD_AGENT_HOST=dd-agent \
+  ddtrace-run python3 scrape_all.py
+```
+
+The run finished cleanly, emitting the usual GitHub/HN/Product Hunt telemetry plus APM and LLMObs spans. That should give the Datadog dashboards up-to-date traces tagged to the new code origin and RUM correlation changes.
