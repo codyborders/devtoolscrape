@@ -2,6 +2,10 @@
 - Enabled Datadog source code integration for the containerized Flask app by passing git metadata into the image build (Dockerfile build args -> ENV) and wiring compose/build scripts to supply `DD_GIT_REPOSITORY_URL`/`DD_GIT_COMMIT_SHA`.
 - Rebuilt the `devtoolscrape` image with the current origin URL and commit SHA, recreated the container via `docker compose up -d`, and verified `/health` plus the in-container env show the git tags Datadog expects.
 
+### 2025-12-06T17:20:31Z
+- Enabled Datadog Code Origin by adding `DD_CODE_ORIGIN_FOR_SPANS_ENABLED=true` to all compose definitions and the cron runner env in `entrypoint.sh` so both the app and scheduled scrapes emit code-origin tags with spans.
+- Rebuilt the image and recreated the container; verified `/health` is 200 and the running env exposes `DD_CODE_ORIGIN_FOR_SPANS_ENABLED=true`.
+
 ### 2025-12-06T16:52:12Z
 - Verified the existing `.env` and used `docker-compose.yml` (the env_file-aware definition) to rebuild the `devtoolscrape` image and recreate the container with `docker compose -f docker-compose.yml up -d`.
 - Waited for the container health check to go healthy on port 9000 (exposed as 8000) and confirmed `/health` returns HTTP 200 with `database=connected`.

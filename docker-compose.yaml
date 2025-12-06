@@ -27,6 +27,7 @@ services:
       - DD_DYNAMIC_INSTRUMENTATION_ENABLED=true
       - DD_LLMOBS_ENABLED=1
       - DD_LLMOBS_ML_APP=devtoolscrape
+      - DD_CODE_ORIGIN_FOR_SPANS_ENABLED=true
       - GUNICORN_BIND=0.0.0.0:9000
     restart: unless-stopped
     healthcheck:
