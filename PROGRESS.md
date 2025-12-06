@@ -1,3 +1,8 @@
+### 2025-12-06T16:52:12Z
+- Verified the existing `.env` and used `docker-compose.yml` (the env_file-aware definition) to rebuild the `devtoolscrape` image and recreate the container with `docker compose -f docker-compose.yml up -d`.
+- Waited for the container health check to go healthy on port 9000 (exposed as 8000) and confirmed `/health` returns HTTP 200 with `database=connected`.
+- Could not locate `PRD.md` or `PYTHON.md` in the repo before the spin-up; proceeded with the compose defaults already committed.
+
 ### 2025-11-16T17:35:50Z
 - Reverted the two revert commits on `main` so the cachetools-backed classifier cache and tenacity retry helper are reinstated without dragging the revert history into the default branch.
 - Restored the dependency branch documentation entry that tracks how the cache/refactor work is coordinated across branches.

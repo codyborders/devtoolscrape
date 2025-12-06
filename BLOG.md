@@ -1,3 +1,14 @@
+## 2025-12-06 - Refreshing The Compose Stack
+Started by confirming the repo already had a populated `.env` and picked the env_file-aware `docker-compose.yml` to avoid the variant that skips secrets. I tried to follow the usual ritual of reviewing `PRD.md` and `PYTHON.md`, but neither file exists in this tree, so I leaned on the compose defaults that ship with the repo to guide the spin-up. Once that was settled I kicked off a rebuild/recreate of the `devtoolscrape` service so the container would pick up the latest code and env wiring.
+
+The build pulled a fresh `python:3.11-slim` base and slogged through a large dependency install, which caused my first `docker compose ... up -d --build` run to hit the CLI timeout even though the image finished exporting. Rerunning without the build flag recreated the container cleanly, and the health check flipped to healthy within seconds. Verifying `curl` against the exposed port showed both the app and database wiring were intact:
+
+```bash
+docker compose -f docker-compose.yml up -d --build
+docker compose -f docker-compose.yml up -d
+curl -i http://localhost:8000/health
+```
+
 ## 2025-11-16 - Restoring Cachetools + Tenacity On Main
 Pulled `main` back into alignment with the classifier branch after the two revert commits slipped into the default branch. Instead of rewriting history, I reverted the reverts so the cachetools-backed caches, the tenacity retry builder, and the expanded ddtrace stubs are reinstated exactly as they lived on the feature branch. That approach keeps the branch-only undo commits out of the current changeset while giving us a tidy audit trail that shows precisely why the classifier code flipped back to using the maintained libraries.
 
