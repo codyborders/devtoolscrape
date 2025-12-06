@@ -19,6 +19,8 @@ Introduced a dedicated Locust service to exercise every public endpoint on a 10-
 
 The new compose service (`locustio/locust:2.32.1`) mounts the tests read-only, runs headless with six users (one per endpoint), and points at `http://devtoolscrape:9000` on the internal network. After pushing the change I redeployed on `147.182.194.230`, confirmed the app/agent/locust containers went healthy, and reran the traced scraper to verify the app still behaves under the added load harness.
 
+Retargeted the Locust host to `https://devtoolscrape.com` so the smoke tests now hit the public site rather than the internal container port. The next deploy will carry the new host flag into the running service.
+
 ## 2025-12-06 - Enabling Datadog Exception Replay
 Datadog’s backend Exception Replay only needs a single toggle on Python services, so I threaded `DD_EXCEPTION_REPLAY_ENABLED=true` through every compose variant and the cron runner string in `entrypoint.sh` to keep the scheduled `ddtrace-run python3 scrape_all.py` job consistent with the web container. Because the stack runs in Docker, flipping the flag centrally was the lowest-friction option—no code imports or instrumentation tweaks needed, just an env check alongside the other APM settings.
 

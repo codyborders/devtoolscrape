@@ -75,6 +75,6 @@ services:
       --headless
       --users 6
       --spawn-rate 6
-      --host http://devtoolscrape:9000
+      --host https://devtoolscrape.com
       --autostart
     restart: unless-stopped

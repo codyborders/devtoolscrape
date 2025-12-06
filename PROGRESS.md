@@ -12,6 +12,9 @@
 - Added a dedicated Locust load-testing container plus suite hitting `/`, `/source/<source_name>`, `/search`, `/tool/<id>`, `/api/startups`, `/api/search`, and `/health`, each on a fixed 10s cadence with randomized resources where applicable.
 - Deployed the updated stack (including Locust) to `147.182.194.230`, confirmed app/agent/locust containers healthy, and reran the traced scraper to verify the app after the new service came online.
 
+### 2025-12-06T22:42:04Z
+- Pointed the Locust load generator at the public site (`https://devtoolscrape.com`) instead of the internal container port by updating both compose files; prepared to redeploy so load tests exercise the external endpoint.
+
 ### 2025-12-06T19:49:22Z
 - Enabled Datadog backend Exception Replay by setting `DD_EXCEPTION_REPLAY_ENABLED=true` across every compose variant and the cron runner env in `entrypoint.sh`, keeping scheduled scrapes aligned with the live app containers.
 - Rebuilt and restarted the production stack on `147.182.194.230` (app and agent now healthy) and verified a full traced scrape run under `ddtrace-run` with `DD_LLMOBS_ENABLED=1 DD_LLMOBS_ML_APP=devtoolscrape` to emit spans/logs with the new replay flag.
