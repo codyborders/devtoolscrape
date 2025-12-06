@@ -14,6 +14,11 @@ Kept pace with the tracer by pinning `ddtrace==4.0.0` in `requirements.txt`. We 
 
 After the bump I rebuilt and redeployed on `147.182.194.230`, waited for both containers to go healthy, and reran the traced scrape with AppSec/IAST/LLMObs envs so Datadog ingests data from the new tracer version. The scrape finished (expected dogstatsd refusals/LLMObs span-kind warnings still appear), which confirms the upgrade didn’t break the cron-equivalent path.
 
+## 2025-12-06 - Always-On Locust Smoke Tests
+Introduced a dedicated Locust service to exercise every public endpoint on a 10-second cadence. The suite lives in `loadtests/locustfile.py` and covers `/`, `/source/<source_name>`, `/search`, `/tool/<id>`, `/api/startups`, `/api/search`, and `/health`, randomizing source keys, search queries, and tool IDs (seeded from `/api/startups`) to keep requests realistic. Each endpoint has its own user class with a fixed 10s wait time so we get one hit per endpoint per interval rather than a round-robin that only fires every minute.
+
+The new compose service (`locustio/locust:2.32.1`) mounts the tests read-only, runs headless with six users (one per endpoint), and points at `http://devtoolscrape:9000` on the internal network. After pushing the change I redeployed on `147.182.194.230`, confirmed the app/agent/locust containers went healthy, and reran the traced scraper to verify the app still behaves under the added load harness.
+
 ## 2025-12-06 - Enabling Datadog Exception Replay
 Datadog’s backend Exception Replay only needs a single toggle on Python services, so I threaded `DD_EXCEPTION_REPLAY_ENABLED=true` through every compose variant and the cron runner string in `entrypoint.sh` to keep the scheduled `ddtrace-run python3 scrape_all.py` job consistent with the web container. Because the stack runs in Docker, flipping the flag centrally was the lowest-friction option—no code imports or instrumentation tweaks needed, just an env check alongside the other APM settings.
 
