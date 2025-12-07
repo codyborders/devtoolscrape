@@ -4,7 +4,7 @@ from datetime import datetime
 import requests
 
 from ai_classifier import classify_candidates, get_devtools_category
-from database import init_db, save_startup
+from database import init_db, is_duplicate, save_startup
 from logging_config import get_logger, logging_context
 from observability import trace_http_call
 
@@ -88,12 +88,23 @@ def scrape_github_trending():
                 if category:
                     description = f"[{category}] {description}" if description else f"[{category}]"
 
+                # Skip duplicates before attempting to save
+                if is_duplicate(candidate["name"], candidate["url"]):
+                    logger.debug(
+                        "scraper.skip_duplicate",
+                        extra={
+                            "event": "scraper.skip_duplicate",
+                            "url": candidate["url"],
+                        },
+                    )
+                    continue
+
                 startup = {
                     "name": candidate["name"],
                     "url": candidate["url"],
                     "description": description,
                     "date_found": datetime.now(),
-                    "source": "GitHub Trending"
+                    "source": "GitHub Trending",
                 }
 
                 save_startup(startup)

@@ -102,3 +102,88 @@ def test_fake_response_raises_on_error():
     response = FakeResponse(status_code=500)
     with pytest.raises(Exception):
         response.raise_for_status()
+
+
+def test_scrape_github_trending_skips_duplicates_precheck(monkeypatch):
+    import scrape_github_trending
+
+    html = """
+    <article class="Box-row">
+        <h2 class="h3"><a href="/owner/dupe">Dupe Tool</a></h2>
+        <p>Duplicate candidate</p>
+    </article>
+    """
+    response = FakeResponse(content=html.encode("utf-8"))
+    monkeypatch.setattr("scrape_github_trending.requests.get", lambda *args, **kwargs: response)
+
+    # Classifier marks it as a devtool
+    def fake_classify(candidates):
+        candidates = list(candidates)
+        return {item["id"]: True for item in candidates}
+
+    monkeypatch.setattr("scrape_github_trending.classify_candidates", fake_classify)
+    monkeypatch.setattr("scrape_github_trending.get_devtools_category", lambda *args, **kwargs: None)
+
+    # is_duplicate pre-check forces skip
+    monkeypatch.setattr("scrape_github_trending.is_duplicate", lambda *args, **kwargs: True)
+
+    saved = []
+    monkeypatch.setattr("scrape_github_trending.save_startup", lambda record: saved.append(record))
+
+    calls = []
+    def debug_spy(msg, *args, **kwargs):
+        calls.append((msg, kwargs))
+
+    # Provide minimal logger with debug/info/exception
+    import types
+    logger_stub = types.SimpleNamespace(
+        debug=debug_spy,
+        info=lambda *a, **k: None,
+        exception=lambda *a, **k: None,
+    )
+    monkeypatch.setattr("scrape_github_trending.logger", logger_stub)
+
+    scrape_github_trending.scrape_github_trending()
+
+    assert saved == []
+    assert any(msg == "scraper.skip_duplicate" and kw.get("extra", {}).get("event") == "scraper.skip_duplicate" for msg, kw in calls)
+
+
+def test_scrape_github_trending_saves_when_not_duplicate(monkeypatch):
+    import scrape_github_trending
+
+    html = """
+    <article class="Box-row">
+        <h2 class="h3"><a href="/owner/newtool">New Tool</a></h2>
+        <p>Fresh candidate</p>
+    </article>
+    """
+    response = FakeResponse(content=html.encode("utf-8"))
+    monkeypatch.setattr("scrape_github_trending.requests.get", lambda *args, **kwargs: response)
+
+    def fake_classify(candidates):
+        candidates = list(candidates)
+        return {item["id"]: True for item in candidates}
+
+    monkeypatch.setattr("scrape_github_trending.classify_candidates", fake_classify)
+    monkeypatch.setattr("scrape_github_trending.get_devtools_category", lambda *args, **kwargs: None)
+
+    # Not a duplicate
+    monkeypatch.setattr("scrape_github_trending.is_duplicate", lambda *args, **kwargs: False)
+
+    saved = []
+    monkeypatch.setattr("scrape_github_trending.save_startup", lambda record: saved.append(record))
+
+    # Keep logger minimal to avoid noisy output
+    import types
+    logger_stub = types.SimpleNamespace(
+        debug=lambda *a, **k: None,
+        info=lambda *a, **k: None,
+        exception=lambda *a, **k: None,
+    )
+    monkeypatch.setattr("scrape_github_trending.logger", logger_stub)
+
+    scrape_github_trending.scrape_github_trending()
+
+    assert len(saved) == 1
+    assert saved[0]["url"].endswith("/owner/newtool")
