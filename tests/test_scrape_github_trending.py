@@ -1,3 +1,5 @@
+import io
+import logging
 import types
 from datetime import datetime
 
@@ -108,7 +110,7 @@ def test_fake_response_raises_on_error() -> None:
         response.raise_for_status()
 
 
-def test_scrape_github_trending_skips_duplicates_precheck(monkeypatch, capsys) -> None:
+def test_scrape_github_trending_skips_duplicates_precheck(monkeypatch) -> None:
     import scrape_github_trending
     from unittest.mock import Mock
 
@@ -138,11 +140,21 @@ def test_scrape_github_trending_skips_duplicates_precheck(monkeypatch, capsys) -
     save_mock = Mock()
     monkeypatch.setattr("scrape_github_trending.save_startup", save_mock)
 
-    scrape_github_trending.scrape_github_trending()
+    log_buffer = io.StringIO()
+    handler = logging.StreamHandler(log_buffer)
+    handler.setLevel(logging.DEBUG)
+    logger = logging.getLogger("devtools.scraper.github_trending")
+    previous_level = logger.level
+    logger.setLevel(logging.DEBUG)
+    logger.addHandler(handler)
+    try:
+        scrape_github_trending.scrape_github_trending()
+    finally:
+        logger.removeHandler(handler)
+        logger.setLevel(previous_level)
 
     save_mock.assert_not_called()
-    out, _ = capsys.readouterr()
-    assert "scraper.skip_duplicate" in out
+    assert "scraper.skip_duplicate" in log_buffer.getvalue()
 
 
 def test_scrape_github_trending_saves_when_not_duplicate(monkeypatch) -> None:
@@ -178,7 +190,7 @@ def test_scrape_github_trending_saves_when_not_duplicate(monkeypatch) -> None:
     assert args and args[0]["url"].endswith("/owner/newtool")
 
 
-def test_scrape_github_trending_integration_duplicate_with_temp_db(monkeypatch, tmp_path, capsys) -> None:
+def test_scrape_github_trending_integration_duplicate_with_temp_db(monkeypatch, tmp_path) -> None:
     """Integration-style test: uses a temporary SQLite DB to verify duplicate filtering."""
     import scrape_github_trending
     import database
@@ -217,10 +229,20 @@ def test_scrape_github_trending_integration_duplicate_with_temp_db(monkeypatch, 
     monkeypatch.setattr("scrape_github_trending.classify_candidates", fake_classify)
     monkeypatch.setattr("scrape_github_trending.get_devtools_category", lambda *args, **kwargs: None)
 
-    scrape_github_trending.scrape_github_trending()
+    log_buffer = io.StringIO()
+    handler = logging.StreamHandler(log_buffer)
+    handler.setLevel(logging.DEBUG)
+    logger = logging.getLogger("devtools.scraper.github_trending")
+    previous_level = logger.level
+    logger.setLevel(logging.DEBUG)
+    logger.addHandler(handler)
+    try:
+        scrape_github_trending.scrape_github_trending()
+    finally:
+        logger.removeHandler(handler)
+        logger.setLevel(previous_level)
 
     # Ensure only one row exists for the URL (no duplicate insert)
     found = database.get_startup_by_url("https://github.com/owner/dupe")
     assert found is not None
-    out, _ = capsys.readouterr()
-    assert "scraper.skip_duplicate" in out
+    assert "scraper.skip_duplicate" in log_buffer.getvalue()
