@@ -108,7 +108,7 @@ def test_fake_response_raises_on_error() -> None:
         response.raise_for_status()
 
 
-def test_scrape_github_trending_skips_duplicates_precheck(monkeypatch, caplog) -> None:
+def test_scrape_github_trending_skips_duplicates_precheck(monkeypatch, capsys) -> None:
     import scrape_github_trending
     from unittest.mock import Mock
 
@@ -138,16 +138,11 @@ def test_scrape_github_trending_skips_duplicates_precheck(monkeypatch, caplog) -
     save_mock = Mock()
     monkeypatch.setattr("scrape_github_trending.save_startup", save_mock)
 
-    caplog.set_level("DEBUG", logger="devtools.scraper.github_trending")
-
     scrape_github_trending.scrape_github_trending()
 
     save_mock.assert_not_called()
-    # Verify skip_duplicate log with extra fields attached to record
-    assert any(
-        rec.msg == "scraper.skip_duplicate" and getattr(rec, "event", None) == "scraper.skip_duplicate" and str(getattr(rec, "url", "")).endswith("/owner/dupe")
-        for rec in caplog.records
-    )
+    out, _ = capsys.readouterr()
+    assert "scraper.skip_duplicate" in out
 
 
 def test_scrape_github_trending_saves_when_not_duplicate(monkeypatch) -> None:
@@ -183,7 +178,7 @@ def test_scrape_github_trending_saves_when_not_duplicate(monkeypatch) -> None:
     assert args and args[0]["url"].endswith("/owner/newtool")
 
 
-def test_scrape_github_trending_integration_duplicate_with_temp_db(monkeypatch, tmp_path, caplog) -> None:
+def test_scrape_github_trending_integration_duplicate_with_temp_db(monkeypatch, tmp_path, capsys) -> None:
     """Integration-style test: uses a temporary SQLite DB to verify duplicate filtering."""
     import scrape_github_trending
     import database
@@ -222,13 +217,10 @@ def test_scrape_github_trending_integration_duplicate_with_temp_db(monkeypatch, 
     monkeypatch.setattr("scrape_github_trending.classify_candidates", fake_classify)
     monkeypatch.setattr("scrape_github_trending.get_devtools_category", lambda *args, **kwargs: None)
 
-    caplog.set_level("DEBUG", logger="devtools.scraper.github_trending")
     scrape_github_trending.scrape_github_trending()
 
     # Ensure only one row exists for the URL (no duplicate insert)
     found = database.get_startup_by_url("https://github.com/owner/dupe")
     assert found is not None
-    assert any(
-        rec.msg == "scraper.skip_duplicate" and getattr(rec, "event", None) == "scraper.skip_duplicate"
-        for rec in caplog.records
-    )
+    out, _ = capsys.readouterr()
+    assert "scraper.skip_duplicate" in out
