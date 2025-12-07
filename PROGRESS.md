@@ -1,3 +1,7 @@
+### 2025-12-07T03:19:47Z
+- Landed the GitHub Trending duplicate-precheck improvements and tightened tests by capturing the scraper logger output with a temporary DEBUG handler, ensuring the duplicate skip path is validated without relying on ambient log configuration.
+- Reran `pytest tests/test_scrape_github_trending.py` (9 passing) and merged the PR into `main`.
+
 ### 2025-12-06T20:08:04Z
 - Enabled Datadog AppSec + IAST across all compose variants and the cron runner by exporting `DD_APPSEC_ENABLED=true`, `DD_IAST_ENABLED=true`, and `DD_IAST_REQUEST_SAMPLING=100` alongside the existing tracing/profiling flags so both the web process and scheduled scrapes emit IAST data.
 - Rebuilt and restarted the production stack on `147.182.194.230` with the new IAST envs, verified both containers went healthy, and ran a traced scrape (`ddtrace-run python3 scrape_all.py` with AppSec/IAST/LLMObs envs) to seed telemetry with the new instrumentation.

@@ -1,3 +1,24 @@
+## 2025-12-07 - Stabilizing GitHub Trending Duplicate Tests
+Closed out the duplicate-precheck work on the GitHub Trending scraper and chased down why the new assertions were flaky. The scraper logs are JSON-formatted at INFO with `propagate=False`, so neither `caplog` nor `capsys` were catching the DEBUG-level `scraper.skip_duplicate` entries. The fix was to attach a temporary DEBUG stream handler directly to `devtools.scraper.github_trending` inside the tests, run the scraper, then restore the prior level/handler so the test can assert on the buffered log text without altering global logging. Both the unit-level duplicate skip and the SQLite-backed integration test now read from that buffer, confirming the skip path is taken without writing duplicate rows.
+
+The rest of the suite stayed green, and `pytest tests/test_scrape_github_trending.py` now passes end-to-end. The logging harness in the tests is minimal and self-contained:
+
+```python
+log_buffer = io.StringIO()
+handler = logging.StreamHandler(log_buffer)
+handler.setLevel(logging.DEBUG)
+logger = logging.getLogger("devtools.scraper.github_trending")
+previous_level = logger.level
+logger.setLevel(logging.DEBUG)
+logger.addHandler(handler)
+try:
+    scrape_github_trending.scrape_github_trending()
+finally:
+    logger.removeHandler(handler)
+    logger.setLevel(previous_level)
+assert "scraper.skip_duplicate" in log_buffer.getvalue()
+```
+
 ## 2025-12-06 - Turning On Datadog IAST
 Followed the IAST setup guide and opted for the env-flag path (fits our containerized, `ddtrace-run` boot flow). I added `DD_APPSEC_ENABLED=true`, `DD_IAST_ENABLED=true`, and `DD_IAST_REQUEST_SAMPLING=100` to every compose variant plus the cron runner env in `entrypoint.sh`, so both Gunicorn and the scheduled scrapes emit AppSec/IAST data without any code changes or framework hooks. With the tracer already wrapping the process via `ddtrace-run`, flipping the flags is all the Python tracer needs to start reporting vulnerabilities.
 
