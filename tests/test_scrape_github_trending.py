@@ -1,4 +1,5 @@
 import types
+from datetime import datetime
 
 import pytest
 
@@ -13,7 +14,7 @@ class FakeResponse:
             raise Exception("HTTP error")
 
 
-def test_scrape_github_trending_success(monkeypatch):
+def test_scrape_github_trending_success(monkeypatch) -> None:
     import scrape_github_trending
 
     html = """
@@ -26,8 +27,10 @@ def test_scrape_github_trending_success(monkeypatch):
         <p>Fun social app</p>
     </article>
     """
-    response = FakeResponse(content=html.encode("utf-8"))
+    response: FakeResponse = FakeResponse(content=html.encode("utf-8"))
     monkeypatch.setattr("scrape_github_trending.requests.get", lambda *args, **kwargs: response)
+    # Ensure no ambient DB state influences duplicate filtering
+    monkeypatch.setattr("scrape_github_trending.get_all_startups", lambda: [])
 
     saved = []
     monkeypatch.setattr("scrape_github_trending.save_startup", lambda record: saved.append(record))
@@ -44,7 +47,7 @@ def test_scrape_github_trending_success(monkeypatch):
     assert saved and saved[0]["description"].startswith("[CLI Tool]")
 
 
-def test_scrape_github_trending_handles_request_error(monkeypatch):
+def test_scrape_github_trending_handles_request_error(monkeypatch) -> None:
     import scrape_github_trending
     from requests import RequestException
 
@@ -55,17 +58,17 @@ def test_scrape_github_trending_handles_request_error(monkeypatch):
     scrape_github_trending.scrape_github_trending()
 
 
-def test_scrape_github_trending_handles_parse_error(monkeypatch):
+def test_scrape_github_trending_handles_parse_error(monkeypatch) -> None:
     import scrape_github_trending
 
-    response = FakeResponse(content=b"<html></html>")
+    response: FakeResponse = FakeResponse(content=b"<html></html>")
     monkeypatch.setattr("scrape_github_trending.requests.get", lambda *args, **kwargs: response)
     monkeypatch.setattr("bs4.BeautifulSoup", lambda *args, **kwargs: (_ for _ in ()).throw(ValueError("boom")))
 
     scrape_github_trending.scrape_github_trending()
 
 
-def test_scrape_github_trending_main_guard(monkeypatch):
+def test_scrape_github_trending_main_guard(monkeypatch) -> None:
     import runpy
 
     monkeypatch.setattr("database.init_db", lambda: None)
@@ -77,7 +80,7 @@ def test_scrape_github_trending_main_guard(monkeypatch):
     runpy.run_module("scrape_github_trending", run_name="__main__")
 
 
-def test_scrape_github_trending_skips_missing_link(monkeypatch):
+def test_scrape_github_trending_skips_missing_link(monkeypatch) -> None:
     import scrape_github_trending
 
     html = """
@@ -85,8 +88,9 @@ def test_scrape_github_trending_skips_missing_link(monkeypatch):
         <h2 class='h3'>Missing Link</h2>
     </article>
     """
-    response = FakeResponse(content=html.encode("utf-8"))
+    response: FakeResponse = FakeResponse(content=html.encode("utf-8"))
     monkeypatch.setattr("scrape_github_trending.requests.get", lambda *args, **kwargs: response)
+    monkeypatch.setattr("scrape_github_trending.get_all_startups", lambda: [])
 
     monkeypatch.setattr("scrape_github_trending.classify_candidates", lambda candidates: {item["id"]: True for item in candidates})
     monkeypatch.setattr("scrape_github_trending.get_devtools_category", lambda *args, **kwargs: None)
@@ -98,14 +102,15 @@ def test_scrape_github_trending_skips_missing_link(monkeypatch):
     assert saved == []
 
 
-def test_fake_response_raises_on_error():
+def test_fake_response_raises_on_error() -> None:
     response = FakeResponse(status_code=500)
     with pytest.raises(Exception):
         response.raise_for_status()
 
 
-def test_scrape_github_trending_skips_duplicates_precheck(monkeypatch):
+def test_scrape_github_trending_skips_duplicates_precheck(monkeypatch, caplog) -> None:
     import scrape_github_trending
+    from unittest.mock import Mock
 
     html = """
     <article class="Box-row">
@@ -113,7 +118,7 @@ def test_scrape_github_trending_skips_duplicates_precheck(monkeypatch):
         <p>Duplicate candidate</p>
     </article>
     """
-    response = FakeResponse(content=html.encode("utf-8"))
+    response: FakeResponse = FakeResponse(content=html.encode("utf-8"))
     monkeypatch.setattr("scrape_github_trending.requests.get", lambda *args, **kwargs: response)
 
     # Classifier marks it as a devtool
@@ -124,33 +129,30 @@ def test_scrape_github_trending_skips_duplicates_precheck(monkeypatch):
     monkeypatch.setattr("scrape_github_trending.classify_candidates", fake_classify)
     monkeypatch.setattr("scrape_github_trending.get_devtools_category", lambda *args, **kwargs: None)
 
-    # is_duplicate pre-check forces skip
-    monkeypatch.setattr("scrape_github_trending.is_duplicate", lambda *args, **kwargs: True)
-
-    saved = []
-    monkeypatch.setattr("scrape_github_trending.save_startup", lambda record: saved.append(record))
-
-    calls = []
-    def debug_spy(msg, *args, **kwargs):
-        calls.append((msg, kwargs))
-
-    # Provide minimal logger with debug/info/exception
-    import types
-    logger_stub = types.SimpleNamespace(
-        debug=debug_spy,
-        info=lambda *a, **k: None,
-        exception=lambda *a, **k: None,
+    # Simulate existing DB entry to trigger duplicate pre-filter
+    monkeypatch.setattr(
+        "scrape_github_trending.get_all_startups",
+        lambda: [{"name": "anything", "url": "https://github.com/owner/dupe"}],
     )
-    monkeypatch.setattr("scrape_github_trending.logger", logger_stub)
+
+    save_mock = Mock()
+    monkeypatch.setattr("scrape_github_trending.save_startup", save_mock)
+
+    caplog.set_level("DEBUG")
 
     scrape_github_trending.scrape_github_trending()
 
-    assert saved == []
-    assert any(msg == "scraper.skip_duplicate" and kw.get("extra", {}).get("event") == "scraper.skip_duplicate" for msg, kw in calls)
+    save_mock.assert_not_called()
+    # Verify skip_duplicate log with extra fields attached to record
+    assert any(
+        rec.msg == "scraper.skip_duplicate" and getattr(rec, "event", None) == "scraper.skip_duplicate" and str(getattr(rec, "url", "")).endswith("/owner/dupe")
+        for rec in caplog.records
+    )
 
 
-def test_scrape_github_trending_saves_when_not_duplicate(monkeypatch):
+def test_scrape_github_trending_saves_when_not_duplicate(monkeypatch) -> None:
     import scrape_github_trending
+    from unittest.mock import Mock
 
     html = """
     <article class="Box-row">
@@ -158,7 +160,7 @@ def test_scrape_github_trending_saves_when_not_duplicate(monkeypatch):
         <p>Fresh candidate</p>
     </article>
     """
-    response = FakeResponse(content=html.encode("utf-8"))
+    response: FakeResponse = FakeResponse(content=html.encode("utf-8"))
     monkeypatch.setattr("scrape_github_trending.requests.get", lambda *args, **kwargs: response)
 
     def fake_classify(candidates):
@@ -168,22 +170,65 @@ def test_scrape_github_trending_saves_when_not_duplicate(monkeypatch):
     monkeypatch.setattr("scrape_github_trending.classify_candidates", fake_classify)
     monkeypatch.setattr("scrape_github_trending.get_devtools_category", lambda *args, **kwargs: None)
 
-    # Not a duplicate
-    monkeypatch.setattr("scrape_github_trending.is_duplicate", lambda *args, **kwargs: False)
+    # Not a duplicate: no existing entries
+    monkeypatch.setattr("scrape_github_trending.get_all_startups", lambda: [])
 
-    saved = []
-    monkeypatch.setattr("scrape_github_trending.save_startup", lambda record: saved.append(record))
-
-    # Keep logger minimal to avoid noisy output
-    import types
-    logger_stub = types.SimpleNamespace(
-        debug=lambda *a, **k: None,
-        info=lambda *a, **k: None,
-        exception=lambda *a, **k: None,
-    )
-    monkeypatch.setattr("scrape_github_trending.logger", logger_stub)
+    save_mock = Mock()
+    monkeypatch.setattr("scrape_github_trending.save_startup", save_mock)
 
     scrape_github_trending.scrape_github_trending()
 
-    assert len(saved) == 1
-    assert saved[0]["url"].endswith("/owner/newtool")
+    assert save_mock.call_count == 1
+    args, kwargs = save_mock.call_args
+    assert args and args[0]["url"].endswith("/owner/newtool")
+
+
+def test_scrape_github_trending_integration_duplicate_with_temp_db(monkeypatch, tmp_path, caplog) -> None:
+    """Integration-style test: uses a temporary SQLite DB to verify duplicate filtering."""
+    import scrape_github_trending
+    import database
+
+    # Point database to a temporary path
+    db_file = tmp_path / "startups.db"
+    monkeypatch.setattr(database, "DB_PATH", db_file)
+    monkeypatch.setattr(database, "DB_NAME", str(db_file))
+
+    database.init_db()
+
+    # Seed an existing startup with the same URL as the forthcoming scrape
+    existing = {
+        "name": "owner/dupe",
+        "url": "https://github.com/owner/dupe",
+        "description": "Existing",
+        "source": "GitHub Trending",
+        "date_found": datetime.now(),
+    }
+    database.save_startup(existing)
+
+    # HTML contains the same repo; classification marks it True
+    html = """
+    <article class=\"Box-row\">
+        <h2 class=\"h3\"><a href=\"/owner/dupe\">Dupe Tool</a></h2>
+        <p>Duplicate candidate</p>
+    </article>
+    """
+    response: FakeResponse = FakeResponse(content=html.encode("utf-8"))
+    monkeypatch.setattr("scrape_github_trending.requests.get", lambda *args, **kwargs: response)
+
+    def fake_classify(candidates):
+        items = list(candidates)
+        return {item["id"]: True for item in items}
+
+    monkeypatch.setattr("scrape_github_trending.classify_candidates", fake_classify)
+    monkeypatch.setattr("scrape_github_trending.get_devtools_category", lambda *args, **kwargs: None)
+
+    caplog.set_level("DEBUG")
+    scrape_github_trending.scrape_github_trending()
+
+    # Ensure only one row exists for the URL (no duplicate insert)
+    found = database.get_startup_by_url("https://github.com/owner/dupe")
+    assert found is not None
+    assert any(
+        rec.msg == "scraper.skip_duplicate" and getattr(rec, "event", None) == "scraper.skip_duplicate"
+        for rec in caplog.records
+    )

@@ -1,16 +1,22 @@
 import uuid
 from datetime import datetime
+from typing import Dict, List
 
 import requests
 
 from ai_classifier import classify_candidates, get_devtools_category
-from database import init_db, is_duplicate, save_startup
+from database import get_all_startups, init_db, save_startup
 from logging_config import get_logger, logging_context
 from observability import trace_http_call
 
 logger = get_logger("devtools.scraper.github_trending")
 
-def scrape_github_trending():
+def scrape_github_trending() -> None:
+    """Scrape GitHub Trending and persist new devtools.
+
+    Skips repositories that already exist in the database (by name or URL) and
+    logs a debug event "scraper.skip_duplicate" when a duplicate is detected.
+    """
     url = "https://github.com/trending"
     run_id = str(uuid.uuid4())
     headers = {
@@ -38,7 +44,7 @@ def scrape_github_trending():
                 extra={"event": "scraper.repos_found", "count": len(repos)},
             )
             
-            candidates = []
+            candidates: List[Dict] = []
             for repo in repos:
                 name_elem = repo.find('h2', class_='h3')
                 if not name_elem:
@@ -60,17 +66,44 @@ def scrape_github_trending():
                     "url": repo_url,
                 })
 
+            # Prefetch existing records to avoid per-candidate DB checks and
+            # filter duplicates before classification/LLM work.
+            existing_names = set()
+            existing_urls = set()
+            try:
+                existing: List[Dict] = get_all_startups()
+                for row in existing:
+                    nm = row.get("name")
+                    u = row.get("url")
+                    if nm:
+                        existing_names.add(nm)
+                    if u:
+                        existing_urls.add(u)
+            except Exception:
+                # Log DB issues explicitly; continue without pre-filtering
+                logger.exception("scraper.db_error", extra={"event": "scraper.db_error"})
+
+            filtered_candidates: List[Dict] = []
+            for candidate in candidates:
+                if candidate["name"] in existing_names or candidate["url"] in existing_urls:
+                    logger.debug(
+                        "scraper.skip_duplicate",
+                        extra={"event": "scraper.skip_duplicate", "url": candidate["url"]},
+                    )
+                    continue
+                filtered_candidates.append(candidate)
+
             results = classify_candidates(
                 {
                     "id": candidate["id"],
                     "name": candidate["name"],
                     "text": candidate["text"],
                 }
-                for candidate in candidates
+                for candidate in filtered_candidates
             )
 
             devtools_count = 0
-            for candidate in candidates:
+            for candidate in filtered_candidates:
                 if not results.get(candidate["id"]):
                     logger.debug(
                         "scraper.skip_non_devtool",
@@ -87,17 +120,6 @@ def scrape_github_trending():
                 category = get_devtools_category(description, candidate["name"])
                 if category:
                     description = f"[{category}] {description}" if description else f"[{category}]"
-
-                # Skip duplicates before attempting to save
-                if is_duplicate(candidate["name"], candidate["url"]):
-                    logger.debug(
-                        "scraper.skip_duplicate",
-                        extra={
-                            "event": "scraper.skip_duplicate",
-                            "url": candidate["url"],
-                        },
-                    )
-                    continue
 
                 startup = {
                     "name": candidate["name"],
