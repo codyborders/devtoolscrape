@@ -30,7 +30,7 @@ def test_scrape_github_trending_success(monkeypatch) -> None:
     response: FakeResponse = FakeResponse(content=html.encode("utf-8"))
     monkeypatch.setattr("scrape_github_trending.requests.get", lambda *args, **kwargs: response)
     # Ensure no ambient DB state influences duplicate filtering
-    monkeypatch.setattr("scrape_github_trending.get_all_startups", lambda: [])
+    monkeypatch.setattr("scrape_github_trending.get_existing_startup_keys", lambda: [])
 
     saved = []
     monkeypatch.setattr("scrape_github_trending.save_startup", lambda record: saved.append(record))
@@ -90,7 +90,7 @@ def test_scrape_github_trending_skips_missing_link(monkeypatch) -> None:
     """
     response: FakeResponse = FakeResponse(content=html.encode("utf-8"))
     monkeypatch.setattr("scrape_github_trending.requests.get", lambda *args, **kwargs: response)
-    monkeypatch.setattr("scrape_github_trending.get_all_startups", lambda: [])
+    monkeypatch.setattr("scrape_github_trending.get_existing_startup_keys", lambda: [])
 
     monkeypatch.setattr("scrape_github_trending.classify_candidates", lambda candidates: {item["id"]: True for item in candidates})
     monkeypatch.setattr("scrape_github_trending.get_devtools_category", lambda *args, **kwargs: None)
@@ -131,7 +131,7 @@ def test_scrape_github_trending_skips_duplicates_precheck(monkeypatch, caplog) -
 
     # Simulate existing DB entry to trigger duplicate pre-filter
     monkeypatch.setattr(
-        "scrape_github_trending.get_all_startups",
+        "scrape_github_trending.get_existing_startup_keys",
         lambda: [{"name": "anything", "url": "https://github.com/owner/dupe"}],
     )
 
@@ -171,7 +171,7 @@ def test_scrape_github_trending_saves_when_not_duplicate(monkeypatch) -> None:
     monkeypatch.setattr("scrape_github_trending.get_devtools_category", lambda *args, **kwargs: None)
 
     # Not a duplicate: no existing entries
-    monkeypatch.setattr("scrape_github_trending.get_all_startups", lambda: [])
+    monkeypatch.setattr("scrape_github_trending.get_existing_startup_keys", lambda: [])
 
     save_mock = Mock()
     monkeypatch.setattr("scrape_github_trending.save_startup", save_mock)

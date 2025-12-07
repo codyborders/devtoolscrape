@@ -366,6 +366,20 @@ def get_all_startups(limit: Optional[int] = None, offset: Optional[int] = None):
     return results
 
 
+def get_existing_startup_keys() -> list[dict]:
+    """Return existing startup name/url pairs for fast duplicate checks."""
+    conn = _connect()
+    rows = conn.execute('SELECT name, url FROM startups').fetchall()
+    conn.close()
+
+    results = [{"name": row["name"], "url": row["url"]} for row in rows]
+    logger.debug(
+        "db.get_existing_startup_keys",
+        extra={"event": "db.get_existing_startup_keys", "returned": len(results)},
+    )
+    return results
+
+
 def count_all_startups() -> int:
     conn = _connect()
     (count,) = conn.execute('SELECT COUNT(*) FROM startups').fetchone()

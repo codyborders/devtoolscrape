@@ -1,3 +1,4 @@
+import sqlite3
 import uuid
 from datetime import datetime
 from typing import Dict, List
@@ -5,7 +6,7 @@ from typing import Dict, List
 import requests
 
 from ai_classifier import classify_candidates, get_devtools_category
-from database import get_all_startups, init_db, save_startup
+from database import get_existing_startup_keys, init_db, save_startup
 from logging_config import get_logger, logging_context
 from observability import trace_http_call
 
@@ -71,7 +72,7 @@ def scrape_github_trending() -> None:
             existing_names = set()
             existing_urls = set()
             try:
-                existing: List[Dict] = get_all_startups()
+                existing: List[Dict] = get_existing_startup_keys()
                 for row in existing:
                     nm = row.get("name")
                     u = row.get("url")
@@ -79,7 +80,7 @@ def scrape_github_trending() -> None:
                         existing_names.add(nm)
                     if u:
                         existing_urls.add(u)
-            except Exception:
+            except sqlite3.Error:
                 # Log DB issues explicitly; continue without pre-filtering
                 logger.exception("scraper.db_error", extra={"event": "scraper.db_error"})
 
@@ -93,14 +94,20 @@ def scrape_github_trending() -> None:
                     continue
                 filtered_candidates.append(candidate)
 
-            results = classify_candidates(
-                {
-                    "id": candidate["id"],
-                    "name": candidate["name"],
-                    "text": candidate["text"],
-                }
-                for candidate in filtered_candidates
-            )
+            try:
+                results = classify_candidates(
+                    {
+                        "id": candidate["id"],
+                        "name": candidate["name"],
+                        "text": candidate["text"],
+                    }
+                    for candidate in filtered_candidates
+                )
+            except Exception:
+                logger.exception(
+                    "scraper.classify_error", extra={"event": "scraper.classify_error"}
+                )
+                results = {}
 
             devtools_count = 0
             for candidate in filtered_candidates:
@@ -117,7 +124,18 @@ def scrape_github_trending() -> None:
                 devtools_count += 1
 
                 description = candidate["description"]
-                category = get_devtools_category(description, candidate["name"])
+                try:
+                    category = get_devtools_category(description, candidate["name"])
+                except Exception:
+                    logger.exception(
+                        "scraper.categorize_error",
+                        extra={
+                            "event": "scraper.categorize_error",
+                            "name": candidate.get("name"),
+                            "url": candidate.get("url"),
+                        },
+                    )
+                    category = None
                 if category:
                     description = f"[{category}] {description}" if description else f"[{category}]"
 
