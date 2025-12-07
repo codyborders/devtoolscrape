@@ -138,7 +138,7 @@ def test_scrape_github_trending_skips_duplicates_precheck(monkeypatch, caplog) -
     save_mock = Mock()
     monkeypatch.setattr("scrape_github_trending.save_startup", save_mock)
 
-    caplog.set_level("DEBUG")
+    caplog.set_level("DEBUG", logger="devtools.scraper.github_trending")
 
     scrape_github_trending.scrape_github_trending()
 
@@ -222,7 +222,7 @@ def test_scrape_github_trending_integration_duplicate_with_temp_db(monkeypatch, 
     monkeypatch.setattr("scrape_github_trending.classify_candidates", fake_classify)
     monkeypatch.setattr("scrape_github_trending.get_devtools_category", lambda *args, **kwargs: None)
 
-    caplog.set_level("DEBUG")
+    caplog.set_level("DEBUG", logger="devtools.scraper.github_trending")
     scrape_github_trending.scrape_github_trending()
 
     # Ensure only one row exists for the URL (no duplicate insert)
