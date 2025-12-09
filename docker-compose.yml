@@ -46,7 +46,6 @@ services:
     image: gcr.io/datadoghq/agent:7
     hostname: dd-agent
     pid: host
-    cgroupns: host
     env_file:
       - .env
     environment:
