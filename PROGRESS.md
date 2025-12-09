@@ -2,6 +2,11 @@
 - Landed the GitHub Trending duplicate-precheck improvements and tightened tests by capturing the scraper logger output with a temporary DEBUG handler, ensuring the duplicate skip path is validated without relying on ambient log configuration.
 - Reran `pytest tests/test_scrape_github_trending.py` (9 passing) and merged the PR into `main`.
 
+### 2025-12-09T05:27:45Z
+- Enabled Datadog Cloud Network Monitoring in the Docker Agent by turning on `DD_SYSTEM_PROBE_NETWORK_ENABLED`, enabling the process agent, adding the required kernel debug mount, and granting the system-probe capabilities (NET_ADMIN/NET_RAW/etc.) plus `apparmor:unconfined`.
+- Applied the same CNM settings to both compose files (`docker-compose.yml`/`docker-compose.yaml`), rebuilt the stack on the prod droplet (`147.182.194.230`), and confirmed the agent/app/locust services restarted cleanly.
+- Verified the scraper test suite still passes locally (`pytest tests/test_scrape_github_trending.py`).
+
 ### 2025-12-06T20:08:04Z
 - Enabled Datadog AppSec + IAST across all compose variants and the cron runner by exporting `DD_APPSEC_ENABLED=true`, `DD_IAST_ENABLED=true`, and `DD_IAST_REQUEST_SAMPLING=100` alongside the existing tracing/profiling flags so both the web process and scheduled scrapes emit IAST data.
 - Rebuilt and restarted the production stack on `147.182.194.230` with the new IAST envs, verified both containers went healthy, and ran a traced scrape (`ddtrace-run python3 scrape_all.py` with AppSec/IAST/LLMObs envs) to seed telemetry with the new instrumentation.

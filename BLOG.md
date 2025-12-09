@@ -19,6 +19,11 @@ finally:
 assert "scraper.skip_duplicate" in log_buffer.getvalue()
 ```
 
+## 2025-12-09 - Enabling Cloud Network Monitoring In Docker
+Followed Datadog’s CNM setup for Docker and enabled flow collection on the prod host. The Agent container now sets `DD_SYSTEM_PROBE_NETWORK_ENABLED=true` with the process agent enabled, mounts `/sys/kernel/debug`, runs with `pid: host`/`cgroupns: host`, and grants the required capabilities (`NET_ADMIN`, `NET_RAW`, etc.) plus `apparmor:unconfined` so the system-probe can attach eBPF. Updated both compose variants (`docker-compose.yml`/`docker-compose.yaml`) to keep single- and blue/green stacks aligned.
+
+After updating compose, I rebuilt and relaunched the stack on `147.182.194.230` (`docker-compose down --remove-orphans && docker-compose up -d --build`), verified dd-agent/app/locust came back healthy, and reran the scraper tests locally (`pytest tests/test_scrape_github_trending.py`) to confirm nothing regressed. CNM should now emit network flows alongside the existing APM/AppSec/IAST telemetry from the containerized app.
+
 ## 2025-12-06 - Turning On Datadog IAST
 Followed the IAST setup guide and opted for the env-flag path (fits our containerized, `ddtrace-run` boot flow). I added `DD_APPSEC_ENABLED=true`, `DD_IAST_ENABLED=true`, and `DD_IAST_REQUEST_SAMPLING=100` to every compose variant plus the cron runner env in `entrypoint.sh`, so both Gunicorn and the scheduled scrapes emit AppSec/IAST data without any code changes or framework hooks. With the tracer already wrapping the process via `ddtrace-run`, flipping the flags is all the Python tracer needs to start reporting vulnerabilities.
 
