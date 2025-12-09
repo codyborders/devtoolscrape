@@ -1,3 +1,7 @@
+### 2025-12-09T15:58:04Z
+- Fixed missing Datadog runtime metrics by pointing the app containers (and cron runner) at the agent’s DogStatsD endpoint (`DD_DOGSTATSD_URL=udp://dd-agent:8125`) and allowing remote DogStatsD traffic in the agent (`DD_DOGSTATSD_NON_LOCAL_TRAFFIC=true`) across both compose files.
+- Pending redeploy to prod to confirm runtime metrics resume flowing after the DogStatsD configuration is live.
+
 ### 2025-12-07T03:19:47Z
 - Landed the GitHub Trending duplicate-precheck improvements and tightened tests by capturing the scraper logger output with a temporary DEBUG handler, ensuring the duplicate skip path is validated without relying on ambient log configuration.
 - Reran `pytest tests/test_scrape_github_trending.py` (9 passing) and merged the PR into `main`.

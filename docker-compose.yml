@@ -24,6 +24,7 @@ services:
       - DD_PROFILING_TIMELINE_ENABLED=true
       - DD_RUNTIME_METRICS_ENABLED=true
       - DD_RUNTIME_METRICS_RUNTIME_ID_ENABLED=true
+      - DD_DOGSTATSD_URL=udp://dd-agent:8125
       - DD_DYNAMIC_INSTRUMENTATION_ENABLED=true
       - DD_EXCEPTION_REPLAY_ENABLED=true
       - DD_APPSEC_ENABLED=true
@@ -56,6 +57,7 @@ services:
       - DD_LOGS_ENABLED=true
       - DD_LOGS_CONFIG_CONTAINER_COLLECT_ALL=true
       - DD_PROCESS_AGENT_ENABLED=false
+      - DD_DOGSTATSD_NON_LOCAL_TRAFFIC=true
     ports:
       - "8126:8126"
     volumes:

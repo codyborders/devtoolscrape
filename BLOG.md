@@ -374,6 +374,9 @@ rum_config = {
 
 `templates/base.html` now pulls the CDN loader and calls `DD_RUM.init()` with that JSON-ified payload behind a simple `{% if datadog_rum %}` guard, starting session replay when the toggle is present and leaving the page untouched when secrets are missing. I rebuilt the compose service so the running container carries the new snippet; once the RUM tokens land in `.env`, browser sessions should stitch cleanly to backend spans without touching the nginx injector.
 
+## 2025-12-09 - Restoring Runtime Metrics To Datadog
+Runtime metrics dropped off after the agent stopped accepting DogStatsD packets from sibling containers. The tracer defaults to `localhost:8125`, so our `ddtrace-run` app was happily emitting to nowhere. I updated both compose files to set `DD_DOGSTATSD_URL=udp://dd-agent:8125` for the app service and `DD_DOGSTATSD_NON_LOCAL_TRAFFIC=true` on the agent so DogStatsD listens beyond loopback. Once redeployed, the tracer should resume shipping CPU/memory/thread gauges alongside traces and profiles without any app code changes.
+
 ## 2025-12-06 - Shipping RUM→APM Correlation To Prod
 With the correlation plumbing merged, I pushed `main` and deployed straight to the prod droplet (`147.182.194.230`). The deploy was the usual compose cycle: `docker-compose down --remove-orphans` to clear the stale network, `docker-compose up -d --build` to rebuild `devtoolscrape` plus the `dd-agent` sidecar, and a quick `/health` curl on port 8000 to make sure Gunicorn was happy behind the proxy. Both containers reported healthy and the Datadog agent came back up on 8126.
 
