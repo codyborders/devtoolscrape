@@ -1,10 +1,10 @@
 {
   "version": 3,
   "file": "app.js",
-  "sources": ["app.js"],
+  "sources": ["app.source.js"],
   "sourcesContent": [
-    "(function () {\n  console.debug(\"DevTools Scraper frontend bootstrap\");\n\n  function simulateLongTask(durationMs) {\n    const end = performance.now() + durationMs;\n    while (performance.now() < end) {\n      // Busy loop to generate a long animation frame for browser profiling.\n    }\n  }\n\n  function seedProfiles() {\n    setTimeout(() => simulateLongTask(220), 1000);\n    setTimeout(() => simulateLongTask(220), 4000);\n  }\n\n  if (document.readyState === \"complete\") {\n    seedProfiles();\n  } else {\n    window.addEventListener(\"load\", seedProfiles, { once: true });\n  }\n})();\n\n//# sourceMappingURL=app.js.map\n"
+    "console.debug(\"DevTools Scraper frontend bootstrap\");"
   ],
   "names": [],
-  "mappings": "AAAA;AACA;AACA;AACA;AACA;AACA;AACA;AACA;AACA;AACA;AACA;AACA;AACA;AACA;AACA;AACA;AACA;AACA;AACA;AACA"
+  "mappings": "AAAA"
 }

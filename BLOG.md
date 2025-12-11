@@ -383,8 +383,6 @@ After deploying, I SSH’d to the prod droplet and bumped the nginx Datadog inje
 
 I also fixed the nginx Datadog module’s backend target on the droplet: it was still pointing at the old container IP (`172.17.0.2:8126`), which spammed the error log with telemetry/remote-config timeouts. It now hits `http://127.0.0.1:8126` (the host-mapped dd-agent port), and nginx has been restarted so the module can reach the agent cleanly.
 
-To prove Browser Profiling end-to-end, I added a tiny workload in `static/js/app.js` that fires two ~220ms long tasks shortly after page load. That should generate Long Animation Frames so profiles appear in Datadog for live sessions. The sourcemap now mirrors the updated script so profiling/error linkage stays correct.
-
 ## 2025-12-09 - Restoring Runtime Metrics To Datadog
 Runtime metrics dropped off after the agent stopped accepting DogStatsD packets from sibling containers. The tracer defaults to `localhost:8125`, so our `ddtrace-run` app was happily emitting to nowhere. I updated both compose files to set `DD_DOGSTATSD_URL=udp://dd-agent:8125` for the app service and `DD_DOGSTATSD_NON_LOCAL_TRAFFIC=true` on the agent so DogStatsD listens beyond loopback. Once redeployed, the tracer should resume shipping CPU/memory/thread gauges alongside traces and profiles without any app code changes.
 
