@@ -1,3 +1,7 @@
+### 2025-12-11T21:15:00Z
+- Reverted all recent RUM/browser profiling changes (SDK v6.25, CORS header, profiling hooks, synthetic workloads, nginx injector tweaks) back to the last known good state from `c2311e6`.
+- Restored the prod nginx Datadog module to the prior v5 injector pointing at the original agent URL, then reloaded nginx so RUM injection matches the pre-change configuration.
+
 ### 2025-12-09T15:58:04Z
 - Fixed missing Datadog runtime metrics by pointing the app containers (and cron runner) at the agent’s DogStatsD endpoint (`DD_DOGSTATSD_URL=udp://dd-agent:8125`) and allowing remote DogStatsD traffic in the agent (`DD_DOGSTATSD_NON_LOCAL_TRAFFIC=true`) across both compose files.
 - Pending redeploy to prod to confirm runtime metrics resume flowing after the DogStatsD configuration is live.

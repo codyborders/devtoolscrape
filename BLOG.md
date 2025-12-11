@@ -1,3 +1,6 @@
+## 2025-12-11 - Rolling Back RUM/Profiling Changes
+Sessions dropped after the RUM/profiling push, so I unwound everything back to the last stable state. Locally I reverted all RUM-related commits (SDK v6.25 pin, profiling flags, CORS headers, synthetic long-task workload, nginx injector tweaks), landing back on `c2311e6`. On the droplet I reset the nginx Datadog module to the previous v5 injector and original agent URL, then reloaded nginx. The app is now serving the pre-change configuration that previously reported sessions.
+
 ## 2025-12-07 - Stabilizing GitHub Trending Duplicate Tests
 Closed out the duplicate-precheck work on the GitHub Trending scraper and chased down why the new assertions were flaky. The scraper logs are JSON-formatted at INFO with `propagate=False`, so neither `caplog` nor `capsys` were catching the DEBUG-level `scraper.skip_duplicate` entries. The fix was to attach a temporary DEBUG stream handler directly to `devtools.scraper.github_trending` inside the tests, run the scraper, then restore the prior level/handler so the test can assert on the buffered log text without altering global logging. Both the unit-level duplicate skip and the SQLite-backed integration test now read from that buffer, confirming the skip path is taken without writing duplicate rows.
 
