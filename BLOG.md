@@ -379,6 +379,8 @@ Datadog’s browser SDK bumped to v6.25.0, so I pinned our loader to that tag (d
 
 I also applied the CORS guidance from the profiling doc: any JavaScript served from `/static/` now carries `Access-Control-Allow-Origin: *` so the browser profiler can fetch and attribute scripts even when they’re requested cross-origin. Since we already load the SDK with `crossorigin="anonymous"`, this closes out step 3 of the setup.
 
+After deploying, I SSH’d to the prod droplet and bumped the nginx Datadog injector from `v5.35.1` to `v6.25.0` (`datadog_rum_config "v6.25.0"`). `nginx -t` passed and the reload succeeded; a fresh curl against https://devtoolscrape.com now shows the v6 loader and the profilingSampleRate=100 in the injected init block.
+
 ## 2025-12-09 - Restoring Runtime Metrics To Datadog
 Runtime metrics dropped off after the agent stopped accepting DogStatsD packets from sibling containers. The tracer defaults to `localhost:8125`, so our `ddtrace-run` app was happily emitting to nowhere. I updated both compose files to set `DD_DOGSTATSD_URL=udp://dd-agent:8125` for the app service and `DD_DOGSTATSD_NON_LOCAL_TRAFFIC=true` on the agent so DogStatsD listens beyond loopback. Once redeployed, the tracer should resume shipping CPU/memory/thread gauges alongside traces and profiles without any app code changes.
 
