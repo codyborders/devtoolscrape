@@ -377,8 +377,6 @@ rum_config = {
 ## 2025-12-11 - Shipping RUM v6.25 With Browser Profiling
 Datadog’s browser SDK bumped to v6.25.0, so I pinned our loader to that tag (defaulting via `DATADOG_RUM_BROWSER_VERSION`) and added `profilingSampleRate: 100` to the RUM init payload to turn on Browser Profiling for all sessions. The template still reads all the usual knobs (service/env/version, allowed tracing URLs, replay toggle), but now emits the profiling config too. To keep the change tight, I left everything else untouched and just verified the module compiles with `python -m compileall app_production.py`. Once CI finishes, the deploy job will roll the new snippet to prod so browser events start carrying profiling data immediately.
 
-I also applied the CORS guidance from the profiling doc: any JavaScript served from `/static/` now carries `Access-Control-Allow-Origin: *` so the browser profiler can fetch and attribute scripts even when they’re requested cross-origin. Since we already load the SDK with `crossorigin="anonymous"`, this closes out step 3 of the setup.
-
 ## 2025-12-09 - Restoring Runtime Metrics To Datadog
 Runtime metrics dropped off after the agent stopped accepting DogStatsD packets from sibling containers. The tracer defaults to `localhost:8125`, so our `ddtrace-run` app was happily emitting to nowhere. I updated both compose files to set `DD_DOGSTATSD_URL=udp://dd-agent:8125` for the app service and `DD_DOGSTATSD_NON_LOCAL_TRAFFIC=true` on the agent so DogStatsD listens beyond loopback. Once redeployed, the tracer should resume shipping CPU/memory/thread gauges alongside traces and profiles without any app code changes.
 
