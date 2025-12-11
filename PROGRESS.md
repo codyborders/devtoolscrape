@@ -1,3 +1,7 @@
+### 2025-12-11T19:32:14Z
+- Upgraded the Datadog browser SDK default to `v6.25.0` and enabled Browser Profiling with `profilingSampleRate=100` (overridable via `DATADOG_RUM_PROFILING_SAMPLE_RATE`) in the RUM init payload.
+- Verified the server-side template build compiles (`python -m compileall app_production.py`) and pushed to `main` to let the CI deploy pipeline roll the change to prod.
+
 ### 2025-12-09T15:58:04Z
 - Fixed missing Datadog runtime metrics by pointing the app containers (and cron runner) at the agent’s DogStatsD endpoint (`DD_DOGSTATSD_URL=udp://dd-agent:8125`) and allowing remote DogStatsD traffic in the agent (`DD_DOGSTATSD_NON_LOCAL_TRAFFIC=true`) across both compose files.
 - Pending redeploy to prod to confirm runtime metrics resume flowing after the DogStatsD configuration is live.
