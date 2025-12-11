@@ -10,7 +10,7 @@
 - Fixed the nginx Datadog module’s agent target on the prod droplet (pointed `datadog_agent_url` to `http://127.0.0.1:8126` instead of the stale `172.17.0.2`), then restarted nginx to clear repeated telemetry/remote-config timeouts from the module.
 
 ### 2025-12-11T20:41:23Z
-- Added lightweight client-side workload to `/static/js/app.js` that triggers two 220 ms long tasks shortly after page load, ensuring Browser Profiling captures samples during validation. Updated the sourcemap accordingly to keep error/profiling linkage intact.
+- Added lightweight client-side workload to `/static/js/app.js` that triggers long tasks shortly after page load (now 650 ms, three times) to ensure Browser Profiling captures samples during validation. Updated the sourcemap accordingly to keep error/profiling linkage intact.
 
 ### 2025-12-09T15:58:04Z
 - Fixed missing Datadog runtime metrics by pointing the app containers (and cron runner) at the agent’s DogStatsD endpoint (`DD_DOGSTATSD_URL=udp://dd-agent:8125`) and allowing remote DogStatsD traffic in the agent (`DD_DOGSTATSD_NON_LOCAL_TRAFFIC=true`) across both compose files.
