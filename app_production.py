@@ -71,7 +71,7 @@ def _rum_script_source(site: str) -> str:
         "ddog-gov.com": "us1-gov",
     }
     region = region_map.get(site.lower(), "us1")
-    version = os.getenv("DATADOG_RUM_BROWSER_VERSION", "v6.25.0")
+    version = os.getenv("DATADOG_RUM_BROWSER_VERSION", "v6")
     version_segment = version if version.startswith("v") else f"v{version}"
     return f"https://www.datadoghq-browser-agent.com/{region}/{version_segment}/datadog-rum.js"
 
@@ -110,7 +110,6 @@ def _build_rum_context():
         "trackLongTasks": _truthy_env("DATADOG_RUM_TRACK_LONG_TASKS", True),
         "defaultPrivacyLevel": os.getenv("DATADOG_RUM_DEFAULT_PRIVACY_LEVEL", "mask-user-input"),
         "allowedTracingUrls": allowed_tracing_urls,
-        "profilingSampleRate": _safe_float_env("DATADOG_RUM_PROFILING_SAMPLE_RATE", 100.0),
     }
 
     session_replay_enabled = _truthy_env("DATADOG_RUM_SESSION_REPLAY", False)
