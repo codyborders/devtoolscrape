@@ -1,5 +1,6 @@
 ### 2025-12-11T19:32:14Z
 - Upgraded the Datadog browser SDK default to `v6.25.0` and enabled Browser Profiling with `profilingSampleRate=100` (overridable via `DATADOG_RUM_PROFILING_SAMPLE_RATE`) in the RUM init payload.
+- Implemented the CORS step for Browser Profiling by adding `Access-Control-Allow-Origin: *` to JavaScript responses from `/static/` to match the Datadog guidance for cross-origin script fetching.
 - Verified the server-side template build compiles (`python -m compileall app_production.py`) and pushed to `main` to let the CI deploy pipeline roll the change to prod.
 
 ### 2025-12-09T15:58:04Z

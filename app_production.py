@@ -163,6 +163,10 @@ def _complete_request_logging(response):
     duration_ms = None
     if hasattr(g, "request_start_time"):
         duration_ms = round((time.perf_counter() - g.request_start_time) * 1000, 2)
+    # Allow cross-origin fetch of static JS so browser profiling can read sources.
+    if request.path.startswith("/static/") and response.mimetype in {"application/javascript", "text/javascript"}:
+        response.headers["Access-Control-Allow-Origin"] = "*"
+        response.headers["Access-Control-Allow-Methods"] = "GET, OPTIONS"
     logger.info(
         "request.complete",
         extra={
