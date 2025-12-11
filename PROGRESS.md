@@ -6,6 +6,9 @@
 ### 2025-12-11T20:02:57Z
 - Updated the prod nginx Datadog RUM injector to serve browser SDK `v6.25.0` (was v5.35.1) and reloaded nginx, so live pages now pull the latest bundle with profilingSampleRate=100.
 
+### 2025-12-11T20:30:00Z
+- Fixed the nginx Datadog module’s agent target on the prod droplet (pointed `datadog_agent_url` to `http://127.0.0.1:8126` instead of the stale `172.17.0.2`), then restarted nginx to clear repeated telemetry/remote-config timeouts from the module.
+
 ### 2025-12-09T15:58:04Z
 - Fixed missing Datadog runtime metrics by pointing the app containers (and cron runner) at the agent’s DogStatsD endpoint (`DD_DOGSTATSD_URL=udp://dd-agent:8125`) and allowing remote DogStatsD traffic in the agent (`DD_DOGSTATSD_NON_LOCAL_TRAFFIC=true`) across both compose files.
 - Pending redeploy to prod to confirm runtime metrics resume flowing after the DogStatsD configuration is live.
