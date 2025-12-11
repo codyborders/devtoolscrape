@@ -9,9 +9,8 @@
   }
 
   function seedProfiles() {
-    setTimeout(() => simulateLongTask(650), 1000);
-    setTimeout(() => simulateLongTask(650), 4000);
-    setTimeout(() => simulateLongTask(650), 8000);
+    setTimeout(() => simulateLongTask(220), 1000);
+    setTimeout(() => simulateLongTask(220), 4000);
   }
 
   if (document.readyState === "complete") {
