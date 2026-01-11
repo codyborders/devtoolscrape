@@ -1,3 +1,23 @@
+## 2026-01-11 - Configuring Repository for Bits AI Dev Agent
+
+Today I set up the repository to work with Datadog's Bits AI Dev Agent. The agent needs two things to function effectively: a setup script to install dependencies and a custom instructions file explaining how to build/test/run the project.
+
+The setup script (`setup.sh`) creates a Python virtual environment and installs both pip and npm dependencies:
+
+```bash
+#!/bin/bash
+set -e
+python3 -m venv .venv
+source .venv/bin/activate
+pip install --upgrade pip
+pip install -r requirements.txt
+npm install
+```
+
+The agent instructions file (`AGENTS.md`) documents the key commands (Flask dev server, pytest, depot build) and the project structure. One important detail is specifying the environment variables the agent needs - at minimum `OPENAI_API_KEY` for the AI classifier to work.
+
+In the Datadog console under Bits AI Dev > Settings > Repositories, you configure the setup command as `bash setup.sh` and add any required secrets. The agent runs the setup script with network access to download dependencies, then disables network access during execution for security.
+
 ## 2025-12-11 - Rolling Back RUM/Profiling Changes
 Sessions dropped after the RUM/profiling push, so I unwound everything back to the last stable state. Locally I reverted all RUM-related commits (SDK v6.25 pin, profiling flags, CORS headers, synthetic long-task workload, nginx injector tweaks), landing back on `c2311e6`. On the droplet I reset the nginx Datadog module to the previous v5 injector and original agent URL, then reloaded nginx. The app is now serving the pre-change configuration that previously reported sessions.
 

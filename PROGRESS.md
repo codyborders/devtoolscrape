@@ -1,3 +1,8 @@
+### 2026-01-11T18:00:00Z
+- Created `setup.sh` script to install Python and Node dependencies for third-party coding agents (Datadog Bits AI Dev Agent).
+- Created `AGENTS.md` with comprehensive instructions for running the dev server, tests, and Docker builds.
+- Verified the setup script works locally by running it and confirming Flask app imports successfully.
+
 ### 2025-12-11T21:15:00Z
 - Reverted all recent RUM/browser profiling changes (SDK v6.25, CORS header, profiling hooks, synthetic workloads, nginx injector tweaks) back to the last known good state from `c2311e6`.
 - Restored the prod nginx Datadog module to the prior v5 injector pointing at the original agent URL, then reloaded nginx so RUM injection matches the pre-change configuration.
