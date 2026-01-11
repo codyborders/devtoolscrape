@@ -17,7 +17,7 @@ def scrape_hackernews():
         try:
             top_stories_url = 'https://hacker-news.firebaseio.com/v0/topstories.json'
             with trace_http_call("hackernews.topstories", "GET", top_stories_url) as span:
-                top_stories_resp = requests.get(top_stories_url, timeout=10)
+                top_stories_resp = requests.get(top_stories_url, timeout=(5, 10))
                 if span:
                     span.set_tag("http.status_code", top_stories_resp.status_code)
             top_stories_resp.raise_for_status()
@@ -33,7 +33,7 @@ def scrape_hackernews():
             for story_id in top_story_ids:
                 story_url = f'https://hacker-news.firebaseio.com/v0/item/{story_id}.json'
                 with trace_http_call("hackernews.story", "GET", story_url) as span:
-                    story_resp = requests.get(story_url, timeout=10)
+                    story_resp = requests.get(story_url, timeout=(5, 10))
                     if span:
                         span.set_tag("http.status_code", story_resp.status_code)
                         span.set_tag("hackernews.story_id", story_id)
@@ -106,7 +106,7 @@ def scrape_hackernews_show():
         try:
             show_hn_url = 'https://hacker-news.firebaseio.com/v0/showstories.json'
             with trace_http_call("hackernews.showstories", "GET", show_hn_url) as span:
-                show_hn_resp = requests.get(show_hn_url, timeout=10)
+                show_hn_resp = requests.get(show_hn_url, timeout=(5, 10))
                 if span:
                     span.set_tag("http.status_code", show_hn_resp.status_code)
             show_hn_resp.raise_for_status()
@@ -122,7 +122,7 @@ def scrape_hackernews_show():
             for story_id in show_story_ids:
                 story_url = f'https://hacker-news.firebaseio.com/v0/item/{story_id}.json'
                 with trace_http_call("hackernews.story", "GET", story_url) as span:
-                    story_resp = requests.get(story_url, timeout=10)
+                    story_resp = requests.get(story_url, timeout=(5, 10))
                     if span:
                         span.set_tag("http.status_code", story_resp.status_code)
                         span.set_tag("hackernews.story_id", story_id)
