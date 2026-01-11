@@ -81,17 +81,13 @@ jobs:
     steps:
       - name: Deploy to prod droplet
         uses: appleboy/ssh-action@v1.0.3
-        env:
-          GHCR_TOKEN: ${{ secrets.GHCR_PAT }}
         with:
           host: ${{ secrets.DIGITALOCEAN_PROD_IP }}
           username: root
           password: ${{ secrets.DIGITALOCEAN_PASSWORD }}
-          envs: GHCR_TOKEN
           script: |
             cd /root/devtoolscrape
             git pull
-            echo "${GHCR_TOKEN}" | docker login ghcr.io -u codyborders --password-stdin
             docker-compose pull
             docker-compose down --remove-orphans
             docker-compose up -d
