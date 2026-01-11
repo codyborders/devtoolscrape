@@ -104,6 +104,7 @@ def _build_rum_context():
         "version": version,
         "sampleRate": _safe_float_env("DATADOG_RUM_SAMPLE_RATE", 100.0),
         "traceSampleRate": _safe_float_env("DATADOG_RUM_TRACE_SAMPLE_RATE", 100.0),
+        "profilingSampleRate": _safe_float_env("DATADOG_RUM_PROFILING_SAMPLE_RATE", 100.0),
         "tracePropagationMode": os.getenv("DATADOG_RUM_TRACE_PROPAGATION_MODE", "datadog"),
         "trackUserInteractions": _truthy_env("DATADOG_RUM_TRACK_USER_INTERACTIONS", True),
         "trackResources": _truthy_env("DATADOG_RUM_TRACK_RESOURCES", True),
