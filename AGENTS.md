@@ -17,28 +17,25 @@ source .venv/bin/activate
 ### Development Server
 
 ```bash
-source .venv/bin/activate
-flask --app app_production run --host 0.0.0.0 --port 8000
+.venv/bin/flask --app app_production run --host 0.0.0.0 --port 8000
 ```
 
 ### Production Server (Gunicorn)
 
 ```bash
-source .venv/bin/activate
-gunicorn -c gunicorn.conf.py app_production:app
+.venv/bin/gunicorn -c gunicorn.conf.py app_production:app
 ```
 
 ## Running Tests
 
 ```bash
-source .venv/bin/activate
-pytest tests/
+.venv/bin/pytest tests/
 ```
 
 With coverage:
 
 ```bash
-pytest tests/ --cov=. --cov-report=term-missing
+.venv/bin/pytest tests/ --cov=. --cov-report=term-missing
 ```
 
 ## Building Docker Image
