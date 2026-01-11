@@ -12,7 +12,6 @@ services:
       - PYTHONUNBUFFERED=1
       - DD_ENV=prod
       - DD_SERVICE=devtoolscrape
-      - DD_VERSION=1.1
       - DD_AGENT_HOST=dd-agent
       - DD_APM_ENABLED=true
       - DD_TRACE_ENABLED=true
