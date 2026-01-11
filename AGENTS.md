@@ -29,13 +29,13 @@ source .venv/bin/activate
 ## Running Tests
 
 ```bash
-.venv/bin/pytest tests/
+pytest tests/
 ```
 
 With coverage:
 
 ```bash
-.venv/bin/pytest tests/ --cov=. --cov-report=term-missing
+pytest tests/ --cov=. --cov-report=term-missing
 ```
 
 ## Building Docker Image
