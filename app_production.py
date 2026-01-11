@@ -109,7 +109,7 @@ def _build_rum_context():
         "trackUserInteractions": _truthy_env("DATADOG_RUM_TRACK_USER_INTERACTIONS", True),
         "trackResources": _truthy_env("DATADOG_RUM_TRACK_RESOURCES", True),
         "trackLongTasks": _truthy_env("DATADOG_RUM_TRACK_LONG_TASKS", True),
-        "defaultPrivacyLevel": os.getenv("DATADOG_RUM_DEFAULT_PRIVACY_LEVEL", "mask-user-input"),
+        "defaultPrivacyLevel": os.getenv("DATADOG_RUM_DEFAULT_PRIVACY_LEVEL", "allow"),
         "allowedTracingUrls": allowed_tracing_urls,
     }
 
