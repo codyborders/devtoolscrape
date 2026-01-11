@@ -2,11 +2,7 @@ version: '3.8'
 
 services:
   devtoolscrape:
-    build:
-      context: .
-      args:
-        DD_GIT_REPOSITORY_URL: ${DD_GIT_REPOSITORY_URL:-}
-        DD_GIT_COMMIT_SHA: ${DD_GIT_COMMIT_SHA:-}
+    image: ghcr.io/codyborders/devtoolscrape:latest
     ports:
       - "8000:9000"
     volumes:

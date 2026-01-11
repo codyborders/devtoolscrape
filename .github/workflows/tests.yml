@@ -42,20 +42,57 @@ jobs:
           DD_TEST_SESSION_NAME: "${{ github.workflow }}-${{ github.run_number }}"
         run: ddtrace-run pytest
 
-  deploy:
+  build:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     needs: test
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Depot
+        uses: depot/setup-action@v1
+
+      - name: Login to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push with Depot
+        uses: depot/build-push-action@v1
+        with:
+          project: zmfq4c4zgz
+          token: ${{ secrets.DEPOT_TOKEN }}
+          push: true
+          tags: ghcr.io/codyborders/devtoolscrape:latest,ghcr.io/codyborders/devtoolscrape:${{ github.sha }}
+          build-args: |
+            DD_GIT_REPOSITORY_URL=${{ github.server_url }}/${{ github.repository }}
+            DD_GIT_COMMIT_SHA=${{ github.sha }}
+
+  deploy:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: build
     runs-on: ubuntu-latest
     steps:
       - name: Deploy to prod droplet
         uses: appleboy/ssh-action@v1.0.3
+        env:
+          GHCR_TOKEN: ${{ secrets.GHCR_PAT }}
         with:
           host: ${{ secrets.DIGITALOCEAN_PROD_IP }}
           username: root
           password: ${{ secrets.DIGITALOCEAN_PASSWORD }}
+          envs: GHCR_TOKEN
           script: |
             cd /root/devtoolscrape
             git pull
+            echo "${GHCR_TOKEN}" | docker login ghcr.io -u codyborders --password-stdin
+            docker-compose pull
             docker-compose down --remove-orphans
-            docker-compose up -d --build
+            docker-compose up -d
             docker-compose ps
