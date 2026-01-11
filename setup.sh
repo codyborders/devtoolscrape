@@ -1,10 +1,9 @@
 #!/bin/bash
 set -e
 
-# Install Python dependencies system-wide (for CI/agent environments)
-# Use python3 -m pip to ensure we install to the correct Python
-python3 -m pip install --upgrade pip
-python3 -m pip install -r requirements.txt
+# Install Python dependencies to local .packages directory
+# This ensures they persist and are accessible during agent execution
+python3 -m pip install --target ./.packages -r requirements.txt
 
 # Also create venv for local development
 python3 -m venv .venv
@@ -14,4 +13,6 @@ python3 -m venv .venv
 # Install Node dependencies (for datadog-ci tooling)
 npm install
 
-echo "Setup complete. For local dev, activate venv with: source .venv/bin/activate"
+echo "Setup complete."
+echo "For agents: PYTHONPATH=.packages pytest tests/"
+echo "For local dev: source .venv/bin/activate"
