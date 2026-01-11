@@ -29,13 +29,13 @@ source .venv/bin/activate
 ## Running Tests
 
 ```bash
-PYTHONPATH=.packages pytest tests/
+bash run-tests.sh
 ```
 
 With coverage:
 
 ```bash
-PYTHONPATH=.packages pytest tests/ --cov=. --cov-report=term-missing
+bash run-tests.sh --cov=. --cov-report=term-missing
 ```
 
 ## Building Docker Image
