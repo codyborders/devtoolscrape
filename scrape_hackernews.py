@@ -1,7 +1,16 @@
+import time
 import uuid
 from datetime import datetime
 
 import requests
+from requests.exceptions import (
+    ConnectionError,
+    ConnectTimeout,
+    HTTPError,
+    ReadTimeout,
+    SSLError,
+    Timeout,
+)
 
 from ai_classifier import classify_candidates, get_devtools_category
 from database import init_db, save_startup
@@ -10,6 +19,104 @@ from observability import trace_http_call
 
 logger = get_logger("devtools.scraper.hackernews")
 
+# Retry configuration
+MAX_RETRIES = 3
+INITIAL_BACKOFF = 1  # seconds
+MAX_BACKOFF = 30  # seconds
+BACKOFF_MULTIPLIER = 2
+
+# Exceptions that should trigger a retry
+RETRYABLE_EXCEPTIONS = (
+    SSLError,
+    ConnectionError,
+    ConnectTimeout,
+    ReadTimeout,
+    Timeout,
+)
+
+
+def _is_retryable_status_code(status_code: int) -> bool:
+    """Check if HTTP status code is retryable (5xx server errors)."""
+    return status_code in (502, 503, 504)
+
+
+def _request_with_retry(url: str, timeout: tuple, max_retries: int = MAX_RETRIES):
+    """Make HTTP GET request with retry logic for transient failures.
+
+    Retries on:
+    - SSL errors (including SSL EOF)
+    - Connection errors
+    - Timeouts (connect and read)
+    - 5xx server errors (502, 503, 504)
+
+    Does NOT retry on:
+    - 4xx client errors (400, 404, etc.)
+    - JSON decode errors
+    - Other non-transient failures
+
+    Uses exponential backoff between retries.
+    """
+    last_exception = None
+
+    for attempt in range(max_retries + 1):
+        try:
+            response = requests.get(url, timeout=timeout)
+
+            # Check for retryable status codes before raise_for_status
+            if _is_retryable_status_code(response.status_code):
+                if attempt < max_retries:
+                    backoff = min(
+                        INITIAL_BACKOFF * (BACKOFF_MULTIPLIER ** attempt),
+                        MAX_BACKOFF
+                    )
+                    logger.warning(
+                        "scraper.retrying",
+                        extra={
+                            "event": "scraper.retrying",
+                            "url": url,
+                            "status_code": response.status_code,
+                            "attempt": attempt + 1,
+                            "max_retries": max_retries,
+                            "backoff_seconds": backoff,
+                        },
+                    )
+                    time.sleep(backoff)
+                    continue
+                else:
+                    # Exhausted retries, raise the error
+                    response.raise_for_status()
+
+            return response
+
+        except RETRYABLE_EXCEPTIONS as e:
+            last_exception = e
+            if attempt < max_retries:
+                backoff = min(
+                    INITIAL_BACKOFF * (BACKOFF_MULTIPLIER ** attempt),
+                    MAX_BACKOFF
+                )
+                logger.warning(
+                    "scraper.retrying",
+                    extra={
+                        "event": "scraper.retrying",
+                        "url": url,
+                        "error": str(e),
+                        "error_type": type(e).__name__,
+                        "attempt": attempt + 1,
+                        "max_retries": max_retries,
+                        "backoff_seconds": backoff,
+                    },
+                )
+                time.sleep(backoff)
+            else:
+                # Exhausted retries
+                raise
+
+    # Should not reach here, but just in case
+    if last_exception:
+        raise last_exception
+    raise RuntimeError("Unexpected state in retry logic")
+
 def scrape_hackernews():
     """Scrape Hacker News for devtools using their API"""
     run_id = str(uuid.uuid4())
@@ -17,23 +124,23 @@ def scrape_hackernews():
         try:
             top_stories_url = 'https://hacker-news.firebaseio.com/v0/topstories.json'
             with trace_http_call("hackernews.topstories", "GET", top_stories_url) as span:
-                top_stories_resp = requests.get(top_stories_url, timeout=(5, 10))
+                top_stories_resp = _request_with_retry(top_stories_url, timeout=(5, 10))
                 if span:
                     span.set_tag("http.status_code", top_stories_resp.status_code)
             top_stories_resp.raise_for_status()
             top_story_ids = top_stories_resp.json()[:50]
-            
+
             logger.info(
                 "scraper.top_stories",
                 extra={"event": "scraper.top_stories", "count": len(top_story_ids)},
             )
-            
+
             story_cache = {}
             candidates = []
             for story_id in top_story_ids:
                 story_url = f'https://hacker-news.firebaseio.com/v0/item/{story_id}.json'
                 with trace_http_call("hackernews.story", "GET", story_url) as span:
-                    story_resp = requests.get(story_url, timeout=(5, 10))
+                    story_resp = _request_with_retry(story_url, timeout=(5, 10))
                     if span:
                         span.set_tag("http.status_code", story_resp.status_code)
                         span.set_tag("hackernews.story_id", story_id)
@@ -106,23 +213,23 @@ def scrape_hackernews_show():
         try:
             show_hn_url = 'https://hacker-news.firebaseio.com/v0/showstories.json'
             with trace_http_call("hackernews.showstories", "GET", show_hn_url) as span:
-                show_hn_resp = requests.get(show_hn_url, timeout=(5, 10))
+                show_hn_resp = _request_with_retry(show_hn_url, timeout=(5, 10))
                 if span:
                     span.set_tag("http.status_code", show_hn_resp.status_code)
             show_hn_resp.raise_for_status()
             show_story_ids = show_hn_resp.json()[:30]
-            
+
             logger.info(
                 "scraper.show_stories",
                 extra={"event": "scraper.show_stories", "count": len(show_story_ids)},
             )
-            
+
             story_cache = {}
             candidates = []
             for story_id in show_story_ids:
                 story_url = f'https://hacker-news.firebaseio.com/v0/item/{story_id}.json'
                 with trace_http_call("hackernews.story", "GET", story_url) as span:
-                    story_resp = requests.get(story_url, timeout=(5, 10))
+                    story_resp = _request_with_retry(story_url, timeout=(5, 10))
                     if span:
                         span.set_tag("http.status_code", story_resp.status_code)
                         span.set_tag("hackernews.story_id", story_id)

@@ -366,3 +366,583 @@ class TestRequestTimeouts:
                 f"Connection timeout ({connection_timeout}s) should be less than "
                 f"read timeout ({read_timeout}s)"
             )
+
+
+class TestRetryLogic:
+    """Test suite for HTTP request retry logic on transient failures.
+
+    The scraper should automatically retry requests that fail due to transient
+    network errors (SSL errors, connection resets, timeouts, 5xx errors) while
+    NOT retrying on permanent failures (4xx errors, invalid JSON).
+    """
+
+    @pytest.fixture
+    def stub_dependencies(self, monkeypatch) -> None:
+        """Stub out classifier and database dependencies."""
+        monkeypatch.setattr("scrape_hackernews.classify_candidates", lambda c: {})
+        monkeypatch.setattr("scrape_hackernews.get_devtools_category", lambda t, n: None)
+        monkeypatch.setattr("scrape_hackernews.save_startup", lambda r: None)
+
+    @pytest.fixture
+    def mock_sleep(self, monkeypatch) -> MagicMock:
+        """Mock time.sleep to avoid actual delays in tests."""
+        mock = MagicMock()
+        monkeypatch.setattr("scrape_hackernews.time.sleep", mock)
+        return mock
+
+    # --- SSL Error Retry Tests ---
+
+    def test_retries_on_ssl_eof_error(
+        self, monkeypatch, stub_dependencies, mock_sleep
+    ) -> None:
+        """Verify scraper retries when SSL EOF error occurs (like the 4pm failure)."""
+        import ssl
+        import scrape_hackernews
+        from requests.exceptions import SSLError
+
+        call_count = 0
+
+        def mock_get(url: str, timeout) -> FakeJSONResponse:
+            nonlocal call_count
+            call_count += 1
+            if call_count < 3:
+                # Simulate SSL EOF error like the production failure
+                ssl_error = ssl.SSLEOFError(
+                    8, "[SSL: UNEXPECTED_EOF_WHILE_READING] EOF occurred in violation of protocol"
+                )
+                raise SSLError(ssl_error)
+            # Succeed on third attempt
+            if "topstories.json" in url:
+                return FakeJSONResponse([])
+            return FakeJSONResponse({})
+
+        monkeypatch.setattr("scrape_hackernews.requests.get", mock_get)
+        scrape_hackernews.scrape_hackernews()
+
+        assert call_count == 3, f"Expected 3 attempts (2 retries), got {call_count}"
+
+    def test_retries_on_ssl_error(
+        self, monkeypatch, stub_dependencies, mock_sleep
+    ) -> None:
+        """Verify scraper retries on general SSL errors."""
+        import scrape_hackernews
+        from requests.exceptions import SSLError
+
+        call_count = 0
+
+        def mock_get(url: str, timeout) -> FakeJSONResponse:
+            nonlocal call_count
+            call_count += 1
+            if call_count < 2:
+                raise SSLError("SSL handshake failed")
+            if "topstories.json" in url:
+                return FakeJSONResponse([])
+            return FakeJSONResponse({})
+
+        monkeypatch.setattr("scrape_hackernews.requests.get", mock_get)
+        scrape_hackernews.scrape_hackernews()
+
+        assert call_count == 2, f"Expected 2 attempts (1 retry), got {call_count}"
+
+    # --- Connection Error Retry Tests ---
+
+    def test_retries_on_connection_error(
+        self, monkeypatch, stub_dependencies, mock_sleep
+    ) -> None:
+        """Verify scraper retries on connection errors."""
+        import scrape_hackernews
+        from requests.exceptions import ConnectionError
+
+        call_count = 0
+
+        def mock_get(url: str, timeout) -> FakeJSONResponse:
+            nonlocal call_count
+            call_count += 1
+            if call_count < 2:
+                raise ConnectionError("Connection refused")
+            if "topstories.json" in url:
+                return FakeJSONResponse([])
+            return FakeJSONResponse({})
+
+        monkeypatch.setattr("scrape_hackernews.requests.get", mock_get)
+        scrape_hackernews.scrape_hackernews()
+
+        assert call_count == 2, f"Expected 2 attempts (1 retry), got {call_count}"
+
+    def test_retries_on_connection_reset(
+        self, monkeypatch, stub_dependencies, mock_sleep
+    ) -> None:
+        """Verify scraper retries when connection is reset by peer."""
+        import scrape_hackernews
+        from requests.exceptions import ConnectionError
+
+        call_count = 0
+
+        def mock_get(url: str, timeout) -> FakeJSONResponse:
+            nonlocal call_count
+            call_count += 1
+            if call_count < 2:
+                raise ConnectionError("Connection reset by peer")
+            if "topstories.json" in url:
+                return FakeJSONResponse([])
+            return FakeJSONResponse({})
+
+        monkeypatch.setattr("scrape_hackernews.requests.get", mock_get)
+        scrape_hackernews.scrape_hackernews()
+
+        assert call_count == 2
+
+    # --- Timeout Retry Tests ---
+
+    def test_retries_on_read_timeout(
+        self, monkeypatch, stub_dependencies, mock_sleep
+    ) -> None:
+        """Verify scraper retries on read timeout."""
+        import scrape_hackernews
+        from requests.exceptions import ReadTimeout
+
+        call_count = 0
+
+        def mock_get(url: str, timeout) -> FakeJSONResponse:
+            nonlocal call_count
+            call_count += 1
+            if call_count < 2:
+                raise ReadTimeout("Read timed out")
+            if "topstories.json" in url:
+                return FakeJSONResponse([])
+            return FakeJSONResponse({})
+
+        monkeypatch.setattr("scrape_hackernews.requests.get", mock_get)
+        scrape_hackernews.scrape_hackernews()
+
+        assert call_count == 2
+
+    def test_retries_on_connect_timeout(
+        self, monkeypatch, stub_dependencies, mock_sleep
+    ) -> None:
+        """Verify scraper retries on connection timeout."""
+        import scrape_hackernews
+        from requests.exceptions import ConnectTimeout
+
+        call_count = 0
+
+        def mock_get(url: str, timeout) -> FakeJSONResponse:
+            nonlocal call_count
+            call_count += 1
+            if call_count < 2:
+                raise ConnectTimeout("Connection timed out")
+            if "topstories.json" in url:
+                return FakeJSONResponse([])
+            return FakeJSONResponse({})
+
+        monkeypatch.setattr("scrape_hackernews.requests.get", mock_get)
+        scrape_hackernews.scrape_hackernews()
+
+        assert call_count == 2
+
+    # --- Server Error Retry Tests ---
+
+    def test_retries_on_502_bad_gateway(
+        self, monkeypatch, stub_dependencies, mock_sleep
+    ) -> None:
+        """Verify scraper retries on 502 Bad Gateway."""
+        import scrape_hackernews
+        from requests.exceptions import HTTPError
+
+        call_count = 0
+
+        def mock_get(url: str, timeout) -> FakeJSONResponse:
+            nonlocal call_count
+            call_count += 1
+            if call_count < 2:
+                response = FakeJSONResponse([], status_code=502)
+                response.raise_for_status = lambda: (_ for _ in ()).throw(
+                    HTTPError("502 Bad Gateway")
+                )
+                return response
+            if "topstories.json" in url:
+                return FakeJSONResponse([])
+            return FakeJSONResponse({})
+
+        monkeypatch.setattr("scrape_hackernews.requests.get", mock_get)
+        scrape_hackernews.scrape_hackernews()
+
+        assert call_count == 2
+
+    def test_retries_on_503_service_unavailable(
+        self, monkeypatch, stub_dependencies, mock_sleep
+    ) -> None:
+        """Verify scraper retries on 503 Service Unavailable."""
+        import scrape_hackernews
+        from requests.exceptions import HTTPError
+
+        call_count = 0
+
+        def mock_get(url: str, timeout) -> FakeJSONResponse:
+            nonlocal call_count
+            call_count += 1
+            if call_count < 2:
+                response = FakeJSONResponse([], status_code=503)
+                response.raise_for_status = lambda: (_ for _ in ()).throw(
+                    HTTPError("503 Service Unavailable")
+                )
+                return response
+            if "topstories.json" in url:
+                return FakeJSONResponse([])
+            return FakeJSONResponse({})
+
+        monkeypatch.setattr("scrape_hackernews.requests.get", mock_get)
+        scrape_hackernews.scrape_hackernews()
+
+        assert call_count == 2
+
+    def test_retries_on_504_gateway_timeout(
+        self, monkeypatch, stub_dependencies, mock_sleep
+    ) -> None:
+        """Verify scraper retries on 504 Gateway Timeout."""
+        import scrape_hackernews
+        from requests.exceptions import HTTPError
+
+        call_count = 0
+
+        def mock_get(url: str, timeout) -> FakeJSONResponse:
+            nonlocal call_count
+            call_count += 1
+            if call_count < 2:
+                response = FakeJSONResponse([], status_code=504)
+                response.raise_for_status = lambda: (_ for _ in ()).throw(
+                    HTTPError("504 Gateway Timeout")
+                )
+                return response
+            if "topstories.json" in url:
+                return FakeJSONResponse([])
+            return FakeJSONResponse({})
+
+        monkeypatch.setattr("scrape_hackernews.requests.get", mock_get)
+        scrape_hackernews.scrape_hackernews()
+
+        assert call_count == 2
+
+    # --- Max Retry Limit Tests ---
+
+    def test_stops_after_max_retries(
+        self, monkeypatch, stub_dependencies, mock_sleep
+    ) -> None:
+        """Verify scraper stops retrying after max attempts (default 3)."""
+        import scrape_hackernews
+        from requests.exceptions import SSLError
+
+        call_count = 0
+
+        def mock_get(url: str, timeout) -> FakeJSONResponse:
+            nonlocal call_count
+            call_count += 1
+            # Always fail with SSL error
+            raise SSLError("Persistent SSL failure")
+
+        monkeypatch.setattr("scrape_hackernews.requests.get", mock_get)
+
+        # Should not raise - the scraper catches and logs the error
+        scrape_hackernews.scrape_hackernews()
+
+        # Default max_retries=3 means 4 total attempts (1 initial + 3 retries)
+        assert call_count == 4, f"Expected 4 attempts (1 + 3 retries), got {call_count}"
+
+    def test_max_retries_per_request_not_cumulative(
+        self, monkeypatch, stub_dependencies, mock_sleep
+    ) -> None:
+        """Verify each URL gets its own retry budget, not shared."""
+        import scrape_hackernews
+        from requests.exceptions import ConnectionError
+
+        urls_called = []
+
+        def mock_get(url: str, timeout) -> FakeJSONResponse:
+            urls_called.append(url)
+            if "topstories.json" in url:
+                # First request succeeds after 1 retry
+                if urls_called.count(url) < 2:
+                    raise ConnectionError("Temp failure")
+                return FakeJSONResponse([101])
+            elif "/item/101.json" in url:
+                # Second request also gets its own retry budget
+                if urls_called.count(url) < 2:
+                    raise ConnectionError("Temp failure")
+                return FakeJSONResponse({
+                    "type": "story",
+                    "title": "Test",
+                    "url": "https://test.com",
+                    "score": 100,
+                    "time": datetime.now().timestamp()
+                })
+            return FakeJSONResponse({})
+
+        monkeypatch.setattr("scrape_hackernews.requests.get", mock_get)
+        scrape_hackernews.scrape_hackernews()
+
+        # Each URL should have been called twice (1 fail + 1 success)
+        topstories_calls = [u for u in urls_called if "topstories.json" in u]
+        item_calls = [u for u in urls_called if "/item/101.json" in u]
+
+        assert len(topstories_calls) == 2, "topstories should retry independently"
+        assert len(item_calls) == 2, "item request should retry independently"
+
+    # --- Exponential Backoff Tests ---
+
+    def test_uses_exponential_backoff(
+        self, monkeypatch, stub_dependencies, mock_sleep
+    ) -> None:
+        """Verify retry delays increase exponentially."""
+        import scrape_hackernews
+        from requests.exceptions import SSLError
+
+        call_count = 0
+
+        def mock_get(url: str, timeout) -> FakeJSONResponse:
+            nonlocal call_count
+            call_count += 1
+            if call_count < 4:
+                raise SSLError("SSL error")
+            if "topstories.json" in url:
+                return FakeJSONResponse([])
+            return FakeJSONResponse({})
+
+        monkeypatch.setattr("scrape_hackernews.requests.get", mock_get)
+        scrape_hackernews.scrape_hackernews()
+
+        # Check sleep was called with increasing delays
+        sleep_calls = [call[0][0] for call in mock_sleep.call_args_list]
+        assert len(sleep_calls) == 3, f"Expected 3 sleep calls, got {len(sleep_calls)}"
+
+        # Verify exponential backoff pattern (e.g., 1, 2, 4 or similar)
+        for i in range(1, len(sleep_calls)):
+            assert sleep_calls[i] > sleep_calls[i-1], (
+                f"Backoff should increase: {sleep_calls[i-1]} -> {sleep_calls[i]}"
+            )
+
+    def test_backoff_has_reasonable_max_delay(
+        self, monkeypatch, stub_dependencies, mock_sleep
+    ) -> None:
+        """Verify backoff delay is capped at a reasonable maximum."""
+        import scrape_hackernews
+        from requests.exceptions import SSLError
+
+        call_count = 0
+
+        def mock_get(url: str, timeout) -> FakeJSONResponse:
+            nonlocal call_count
+            call_count += 1
+            if call_count < 4:
+                raise SSLError("SSL error")
+            if "topstories.json" in url:
+                return FakeJSONResponse([])
+            return FakeJSONResponse({})
+
+        monkeypatch.setattr("scrape_hackernews.requests.get", mock_get)
+        scrape_hackernews.scrape_hackernews()
+
+        # No sleep should exceed 30 seconds
+        for call in mock_sleep.call_args_list:
+            delay = call[0][0]
+            assert delay <= 30, f"Backoff delay {delay}s exceeds max 30s"
+
+    # --- Non-Retryable Error Tests ---
+
+    def test_does_not_retry_on_404(
+        self, monkeypatch, stub_dependencies, mock_sleep
+    ) -> None:
+        """Verify scraper does NOT retry on 404 Not Found."""
+        import scrape_hackernews
+        from requests.exceptions import HTTPError
+
+        call_count = 0
+
+        def mock_get(url: str, timeout) -> FakeJSONResponse:
+            nonlocal call_count
+            call_count += 1
+            response = FakeJSONResponse([], status_code=404)
+            response.raise_for_status = lambda: (_ for _ in ()).throw(
+                HTTPError("404 Not Found")
+            )
+            return response
+
+        monkeypatch.setattr("scrape_hackernews.requests.get", mock_get)
+        scrape_hackernews.scrape_hackernews()
+
+        # Should only be called once - no retry on 404
+        assert call_count == 1, f"Should not retry on 404, but got {call_count} calls"
+
+    def test_does_not_retry_on_400(
+        self, monkeypatch, stub_dependencies, mock_sleep
+    ) -> None:
+        """Verify scraper does NOT retry on 400 Bad Request."""
+        import scrape_hackernews
+        from requests.exceptions import HTTPError
+
+        call_count = 0
+
+        def mock_get(url: str, timeout) -> FakeJSONResponse:
+            nonlocal call_count
+            call_count += 1
+            response = FakeJSONResponse([], status_code=400)
+            response.raise_for_status = lambda: (_ for _ in ()).throw(
+                HTTPError("400 Bad Request")
+            )
+            return response
+
+        monkeypatch.setattr("scrape_hackernews.requests.get", mock_get)
+        scrape_hackernews.scrape_hackernews()
+
+        assert call_count == 1, f"Should not retry on 400, but got {call_count} calls"
+
+    def test_does_not_retry_on_json_decode_error(
+        self, monkeypatch, stub_dependencies, mock_sleep
+    ) -> None:
+        """Verify scraper does NOT retry on JSON decode errors."""
+        import scrape_hackernews
+
+        call_count = 0
+
+        class BadJSONResponse:
+            status_code = 200
+            def raise_for_status(self):
+                pass
+            def json(self):
+                raise ValueError("Invalid JSON")
+
+        def mock_get(url: str, timeout):
+            nonlocal call_count
+            call_count += 1
+            return BadJSONResponse()
+
+        monkeypatch.setattr("scrape_hackernews.requests.get", mock_get)
+        scrape_hackernews.scrape_hackernews()
+
+        # JSON errors are not retryable
+        assert call_count == 1, f"Should not retry on JSON error, but got {call_count} calls"
+
+    # --- Show HN Retry Tests ---
+
+    def test_show_hn_retries_on_ssl_error(
+        self, monkeypatch, stub_dependencies, mock_sleep
+    ) -> None:
+        """Verify Show HN scraper also retries on SSL errors."""
+        import scrape_hackernews
+        from requests.exceptions import SSLError
+
+        call_count = 0
+
+        def mock_get(url: str, timeout) -> FakeJSONResponse:
+            nonlocal call_count
+            call_count += 1
+            if call_count < 2:
+                raise SSLError("SSL error")
+            if "showstories.json" in url:
+                return FakeJSONResponse([])
+            return FakeJSONResponse({})
+
+        monkeypatch.setattr("scrape_hackernews.requests.get", mock_get)
+        scrape_hackernews.scrape_hackernews_show()
+
+        assert call_count == 2
+
+    def test_show_hn_retries_on_connection_error(
+        self, monkeypatch, stub_dependencies, mock_sleep
+    ) -> None:
+        """Verify Show HN scraper retries on connection errors."""
+        import scrape_hackernews
+        from requests.exceptions import ConnectionError
+
+        call_count = 0
+
+        def mock_get(url: str, timeout) -> FakeJSONResponse:
+            nonlocal call_count
+            call_count += 1
+            if call_count < 2:
+                raise ConnectionError("Connection failed")
+            if "showstories.json" in url:
+                return FakeJSONResponse([])
+            return FakeJSONResponse({})
+
+        monkeypatch.setattr("scrape_hackernews.requests.get", mock_get)
+        scrape_hackernews.scrape_hackernews_show()
+
+        assert call_count == 2
+
+    # --- Logging Tests ---
+
+    def test_logs_retry_attempts(
+        self, monkeypatch, stub_dependencies, mock_sleep
+    ) -> None:
+        """Verify retry attempts are logged for observability."""
+        import scrape_hackernews
+        from requests.exceptions import SSLError
+
+        log_messages = []
+
+        class MockLogger:
+            def info(self, msg, **kwargs):
+                log_messages.append(("info", msg, kwargs))
+            def warning(self, msg, **kwargs):
+                log_messages.append(("warning", msg, kwargs))
+            def debug(self, msg, **kwargs):
+                log_messages.append(("debug", msg, kwargs))
+            def exception(self, msg, **kwargs):
+                log_messages.append(("exception", msg, kwargs))
+
+        monkeypatch.setattr("scrape_hackernews.logger", MockLogger())
+
+        call_count = 0
+
+        def mock_get(url: str, timeout) -> FakeJSONResponse:
+            nonlocal call_count
+            call_count += 1
+            if call_count < 2:
+                raise SSLError("SSL error")
+            if "topstories.json" in url:
+                return FakeJSONResponse([])
+            return FakeJSONResponse({})
+
+        monkeypatch.setattr("scrape_hackernews.requests.get", mock_get)
+        scrape_hackernews.scrape_hackernews()
+
+        # Check that retry was logged
+        retry_logs = [
+            (level, msg) for level, msg, _ in log_messages
+            if "retry" in msg.lower() or "retrying" in msg.lower()
+        ]
+        assert len(retry_logs) > 0, "Expected retry attempt to be logged"
+
+    def test_logs_final_failure_after_retries_exhausted(
+        self, monkeypatch, stub_dependencies, mock_sleep
+    ) -> None:
+        """Verify final failure is logged when all retries are exhausted."""
+        import scrape_hackernews
+        from requests.exceptions import SSLError
+
+        log_messages = []
+
+        class MockLogger:
+            def info(self, msg, **kwargs):
+                log_messages.append(("info", msg, kwargs))
+            def warning(self, msg, **kwargs):
+                log_messages.append(("warning", msg, kwargs))
+            def debug(self, msg, **kwargs):
+                log_messages.append(("debug", msg, kwargs))
+            def exception(self, msg, **kwargs):
+                log_messages.append(("exception", msg, kwargs))
+
+        monkeypatch.setattr("scrape_hackernews.logger", MockLogger())
+
+        def mock_get(url: str, timeout) -> FakeJSONResponse:
+            raise SSLError("Persistent SSL failure")
+
+        monkeypatch.setattr("scrape_hackernews.requests.get", mock_get)
+        scrape_hackernews.scrape_hackernews()
+
+        # Check that final failure was logged
+        failure_logs = [
+            (level, msg) for level, msg, _ in log_messages
+            if level == "exception" or "failed" in msg.lower()
+        ]
+        assert len(failure_logs) > 0, "Expected final failure to be logged"
