@@ -1,3 +1,7 @@
+### 2026-02-04T12:00:00Z
+- Enabled Datadog memory profiling by explicitly setting `DD_PROFILING_MEMORY_ENABLED=true`, `DD_PROFILING_HEAP_ENABLED=true`, `DD_PROFILING_STACK_ENABLED=true`, and `DD_PROFILING_LOCK_ENABLED=true` across both compose files so all profile types appear in Datadog Continuous Profiler.
+- Added `DD_LIVE_DEBUGGING_ENABLED=true` to enable the live debugger feature alongside the existing dynamic instrumentation, exception replay, and code origin settings.
+
 ### 2026-01-11T18:00:00Z
 - Created `setup.sh` script to install Python and Node dependencies for third-party coding agents (Datadog Bits AI Dev Agent).
 - Created `AGENTS.md` with comprehensive instructions for running the dev server, tests, and Docker builds.
