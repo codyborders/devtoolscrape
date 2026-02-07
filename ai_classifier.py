@@ -271,7 +271,17 @@ def classify_candidates(candidates: Iterable[Dict[str, str]]) -> Dict[str, bool]
             for candidate in chunk:
                 with logging_context(candidate_id=candidate["id"], candidate_name=candidate.get("name")):
                     answer = result_map.get(candidate["id"])
-                    outcome = str(answer).strip().lower() == "yes"
+                    if answer is None:
+                        logger.warning(
+                            "classifier.batch_missing_id",
+                            extra={
+                                "event": "classifier.batch_missing_id",
+                                "candidate_id": candidate["id"],
+                            },
+                        )
+                        outcome = _classify_single(candidate.get("name", ""), candidate.get("text", ""))
+                    else:
+                        outcome = str(answer).strip().lower() == "yes"
                     logger.debug(
                         "classifier.batch_result",
                         extra={

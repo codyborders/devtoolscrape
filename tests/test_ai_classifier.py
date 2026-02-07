@@ -283,3 +283,70 @@ def test_batch_max_tokens_sufficient_for_payload_size(monkeypatch):
         f"max_tokens={captured_kwargs['max_tokens']} is too low for a batch of 8 items; "
         f"expected at least 60 tokens to avoid JSON truncation"
     )
+
+
+def test_partial_batch_response_falls_back_to_single_for_missing_ids(monkeypatch):
+    """Bug #2: When result_map is missing some candidate IDs (e.g. due to
+    truncation or LLM quirks), result_map.get(id) returns None and
+    str(None).strip().lower() == 'yes' silently evaluates to False. Instead,
+    missing IDs should fall back to _classify_single."""
+    monkeypatch.setenv("AI_CLASSIFIER_DISABLE_CACHE", "1")
+    monkeypatch.setenv("AI_CLASSIFIER_DISABLE_BATCH", "0")
+    monkeypatch.setenv("AI_CLASSIFIER_BATCH_SIZE", "4")
+    monkeypatch.setenv("AI_CLASSIFIER_MAX_CONCURRENCY", "1")
+    monkeypatch.setenv("OPENAI_API_KEY", "present")
+
+    import ai_classifier
+
+    importlib.reload(ai_classifier)
+
+    call_log = []
+
+    # The batch response only includes 2 of 4 items -- items "c" and "d" are missing
+    def fake_create(*args, **kwargs):
+        call_log.append(kwargs.get("messages", args[0] if args else None))
+        messages = kwargs.get("messages", args[0] if args else [])
+
+        # First call is the batch call: return partial results (only a and b)
+        if len(call_log) == 1:
+            import json as _json
+            result = {"results": {"a": "yes", "b": "no"}}
+            content = _json.dumps(result)
+        else:
+            # Subsequent calls are single-item fallbacks -- classify as "yes"
+            content = "yes"
+
+        message = types.SimpleNamespace(content=content)
+        choice = types.SimpleNamespace(message=message)
+        return types.SimpleNamespace(choices=[choice])
+
+    ai_classifier.client.chat.completions.create = fake_create
+
+    candidates = [
+        {"id": "a", "name": "Tool A", "text": "developer CLI tool"},
+        {"id": "b", "name": "Tool B", "text": "developer API framework"},
+        {"id": "c", "name": "Tool C", "text": "developer testing library"},
+        {"id": "d", "name": "Tool D", "text": "developer monitoring SDK"},
+    ]
+
+    results = ai_classifier.classify_candidates(candidates)
+
+    # Items present in batch response should use the batch answer
+    assert results["a"] is True, "Item 'a' was in batch response as 'yes'"
+    assert results["b"] is False, "Item 'b' was in batch response as 'no'"
+
+    # Items missing from batch response should NOT silently be False.
+    # They should fall back to _classify_single which returns "yes" in our stub.
+    assert results["c"] is True, (
+        "Item 'c' was missing from batch response and should have fallen back "
+        "to _classify_single (which returns 'yes'), but was silently set to False"
+    )
+    assert results["d"] is True, (
+        "Item 'd' was missing from batch response and should have fallen back "
+        "to _classify_single (which returns 'yes'), but was silently set to False"
+    )
+
+    # Verify that fallback calls were made (batch + 2 single calls = 3 total)
+    assert len(call_log) >= 3, (
+        f"Expected at least 3 API calls (1 batch + 2 single fallbacks), got {len(call_log)}"
+    )
