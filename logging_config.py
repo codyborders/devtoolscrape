@@ -93,7 +93,7 @@ class ContextFilter(logging.Filter):
 
         if _DDTRACE_AVAILABLE:
             try:
-                trace_id, span_id, _, _, _ = get_correlation_ids()
+                trace_id, span_id = get_correlation_ids()
             except Exception:
                 trace_id = span_id = None
             if trace_id:
