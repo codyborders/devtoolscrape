@@ -1,12 +1,16 @@
+import re
+
 DEVTOOLS_KEYWORDS = [
     "developer", "devtool", "CLI", "SDK", "API", "code", "coding", "debug", "git",
     "CI", "CD", "DevOps", "terminal", "IDE", "framework", "testing", "monitoring",
-    "observability", "build", "deploy", "infra", "cloud-native", "backend", "log",
+    "observability", "build", "deploy", "infra", "cloud-native", "backend", "log"
 ]
 
-_DEVTOOLS_KEYWORDS_LOWER = [kw.lower() for kw in DEVTOOLS_KEYWORDS]
+_KEYWORD_PATTERNS = [
+    re.compile(r'\b' + re.escape(kw) + r'\b', re.IGNORECASE)
+    for kw in DEVTOOLS_KEYWORDS
+]
 
 
-def is_devtools_related(text):
-    text_lower = text.lower()
-    return any(keyword in text_lower for keyword in _DEVTOOLS_KEYWORDS_LOWER)
+def is_devtools_related(text: str) -> bool:
+    return any(pattern.search(text) for pattern in _KEYWORD_PATTERNS)
