@@ -1,3 +1,10 @@
+### 2026-02-07T05:56:00Z
+- Fixed Bug #3 in `app_production.py`: bare `int(request.args.get(...))` calls in 5 routes (index, filter_by_source, search, api_startups, api_search) raised ValueError on non-numeric pagination input like `?page=abc`, returning HTTP 500. Added `_safe_int(value, default)` helper and applied it to all 10 occurrences across the 5 routes.
+- Fixed Bug #4 in `database.py`: `save_startup()` never called `is_duplicate()` before INSERT, so tools with the same name but different URLs were inserted as duplicates. Added an `is_duplicate(name, url)` check at the top of `save_startup` that logs and returns early when a match is found.
+- Fixed Bug #8 in `scrape_all.py`: `scrapers[:successful_scrapers]` recorded the first N scrapers by list position rather than the ones that actually succeeded. Replaced the counter with a `successful_names` list that appends each description only when `run_scraper` returns True.
+- Added 4 new tests: `test_safe_int_helper`, `test_non_numeric_page_returns_200_not_500`, `test_save_startup_rejects_duplicate_name_different_url`, `test_scrape_all_records_actual_successes_not_positional`. Updated `test_scrape_all_main_records_results` with corrected expected output.
+- Full test suite passes (113 tests, 0 failures).
+
 ### 2026-02-07T05:57:00Z
 - Fixed Bug #14 in `scrape_producthunt_api.py`: `data.get('data', {}).get('posts', {}).get('edges', [])` on line 116 crashed with AttributeError when GraphQL returned `{"data": null}` because `.get('data', {})` returns None (the actual value), not the default `{}`. Replaced with `(data.get('data') or {})` pattern at each nesting level to handle both missing and null values.
 - Fixed Bug #13 in `scrape_producthunt.py`: `item.title.text` and `item.description.text` on lines 45-46 crashed when RSS `<item>` was missing `<title>` or `<description>` tags (BeautifulSoup returns None). Wrapped per-item extraction in try/except AttributeError with a structured warning log and continue.
