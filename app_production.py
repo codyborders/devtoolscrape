@@ -57,6 +57,14 @@ def _parse_csv_env(var_name: str) -> list[str]:
     return [item.strip() for item in raw_value.split(",") if item.strip()]
 
 
+def _safe_int(value, default: int) -> int:
+    """Convert value to int, returning default on failure."""
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return default
+
+
 def _rum_script_source(site: str) -> str:
     region_map = {
         "datadoghq.com": "us1",
@@ -185,8 +193,8 @@ def _teardown_request_logging(exc):
 
 def _parse_pagination(default_per_page: int = 20, max_per_page: int = 100):
     """Parse page and per_page from request args, returning (page, per_page, offset)."""
-    per_page = min(max(int(request.args.get('per_page', default_per_page)), 1), max_per_page)
-    page = max(int(request.args.get('page', 1)), 1)
+    per_page = min(max(_safe_int(request.args.get('per_page', default_per_page), default_per_page), 1), max_per_page)
+    page = max(_safe_int(request.args.get('page', 1), 1), 1)
     offset = (page - 1) * per_page
     return page, per_page, offset
 

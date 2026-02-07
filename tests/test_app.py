@@ -231,6 +231,66 @@ def test_total_pages_helper(app_module):
     assert module._total_pages(100, 10) == 10
 
 
+def _stub_all_db(module, monkeypatch):
+    """Wire up minimal stubs so every route can render without touching a real DB."""
+    monkeypatch.setattr(module, "get_all_startups", lambda limit=None, offset=None: _sample_startups())
+    monkeypatch.setattr(module, "get_startups_by_source_key", lambda key, limit=None, offset=None: _sample_startups())
+    monkeypatch.setattr(module, "count_all_startups", lambda: len(_sample_startups()))
+    monkeypatch.setattr(module, "count_startups_by_source_key", lambda key: len(_sample_startups()))
+    monkeypatch.setattr(
+        module,
+        "get_source_counts",
+        lambda: {"total": 4, "github": 1, "hackernews": 1, "producthunt": 1, "other": 1},
+    )
+    monkeypatch.setattr(module, "get_last_scrape_time", lambda: "2024-01-04T00:00:00")
+    monkeypatch.setattr(module, "search_startups", lambda q, limit=20, offset=0: _sample_startups() if q else [])
+    monkeypatch.setattr(module, "count_search_results", lambda q: len(_sample_startups()) if q else 0)
+
+
+def test_safe_int_helper(app_module):
+    """_safe_int returns default on non-numeric or None input."""
+    module = app_module
+    assert module._safe_int("abc", 5) == 5
+    assert module._safe_int(None, 10) == 10
+    assert module._safe_int("", 3) == 3
+    assert module._safe_int("7", 1) == 7
+    assert module._safe_int(42, 1) == 42
+
+
+def test_non_numeric_page_returns_200_not_500(app_module, monkeypatch):
+    """Non-numeric page/per_page params should fall back to defaults, not crash."""
+    module = app_module
+    _stub_all_db(module, monkeypatch)
+    client = module.app.test_client()
+
+    # index route
+    assert client.get("/?page=abc").status_code == 200
+    assert client.get("/?per_page=xyz").status_code == 200
+    assert client.get("/?page=abc&per_page=xyz").status_code == 200
+
+    # filter_by_source route
+    assert client.get("/source/github?page=abc").status_code == 200
+    assert client.get("/source/github?per_page=xyz").status_code == 200
+
+    # search route
+    assert client.get("/search?q=dev&page=abc").status_code == 200
+    assert client.get("/search?q=dev&per_page=xyz").status_code == 200
+
+    # api_startups route
+    resp = client.get("/api/startups?page=abc&per_page=xyz")
+    assert resp.status_code == 200
+    payload = resp.get_json()
+    assert payload["page"] >= 1
+    assert payload["per_page"] >= 1
+
+    # api_search route
+    resp = client.get("/api/search?q=dev&page=abc&per_page=xyz")
+    assert resp.status_code == 200
+    payload = resp.get_json()
+    assert payload["page"] >= 1
+    assert payload["per_page"] >= 1
+
+
 def test_app_main_guard(monkeypatch):
     import runpy
 
