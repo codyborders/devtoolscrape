@@ -1,3 +1,9 @@
+### 2026-02-07T05:55:00Z
+- Fixed Bug #15 in `scrape_hackernews.py`: `story_resp.raise_for_status()` at lines 147 and 236 was outside any per-item try/except, so a single 404 (deleted/dead story) would raise an HTTPError that killed the entire scrape loop, losing all other valid stories. Wrapped per-item processing in try/except in both `scrape_hackernews()` and `scrape_hackernews_show()`, logging the error and continuing to the next story.
+- Fixed Bug #10 in `scrape_hackernews.py`: `story.get('time', datetime.now().timestamp())` at lines 193 and 282 returned None when the `time` key existed with a None value, causing `datetime.fromtimestamp(None)` to raise TypeError. Changed to `story.get('time') or datetime.now().timestamp()` to handle both missing and None cases.
+- Added 6 new tests: `test_scrape_hackernews_continues_after_story_404`, `test_scrape_hackernews_show_continues_after_story_404`, `test_scrape_hackernews_continues_after_json_decode_error_on_story`, `test_scrape_hackernews_handles_none_timestamp`, `test_scrape_hackernews_handles_missing_timestamp`, `test_scrape_hackernews_show_handles_none_timestamp`.
+- Full HN scraper test suite passes (37 tests).
+
 ### 2026-02-07T06:00:00Z
 - Fixed Bug #16 in `ai_classifier.py`: batch `max_tokens` was computed as `payload.__len__() * 4`, producing only 32 tokens for a batch of 8 items. A valid JSON response for 8 items needs ~60+ tokens, so responses were routinely truncated. Changed to `len(payload) * 20 + 50` to provide adequate token budget.
 - Fixed Bug #2 in `ai_classifier.py`: when the batch API response was missing some candidate IDs (partial `result_map`), `result_map.get(id)` returned `None` and `str(None) == "yes"` silently evaluated to `False`, misclassifying legitimate devtools. Added a `None` check that falls back to `_classify_single` for missing IDs and logs a warning.
