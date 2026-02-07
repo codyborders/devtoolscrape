@@ -202,6 +202,78 @@ def test_scrape_producthunt_api_main_guard(monkeypatch):
     runpy.run_module("scrape_producthunt_api", run_name="__main__")
 
 
+def test_scrape_producthunt_api_handles_data_null(monkeypatch):
+    """Bug #14: When GraphQL returns {"data": null}, .get('data', {}) returns
+    None (not {}), so chained .get('posts', {}) raises AttributeError.
+    The scraper should handle this gracefully -- zero posts, no crash."""
+    import scrape_producthunt_api
+
+    monkeypatch.setenv("PRODUCTHUNT_CLIENT_ID", "id")
+    monkeypatch.setenv("PRODUCTHUNT_CLIENT_SECRET", "secret")
+
+    parse_errors = []
+    original_exception = scrape_producthunt_api.logger.exception
+
+    def tracking_exception(msg, *args, **kwargs):
+        parse_errors.append(msg)
+        original_exception(msg, *args, **kwargs)
+
+    monkeypatch.setattr(scrape_producthunt_api.logger, "exception", tracking_exception)
+
+    def fake_post(url, *_, **__):
+        if "oauth/token" in url:
+            return FakeResponse({"access_token": "token"})
+        # GraphQL server error returns data: null
+        return FakeResponse({"data": None})
+
+    monkeypatch.setattr("scrape_producthunt_api.requests.post", fake_post)
+    monkeypatch.setattr("scrape_producthunt_api.classify_candidates", lambda c: {})
+    monkeypatch.setattr("scrape_producthunt_api.get_devtools_category", lambda *a: None)
+
+    saved = []
+    monkeypatch.setattr("scrape_producthunt_api.save_startup", lambda r: saved.append(r))
+
+    scrape_producthunt_api.scrape_producthunt_api()
+    assert len(saved) == 0
+    # The bug causes an AttributeError that hits the generic except block,
+    # logging "scraper.parse_error". After the fix, no such error should appear.
+    assert "scraper.parse_error" not in parse_errors
+
+
+def test_scrape_producthunt_api_handles_posts_null(monkeypatch):
+    """Bug #14 variant: When GraphQL returns {"data": {"posts": null}},
+    the chained .get('edges', []) also crashes."""
+    import scrape_producthunt_api
+
+    monkeypatch.setenv("PRODUCTHUNT_CLIENT_ID", "id")
+    monkeypatch.setenv("PRODUCTHUNT_CLIENT_SECRET", "secret")
+
+    parse_errors = []
+    original_exception = scrape_producthunt_api.logger.exception
+
+    def tracking_exception(msg, *args, **kwargs):
+        parse_errors.append(msg)
+        original_exception(msg, *args, **kwargs)
+
+    monkeypatch.setattr(scrape_producthunt_api.logger, "exception", tracking_exception)
+
+    def fake_post(url, *_, **__):
+        if "oauth/token" in url:
+            return FakeResponse({"access_token": "token"})
+        return FakeResponse({"data": {"posts": None}})
+
+    monkeypatch.setattr("scrape_producthunt_api.requests.post", fake_post)
+    monkeypatch.setattr("scrape_producthunt_api.classify_candidates", lambda c: {})
+    monkeypatch.setattr("scrape_producthunt_api.get_devtools_category", lambda *a: None)
+
+    saved = []
+    monkeypatch.setattr("scrape_producthunt_api.save_startup", lambda r: saved.append(r))
+
+    scrape_producthunt_api.scrape_producthunt_api()
+    assert len(saved) == 0
+    assert "scraper.parse_error" not in parse_errors
+
+
 def test_scrape_producthunt_rss_main_guard(monkeypatch):
     import runpy
     from requests import RequestException

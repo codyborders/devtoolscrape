@@ -113,7 +113,8 @@ def scrape_producthunt_api():
             )
             
             data = resp.json()
-            posts = data.get('data', {}).get('posts', {}).get('edges', [])
+            posts = (data.get('data') or {}).get('posts', None)
+            posts = (posts or {}).get('edges', [])
             logger.info(
                 "scraper.posts_found",
                 extra={"event": "scraper.posts_found", "count": len(posts)},
