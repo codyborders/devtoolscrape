@@ -124,7 +124,7 @@ def scrape_github_trending() -> None:
 
                 devtools_count += 1
 
-                description = candidate["description"]
+                description = candidate["text"]
                 try:
                     category = get_devtools_category(description, candidate["name"])
                 except Exception:

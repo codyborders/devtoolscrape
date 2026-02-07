@@ -246,3 +246,45 @@ def test_scrape_github_trending_integration_duplicate_with_temp_db(monkeypatch, 
     found = database.get_startup_by_url("https://github.com/owner/dupe")
     assert found is not None
     assert "scraper.skip_duplicate" in log_buffer.getvalue()
+
+
+def test_categorization_uses_text_not_empty_description(monkeypatch) -> None:
+    """Bug #9: get_devtools_category should receive candidate['text'] (which
+    falls back to name) instead of candidate['description'] (which can be empty).
+    """
+    import scrape_github_trending
+
+    # Repo with NO description paragraph -- description will be "", text will be name
+    html = """
+    <article class="Box-row">
+        <h2 class="h3"><a href="/owner/nodesctool">owner/nodesctool</a></h2>
+    </article>
+    """
+    response = FakeResponse(content=html.encode("utf-8"))
+    monkeypatch.setattr("scrape_github_trending.requests.get", lambda *args, **kwargs: response)
+    monkeypatch.setattr("scrape_github_trending.get_existing_startup_keys", lambda: [])
+
+    def fake_classify(candidates):
+        candidates = list(candidates)
+        return {item["id"]: True for item in candidates}
+
+    monkeypatch.setattr("scrape_github_trending.classify_candidates", fake_classify)
+
+    # Capture what get_devtools_category receives as its first argument
+    category_inputs = []
+
+    def spy_get_devtools_category(description, name):
+        category_inputs.append(description)
+        return "CLI Tool"
+
+    monkeypatch.setattr("scrape_github_trending.get_devtools_category", spy_get_devtools_category)
+
+    saved = []
+    monkeypatch.setattr("scrape_github_trending.save_startup", lambda record: saved.append(record))
+
+    scrape_github_trending.scrape_github_trending()
+
+    # The categorizer must have been called with a non-empty string (the name fallback)
+    assert len(category_inputs) == 1
+    assert category_inputs[0] != "", "get_devtools_category received empty string instead of text fallback"
+    assert "nodesctool" in category_inputs[0]
