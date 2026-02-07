@@ -1,3 +1,10 @@
+### 2026-02-07T06:00:00Z
+- Fixed Bug #16 in `ai_classifier.py`: batch `max_tokens` was computed as `payload.__len__() * 4`, producing only 32 tokens for a batch of 8 items. A valid JSON response for 8 items needs ~60+ tokens, so responses were routinely truncated. Changed to `len(payload) * 20 + 50` to provide adequate token budget.
+- Fixed Bug #2 in `ai_classifier.py`: when the batch API response was missing some candidate IDs (partial `result_map`), `result_map.get(id)` returned `None` and `str(None) == "yes"` silently evaluated to `False`, misclassifying legitimate devtools. Added a `None` check that falls back to `_classify_single` for missing IDs and logs a warning.
+- Added `test_batch_max_tokens_sufficient_for_payload_size` to verify max_tokens scales with batch size.
+- Added `test_partial_batch_response_falls_back_to_single_for_missing_ids` to verify missing batch IDs fall back to single classification instead of silently returning False.
+- Full test suite passes (101 tests).
+
 ### 2026-02-04T12:00:00Z
 - Enabled Datadog memory profiling by explicitly setting `DD_PROFILING_MEMORY_ENABLED=true`, `DD_PROFILING_HEAP_ENABLED=true`, `DD_PROFILING_STACK_ENABLED=true`, and `DD_PROFILING_LOCK_ENABLED=true` across both compose files so all profile types appear in Datadog Continuous Profiler.
 - Added `DD_LIVE_DEBUGGING_ENABLED=true` to enable the live debugger feature alongside the existing dynamic instrumentation, exception replay, and code origin settings.
