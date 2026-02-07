@@ -128,7 +128,8 @@ def scrape_producthunt_api():
                 tagline = post.get('tagline', '')
                 description = post.get('description', '')
                 full_text = f"{name} {tagline} {description}"
-                post_identifier = post.get('id') or post.get('url') or name
+                post_id_val = post.get('id')
+                post_identifier = post_id_val if post_id_val is not None else (post.get('url') or name)
                 post_id = str(post_identifier)
                 post_map[post_id] = (post, name, tagline, description, full_text)
                 candidates.append({"id": post_id, "name": name, "text": full_text})

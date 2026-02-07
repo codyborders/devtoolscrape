@@ -274,6 +274,105 @@ def test_scrape_producthunt_api_handles_posts_null(monkeypatch):
     assert "scraper.parse_error" not in parse_errors
 
 
+def test_scrape_producthunt_api_falsy_post_id(monkeypatch):
+    """Bug #11: post.get('id') or post.get('url') or name skips falsy but
+    valid IDs like 0 or empty string. The post_identifier should use explicit
+    None check so that id=0 is preserved."""
+    import scrape_producthunt_api
+
+    monkeypatch.setenv("PRODUCTHUNT_CLIENT_ID", "id")
+    monkeypatch.setenv("PRODUCTHUNT_CLIENT_SECRET", "secret")
+
+    now_iso = datetime.utcnow().isoformat()
+
+    def fake_post(url, *_, **__):
+        if "oauth/token" in url:
+            return FakeResponse({"access_token": "token"})
+        return FakeResponse({
+            "data": {
+                "posts": {
+                    "edges": [
+                        {"node": {
+                            "id": 0,
+                            "name": "ZeroID Tool",
+                            "tagline": "Has id=0",
+                            "description": "Dev tool with falsy ID",
+                            "url": "https://zero.dev",
+                            "createdAt": now_iso,
+                            "topics": {"edges": []},
+                        }},
+                    ]
+                }
+            }
+        })
+
+    monkeypatch.setattr("scrape_producthunt_api.requests.post", fake_post)
+    monkeypatch.setattr(
+        "scrape_producthunt_api.classify_candidates",
+        lambda candidates: {item["id"]: True for item in candidates},
+    )
+    monkeypatch.setattr("scrape_producthunt_api.get_devtools_category", lambda *a: None)
+
+    saved = []
+    monkeypatch.setattr("scrape_producthunt_api.save_startup", lambda r: saved.append(r))
+
+    scrape_producthunt_api.scrape_producthunt_api()
+    assert len(saved) == 1
+    # The key assertion: post_id should be "0" (from the id field),
+    # not "https://zero.dev" (url) or "ZeroID Tool" (name).
+    # With the bug, id=0 is falsy so the or-chain falls through to the url.
+    assert saved[0]["name"] == "ZeroID Tool"
+
+
+def test_scrape_producthunt_api_falsy_post_id_uses_id_not_url(monkeypatch):
+    """Bug #11: Verify that with id=0, the candidate dict uses '0' as the
+    id rather than falling through to url or name."""
+    import scrape_producthunt_api
+
+    monkeypatch.setenv("PRODUCTHUNT_CLIENT_ID", "id")
+    monkeypatch.setenv("PRODUCTHUNT_CLIENT_SECRET", "secret")
+
+    now_iso = datetime.utcnow().isoformat()
+    captured_candidates = []
+
+    def fake_post(url, *_, **__):
+        if "oauth/token" in url:
+            return FakeResponse({"access_token": "token"})
+        return FakeResponse({
+            "data": {
+                "posts": {
+                    "edges": [
+                        {"node": {
+                            "id": 0,
+                            "name": "ZeroTool",
+                            "tagline": "t",
+                            "description": "d",
+                            "url": "https://zero.dev",
+                            "createdAt": now_iso,
+                            "topics": {"edges": []},
+                        }},
+                    ]
+                }
+            }
+        })
+
+    monkeypatch.setattr("scrape_producthunt_api.requests.post", fake_post)
+
+    def capturing_classify(candidates):
+        captured_candidates.extend(candidates)
+        return {item["id"]: False for item in candidates}
+
+    monkeypatch.setattr("scrape_producthunt_api.classify_candidates", capturing_classify)
+    monkeypatch.setattr("scrape_producthunt_api.get_devtools_category", lambda *a: None)
+    monkeypatch.setattr("scrape_producthunt_api.save_startup", lambda r: None)
+
+    scrape_producthunt_api.scrape_producthunt_api()
+
+    assert len(captured_candidates) == 1
+    # With the bug, this would be "https://zero.dev" or "ZeroTool"
+    assert captured_candidates[0]["id"] == "0"
+
+
 def test_scrape_producthunt_rss_handles_missing_tags(monkeypatch):
     """Bug #13: When an RSS <item> is missing <title> or <description>,
     item.title is None and .text raises AttributeError. The scraper should
