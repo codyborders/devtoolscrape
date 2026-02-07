@@ -247,7 +247,7 @@ def classify_candidates(candidates: Iterable[Dict[str, str]]) -> Dict[str, bool]
                     },
                     {"role": "user", "content": json.dumps(payload)},
                 ],
-                max_tokens=len(payload) * 4,
+                max_tokens=len(payload) * 20 + 50,
                 temperature=0.0,
                 response_format={"type": "json_object"},
             )

@@ -233,3 +233,53 @@ def test_call_openai_retries_with_tenacity(monkeypatch):
 
     assert calls["count"] == 3
     assert response.choices[0].message.content == "yes"
+
+
+def test_batch_max_tokens_sufficient_for_payload_size(monkeypatch):
+    """Bug #16: max_tokens=payload.__len__() * 4 gives 32 tokens for a batch
+    of 8, but a JSON response like {"results": {"id": "yes", ...}} for 8 items
+    needs ~60+ tokens. Verify max_tokens scales adequately with batch size."""
+    monkeypatch.setenv("AI_CLASSIFIER_DISABLE_CACHE", "1")
+    monkeypatch.setenv("AI_CLASSIFIER_DISABLE_BATCH", "0")
+    monkeypatch.setenv("AI_CLASSIFIER_BATCH_SIZE", "8")
+    monkeypatch.setenv("AI_CLASSIFIER_MAX_CONCURRENCY", "1")
+    monkeypatch.setenv("OPENAI_API_KEY", "present")
+
+    import ai_classifier
+
+    importlib.reload(ai_classifier)
+
+    # Track the max_tokens value passed to the OpenAI API
+    captured_kwargs = {}
+    original_create = ai_classifier.client.chat.completions.create
+
+    def capturing_create(*args, **kwargs):
+        captured_kwargs.update(kwargs)
+        # Return a valid batch response for all 8 items
+        result = {
+            "results": {
+                f"item-{i}": "yes" for i in range(8)
+            }
+        }
+        import json as _json
+        message = types.SimpleNamespace(content=_json.dumps(result))
+        choice = types.SimpleNamespace(message=message)
+        return types.SimpleNamespace(choices=[choice])
+
+    ai_classifier.client.chat.completions.create = capturing_create
+
+    candidates = [
+        {"id": f"item-{i}", "name": f"Tool {i}", "text": "developer CLI tool"}
+        for i in range(8)
+    ]
+
+    ai_classifier.classify_candidates(candidates)
+
+    # With 8 items, the old formula gave 8*4=32 tokens. A minimal JSON response
+    # for 8 items like {"results":{"item-0":"yes",...}} needs ~60+ tokens.
+    # The fix should give at least len(payload)*20+50 = 210 tokens.
+    assert "max_tokens" in captured_kwargs, "max_tokens was not passed to the API"
+    assert captured_kwargs["max_tokens"] >= 60, (
+        f"max_tokens={captured_kwargs['max_tokens']} is too low for a batch of 8 items; "
+        f"expected at least 60 tokens to avoid JSON truncation"
+    )
