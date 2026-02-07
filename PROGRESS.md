@@ -1,3 +1,11 @@
+### 2026-02-07T05:58:00Z
+- Fixed Bug #9 in `scrape_github_trending.py`: line 126 used `candidate["description"]` (empty string for repos with no HTML description) instead of `candidate["text"]` (which falls back to repo name). Changed to use `candidate["text"]` so the categorizer always gets useful input.
+- Fixed Bug #5 in `dev_utils.py`: `keyword.lower() in text` substring matching caused false positives ("log" matched "blog", "API" matched "therapist", "CI" matched "social"). Replaced with pre-compiled word-boundary regex patterns (`\b...\b` with re.IGNORECASE).
+- Fixed Bug #7 in `observability.py`: `trace_http_call` passed the generic "external.http.request" as the Datadog span name and the descriptive string (e.g. "hackernews.topstories") as the resource. Swapped so the descriptive string becomes the span name (visible in APM flame graphs) and the URL becomes the resource.
+- Fixed Bug #6 in `logging_config.py`: `trace_id, span_id, _, _, _ = get_correlation_ids()` expected 5 values but ddtrace returns 2. The ValueError was silently caught, breaking log-to-trace correlation. Changed to `trace_id, span_id = get_correlation_ids()`.
+- Added 7 new tests: `test_categorization_uses_text_not_empty_description`, `test_substring_false_positives_rejected`, `test_whole_word_keywords_still_match`, `test_trace_http_call_uses_descriptive_span_name`, `test_trace_external_call_uses_descriptive_span_name`, `test_context_filter_unpacks_correlation_ids_correctly`.
+- Full test suite passes (114 tests, 0 failures).
+
 ### 2026-02-07T05:56:00Z
 - Fixed Bug #3 in `app_production.py`: bare `int(request.args.get(...))` calls in 5 routes (index, filter_by_source, search, api_startups, api_search) raised ValueError on non-numeric pagination input like `?page=abc`, returning HTTP 500. Added `_safe_int(value, default)` helper and applied it to all 10 occurrences across the 5 routes.
 - Fixed Bug #4 in `database.py`: `save_startup()` never called `is_duplicate()` before INSERT, so tools with the same name but different URLs were inserted as duplicates. Added an `is_duplicate(name, url)` check at the top of `save_startup` that logs and returns early when a match is found.
