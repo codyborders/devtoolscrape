@@ -1,3 +1,10 @@
+### 2026-02-07T05:57:00Z
+- Fixed Bug #14 in `scrape_producthunt_api.py`: `data.get('data', {}).get('posts', {}).get('edges', [])` on line 116 crashed with AttributeError when GraphQL returned `{"data": null}` because `.get('data', {})` returns None (the actual value), not the default `{}`. Replaced with `(data.get('data') or {})` pattern at each nesting level to handle both missing and null values.
+- Fixed Bug #13 in `scrape_producthunt.py`: `item.title.text` and `item.description.text` on lines 45-46 crashed when RSS `<item>` was missing `<title>` or `<description>` tags (BeautifulSoup returns None). Wrapped per-item extraction in try/except AttributeError with a structured warning log and continue.
+- Fixed Bug #11 in `scrape_producthunt_api.py`: `post.get('id') or post.get('url') or name` on line 131 skipped falsy-but-valid IDs like 0 or "" because Python's `or` treats them as false. Replaced with explicit None check: `post_id_val if post_id_val is not None else (post.get('url') or name)`.
+- Added 5 new tests: `test_scrape_producthunt_api_handles_data_null`, `test_scrape_producthunt_api_handles_posts_null`, `test_scrape_producthunt_rss_handles_missing_tags`, `test_scrape_producthunt_api_falsy_post_id`, `test_scrape_producthunt_api_falsy_post_id_uses_id_not_url`.
+- Full Product Hunt scraper test suite passes (17 tests).
+
 ### 2026-02-07T05:55:00Z
 - Fixed Bug #15 in `scrape_hackernews.py`: `story_resp.raise_for_status()` at lines 147 and 236 was outside any per-item try/except, so a single 404 (deleted/dead story) would raise an HTTPError that killed the entire scrape loop, losing all other valid stories. Wrapped per-item processing in try/except in both `scrape_hackernews()` and `scrape_hackernews_show()`, logging the error and continuing to the next story.
 - Fixed Bug #10 in `scrape_hackernews.py`: `story.get('time', datetime.now().timestamp())` at lines 193 and 282 returned None when the `time` key existed with a None value, causing `datetime.fromtimestamp(None)` to raise TypeError. Changed to `story.get('time') or datetime.now().timestamp()` to handle both missing and None cases.
