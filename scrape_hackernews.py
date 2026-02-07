@@ -150,30 +150,37 @@ def scrape_hackernews():
             story_cache = {}
             candidates = []
             for story_id in top_story_ids:
-                story_url = f'https://hacker-news.firebaseio.com/v0/item/{story_id}.json'
-                with trace_http_call("hackernews.story", "GET", story_url) as span:
-                    story_resp = _request_with_retry(story_url, timeout=(5, 10))
-                    if span:
-                        span.set_tag("http.status_code", story_resp.status_code)
-                        span.set_tag("hackernews.story_id", story_id)
-                story_resp.raise_for_status()
-                story = story_resp.json()
+                try:
+                    story_url = f'https://hacker-news.firebaseio.com/v0/item/{story_id}.json'
+                    with trace_http_call("hackernews.story", "GET", story_url) as span:
+                        story_resp = _request_with_retry(story_url, timeout=(5, 10))
+                        if span:
+                            span.set_tag("http.status_code", story_resp.status_code)
+                            span.set_tag("hackernews.story_id", story_id)
+                    story_resp.raise_for_status()
+                    story = story_resp.json()
 
-                if not story or story.get('type') != 'story':
+                    if not story or story.get('type') != 'story':
+                        continue
+
+                    title = story.get('title', '')
+                    url = story.get('url', '')
+                    text = story.get('text', '')
+                    score = story.get('score', 0)
+
+                    if not url or score < 10:
+                        continue
+
+                    key = str(story_id)
+                    full_text = f"{title} {text}"
+                    story_cache[key] = (story, title, url, text, score, full_text)
+                    candidates.append({"id": key, "name": title, "text": full_text})
+                except Exception:
+                    logger.warning(
+                        "scraper.story_fetch_failed",
+                        extra={"event": "scraper.story_fetch_failed", "story_id": story_id},
+                    )
                     continue
-
-                title = story.get('title', '')
-                url = story.get('url', '')
-                text = story.get('text', '')
-                score = story.get('score', 0)
-
-                if not url or score < 10:
-                    continue
-
-                key = str(story_id)
-                full_text = f"{title} {text}"
-                story_cache[key] = (story, title, url, text, score, full_text)
-                candidates.append({"id": key, "name": title, "text": full_text})
 
             results = classify_candidates(candidates)
 
@@ -232,30 +239,37 @@ def scrape_hackernews_show():
             story_cache = {}
             candidates = []
             for story_id in show_story_ids:
-                story_url = f'https://hacker-news.firebaseio.com/v0/item/{story_id}.json'
-                with trace_http_call("hackernews.story", "GET", story_url) as span:
-                    story_resp = _request_with_retry(story_url, timeout=(5, 10))
-                    if span:
-                        span.set_tag("http.status_code", story_resp.status_code)
-                        span.set_tag("hackernews.story_id", story_id)
-                story_resp.raise_for_status()
-                story = story_resp.json()
+                try:
+                    story_url = f'https://hacker-news.firebaseio.com/v0/item/{story_id}.json'
+                    with trace_http_call("hackernews.story", "GET", story_url) as span:
+                        story_resp = _request_with_retry(story_url, timeout=(5, 10))
+                        if span:
+                            span.set_tag("http.status_code", story_resp.status_code)
+                            span.set_tag("hackernews.story_id", story_id)
+                    story_resp.raise_for_status()
+                    story = story_resp.json()
 
-                if not story or story.get('type') != 'story':
+                    if not story or story.get('type') != 'story':
+                        continue
+
+                    title = story.get('title', '')
+                    url = story.get('url', '')
+                    text = story.get('text', '')
+                    score = story.get('score', 0)
+
+                    if not url or score < 5:
+                        continue
+
+                    full_text = f"{title} {text}"
+                    key = f"show-{story_id}"
+                    story_cache[key] = (story, title, url, text, score, full_text)
+                    candidates.append({"id": key, "name": title, "text": full_text})
+                except Exception:
+                    logger.warning(
+                        "scraper.story_fetch_failed",
+                        extra={"event": "scraper.story_fetch_failed", "story_id": story_id},
+                    )
                     continue
-
-                title = story.get('title', '')
-                url = story.get('url', '')
-                text = story.get('text', '')
-                score = story.get('score', 0)
-
-                if not url or score < 5:
-                    continue
-
-                full_text = f"{title} {text}"
-                key = f"show-{story_id}"
-                story_cache[key] = (story, title, url, text, score, full_text)
-                candidates.append({"id": key, "name": title, "text": full_text})
 
             results = classify_candidates(candidates)
 

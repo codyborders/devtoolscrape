@@ -974,3 +974,128 @@ class TestRetryLogic:
             if level == "exception" or "failed" in msg.lower()
         ]
         assert len(failure_logs) > 0, "Expected final failure to be logged"
+
+
+class TestSingleStoryFailureDoesNotAbortLoop:
+    """Bug #15: A single story returning 404 (or any HTTP error) should not
+    kill the entire scrape loop. Valid stories fetched before and after the
+    bad one must still be processed."""
+
+    @pytest.fixture
+    def stub_dependencies(self, monkeypatch) -> None:
+        """Stub out classifier and database dependencies."""
+        monkeypatch.setattr("scrape_hackernews.classify_candidates", lambda c: {
+            item["id"]: True for item in c
+        })
+        monkeypatch.setattr("scrape_hackernews.get_devtools_category", lambda t, n: None)
+
+    def test_scrape_hackernews_continues_after_story_404(
+        self, monkeypatch, stub_dependencies
+    ) -> None:
+        """scrape_hackernews should skip a story that returns 404 and keep
+        processing the remaining stories."""
+        import scrape_hackernews
+
+        top_story_ids = [1, 2, 3]
+        stories = {
+            1: {"type": "story", "title": "Good Story 1", "url": "https://good1.dev", "text": "", "score": 50, "time": datetime.now().timestamp()},
+            # story 2 will return 404
+            3: {"type": "story", "title": "Good Story 3", "url": "https://good3.dev", "text": "", "score": 60, "time": datetime.now().timestamp()},
+        }
+
+        def fake_get(url, timeout):
+            if url.endswith("topstories.json"):
+                return FakeJSONResponse(top_story_ids)
+            story_id = int(url.split("/")[-1].split(".")[0])
+            if story_id == 2:
+                return FakeJSONResponse(None, status_code=404)
+            return FakeJSONResponse(stories[story_id])
+
+        monkeypatch.setattr("scrape_hackernews.requests.get", fake_get)
+
+        saved = []
+        monkeypatch.setattr("scrape_hackernews.save_startup", lambda record: saved.append(record))
+
+        scrape_hackernews.scrape_hackernews()
+
+        assert len(saved) == 2, (
+            f"Expected 2 saved stories (skipping the 404), got {len(saved)}"
+        )
+        saved_names = {s["name"] for s in saved}
+        assert "Good Story 1" in saved_names
+        assert "Good Story 3" in saved_names
+
+    def test_scrape_hackernews_show_continues_after_story_404(
+        self, monkeypatch, stub_dependencies
+    ) -> None:
+        """scrape_hackernews_show should skip a story that returns 404 and keep
+        processing the remaining stories."""
+        import scrape_hackernews
+
+        show_story_ids = [10, 11, 12]
+        stories = {
+            10: {"type": "story", "title": "Show HN: Good 1", "url": "https://good1.dev", "text": "", "score": 50, "time": datetime.now().timestamp()},
+            # story 11 will return 404
+            12: {"type": "story", "title": "Show HN: Good 3", "url": "https://good3.dev", "text": "", "score": 60, "time": datetime.now().timestamp()},
+        }
+
+        def fake_get(url, timeout):
+            if url.endswith("showstories.json"):
+                return FakeJSONResponse(show_story_ids)
+            story_id = int(url.split("/")[-1].split(".")[0])
+            if story_id == 11:
+                return FakeJSONResponse(None, status_code=404)
+            return FakeJSONResponse(stories[story_id])
+
+        monkeypatch.setattr("scrape_hackernews.requests.get", fake_get)
+
+        saved = []
+        monkeypatch.setattr("scrape_hackernews.save_startup", lambda record: saved.append(record))
+
+        scrape_hackernews.scrape_hackernews_show()
+
+        assert len(saved) == 2, (
+            f"Expected 2 saved stories (skipping the 404), got {len(saved)}"
+        )
+        saved_names = {s["name"] for s in saved}
+        assert "Show HN: Good 1" in saved_names
+        assert "Show HN: Good 3" in saved_names
+
+    def test_scrape_hackernews_continues_after_json_decode_error_on_story(
+        self, monkeypatch, stub_dependencies
+    ) -> None:
+        """If a single story response has invalid JSON, the loop should
+        continue processing the remaining stories."""
+        import scrape_hackernews
+
+        top_story_ids = [1, 2, 3]
+        stories = {
+            1: {"type": "story", "title": "Good Story A", "url": "https://gooda.dev", "text": "", "score": 50, "time": datetime.now().timestamp()},
+            3: {"type": "story", "title": "Good Story B", "url": "https://goodb.dev", "text": "", "score": 60, "time": datetime.now().timestamp()},
+        }
+
+        class BadJSONStoryResponse:
+            status_code = 200
+            def raise_for_status(self):
+                pass
+            def json(self):
+                raise ValueError("Invalid JSON")
+
+        def fake_get(url, timeout):
+            if url.endswith("topstories.json"):
+                return FakeJSONResponse(top_story_ids)
+            story_id = int(url.split("/")[-1].split(".")[0])
+            if story_id == 2:
+                return BadJSONStoryResponse()
+            return FakeJSONResponse(stories[story_id])
+
+        monkeypatch.setattr("scrape_hackernews.requests.get", fake_get)
+
+        saved = []
+        monkeypatch.setattr("scrape_hackernews.save_startup", lambda record: saved.append(record))
+
+        scrape_hackernews.scrape_hackernews()
+
+        assert len(saved) == 2, (
+            f"Expected 2 saved stories (skipping bad JSON), got {len(saved)}"
+        )
