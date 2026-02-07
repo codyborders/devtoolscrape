@@ -73,8 +73,23 @@ def test_scrape_all_main_records_results(monkeypatch):
     monkeypatch.setattr("scrape_all.record_scrape_completion", lambda summary: recorded.append(summary))
 
     scrape_all.main()
-    # Only the scrapers that actually succeeded should be recorded
+    # Scrapers 1 and 3 succeed (True, False, True) so only their
+    # descriptions should be recorded -- not the first N by position.
     assert recorded == ["GitHub Trending Repositories, Product Hunt API"]
+
+
+def test_scrape_all_records_actual_successes_not_positional(monkeypatch):
+    """When only the middle scraper succeeds, only its name should be recorded."""
+    import scrape_all
+
+    sequence = iter([False, True, False])
+    monkeypatch.setattr("scrape_all.run_scraper", lambda name, desc: next(sequence))
+    monkeypatch.setattr("scrape_all.init_db", lambda: None)
+    recorded = []
+    monkeypatch.setattr("scrape_all.record_scrape_completion", lambda summary: recorded.append(summary))
+
+    scrape_all.main()
+    assert recorded == ["Hacker News & Show HN"]
 
 
 def test_scrape_all_main_records_all_successes(monkeypatch):

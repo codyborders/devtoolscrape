@@ -31,7 +31,7 @@ def run_scraper(module_name, description):
             spec = importlib.util.spec_from_file_location(module_name, f"{module_name}.py")
             module = importlib.util.module_from_spec(spec)
             spec.loader.exec_module(module)
-            
+
             if hasattr(module, 'scrape_github_trending'):
                 module.scrape_github_trending()
             elif hasattr(module, 'scrape_hackernews'):
@@ -59,37 +59,37 @@ def run_scraper(module_name, description):
 def main():
     """Run all scrapers"""
     logger.info("runner.start", extra={"event": "runner.start"})
-    
+
     # Initialize database
     init_db()
-    
+
     # Define scrapers to run
     scrapers = [
         ("scrape_github_trending", "GitHub Trending Repositories"),
         ("scrape_hackernews", "Hacker News & Show HN"),
         ("scrape_producthunt_api", "Product Hunt API"),
     ]
-    
-    succeeded = []
+
+    successful_names = []
     total_scrapers = len(scrapers)
 
     for module_name, description in scrapers:
         if run_scraper(module_name, description):
-            succeeded.append(description)
+            successful_names.append(description)
 
     logger.info(
         "runner.summary",
         extra={
             "event": "runner.summary",
-            "successful_scrapers": len(succeeded),
+            "successful_scrapers": len(successful_names),
             "total_scrapers": total_scrapers,
         },
     )
 
     # Record the scrape completion
-    record_scrape_completion(', '.join(succeeded))
+    record_scrape_completion(', '.join(successful_names))
 
-    if succeeded:
+    if successful_names:
         logger.info(
             "runner.success_notice",
             extra={"event": "runner.success_notice"},
