@@ -2,14 +2,13 @@ import json
 import os
 import threading
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from pathlib import Path
 from typing import Dict, Iterable, List, Optional
 
 from cachetools import TTLCache
-import openai
 from dotenv import load_dotenv
+import openai
 from tenacity import Retrying, retry_if_exception, stop_after_attempt, wait_exponential
-
-from pathlib import Path
 
 # Load environment variables from .env file before importing modules that depend on them
 BASE_DIR = Path(__file__).resolve().parent
@@ -56,6 +55,8 @@ _USE_BATCH = os.getenv("AI_CLASSIFIER_DISABLE_BATCH", "0") != "1"
 _BATCH_SIZE = max(1, int(os.getenv("AI_CLASSIFIER_BATCH_SIZE", "8")))
 _MAX_CONCURRENCY = max(1, int(os.getenv("AI_CLASSIFIER_MAX_CONCURRENCY", "4")))
 _MAX_RETRIES = max(1, int(os.getenv("AI_CLASSIFIER_MAX_RETRIES", "3")))
+
+
 def _has_openai_key() -> bool:
     return bool(os.getenv('OPENAI_API_KEY'))
 
@@ -78,18 +79,22 @@ def _cache_set(cache: TTLCache, key: str, value) -> None:
     with _cache_lock:
         cache[key] = value
 
+DEVTOOLS_KEYWORDS = [
+    "developer", "devtool", "CLI", "SDK", "API", "code", "coding", "debug", "git",
+    "CI", "CD", "DevOps", "terminal", "IDE", "framework", "testing", "monitoring",
+    "observability", "build", "deploy", "infra", "cloud-native", "backend", "log",
+    "linter", "formatter", "package manager", "dependency", "compiler", "interpreter",
+    "container", "kubernetes", "docker", "microservice", "serverless", "database",
+    "query", "schema", "migration", "deployment", "orchestration", "automation",
+]
+
+_DEVTOOLS_KEYWORDS_LOWER = [kw.lower() for kw in DEVTOOLS_KEYWORDS]
+
+
 def has_devtools_keywords(text: str, name: str = "") -> bool:
-    """Quick keyword pre-filter to avoid unnecessary API calls"""
-    DEVTOOLS_KEYWORDS = [
-        "developer", "devtool", "CLI", "SDK", "API", "code", "coding", "debug", "git", 
-        "CI", "CD", "DevOps", "terminal", "IDE", "framework", "testing", "monitoring", 
-        "observability", "build", "deploy", "infra", "cloud-native", "backend", "log",
-        "linter", "formatter", "package manager", "container", "kubernetes", "docker", "microservice", "serverless", "database",
-        "query", "schema", "migration", "deployment", "orchestration", "automation"
-    ]
-    
+    """Quick keyword pre-filter to avoid unnecessary API calls."""
     combined_text = f"{name} {text}".lower()
-    return any(keyword.lower() in combined_text for keyword in DEVTOOLS_KEYWORDS)
+    return any(keyword in combined_text for keyword in _DEVTOOLS_KEYWORDS_LOWER)
 
 def _cache_key(name: str, text: str) -> str:
     return f"{name.strip().lower()}|{text.strip().lower()}"
@@ -242,7 +247,7 @@ def classify_candidates(candidates: Iterable[Dict[str, str]]) -> Dict[str, bool]
                     },
                     {"role": "user", "content": json.dumps(payload)},
                 ],
-                max_tokens=payload.__len__() * 4,
+                max_tokens=len(payload) * 4,
                 temperature=0.0,
                 response_format={"type": "json_object"},
             )
@@ -370,18 +375,10 @@ def is_devtools_related_ai(text: str, name: str = "") -> bool:
     return result
 
 def is_devtools_related_fallback(text: str) -> bool:
-    """Fallback keyword-based classifier when AI is unavailable"""
-    DEVTOOLS_KEYWORDS = [
-        "developer", "devtool", "CLI", "SDK", "API", "code", "coding", "debug", "git", 
-        "CI", "CD", "DevOps", "terminal", "IDE", "framework", "testing", "monitoring", 
-        "observability", "build", "deploy", "infra", "cloud-native", "backend", "log",
-        "linter", "formatter", "package manager", "dependency", "compiler", "interpreter",
-        "container", "kubernetes", "docker", "microservice", "serverless", "database",
-        "query", "schema", "migration", "deployment", "orchestration", "automation"
-    ]
-    
-    text = text.lower()
-    return any(keyword.lower() in text for keyword in DEVTOOLS_KEYWORDS)
+    """Fallback keyword-based classifier when AI is unavailable."""
+    text_lower = text.lower()
+    return any(keyword in text_lower for keyword in _DEVTOOLS_KEYWORDS_LOWER)
+
 
 def get_devtools_category(text: str, name: str = "") -> Optional[str]:
     """

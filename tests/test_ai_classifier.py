@@ -7,6 +7,16 @@ import pytest
 import tenacity
 
 
+def test_devtools_keywords_module_level_constant(reset_ai_classifier):
+    classifier = reset_ai_classifier
+    # Verify the module-level constant exists and is non-empty
+    assert len(classifier.DEVTOOLS_KEYWORDS) > 0
+    assert len(classifier._DEVTOOLS_KEYWORDS_LOWER) == len(classifier.DEVTOOLS_KEYWORDS)
+    # Verify all lowercase entries match the original list
+    for kw, kw_lower in zip(classifier.DEVTOOLS_KEYWORDS, classifier._DEVTOOLS_KEYWORDS_LOWER):
+        assert kw_lower == kw.lower()
+
+
 def test_has_devtools_keywords(reset_ai_classifier):
     classifier = reset_ai_classifier
     assert classifier.has_devtools_keywords("Great CLI for developers", "Tool")

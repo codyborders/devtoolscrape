@@ -1,30 +1,26 @@
-from datetime import datetime
 import os
 import time
 import uuid
+from datetime import datetime
 
-from flask import Flask, render_template, request, jsonify, g
 from dotenv import load_dotenv
+from flask import Flask, render_template, request, jsonify, g
 
 from database import (
+    count_all_startups,
+    count_search_results,
+    count_startups_by_source_key,
     get_all_startups,
     get_last_scrape_time,
+    get_related_startups,
     get_source_counts,
     get_startup_by_id,
     get_startups_by_source_key,
     get_startups_by_sources,
-    get_related_startups,
-    search_startups,
-    count_search_results,
-    count_all_startups,
-    count_startups_by_source_key,
     init_db,
+    search_startups,
 )
-
 from logging_config import bind_context, get_logger, unbind_context
-
-
-
 
 # Load environment variables
 load_dotenv()
@@ -187,6 +183,19 @@ def _teardown_request_logging(exc):
         )
     unbind_context("request_id", "http_method", "http_path", "client_ip")
 
+def _parse_pagination(default_per_page: int = 20, max_per_page: int = 100):
+    """Parse page and per_page from request args, returning (page, per_page, offset)."""
+    per_page = min(max(int(request.args.get('per_page', default_per_page)), 1), max_per_page)
+    page = max(int(request.args.get('page', 1)), 1)
+    offset = (page - 1) * per_page
+    return page, per_page, offset
+
+
+def _total_pages(total_results: int, per_page: int) -> int:
+    """Compute total number of pages, minimum 1."""
+    return max((total_results + per_page - 1) // per_page, 1)
+
+
 def summarize_sources(startups):
     logger.debug(
         "summarize.sources",
@@ -217,9 +226,7 @@ def summarize_sources(startups):
 def index():
     """Main page showing all devtools"""
     source_filter = request.args.get('source', '')
-    per_page = min(max(int(request.args.get('per_page', 20)), 1), 100)
-    page = max(int(request.args.get('page', 1)), 1)
-    offset = (page - 1) * per_page
+    page, per_page, offset = _parse_pagination()
 
     if source_filter:
         total_results = count_startups_by_source_key(source_filter)
@@ -230,7 +237,7 @@ def index():
 
     source_counts = get_source_counts()
     last_scrape_time = get_last_scrape_time()
-    total_pages = max((total_results + per_page - 1) // per_page, 1)
+    total_pages = _total_pages(total_results, per_page)
     first_item = offset + 1 if startups else 0
     last_item = offset + len(startups)
     response = render_template(
@@ -267,9 +274,7 @@ def filter_by_source(source_name):
         'hackernews': 'Hacker News',
         'producthunt': 'Product Hunt',
     }
-    per_page = min(max(int(request.args.get('per_page', 20)), 1), 100)
-    page = max(int(request.args.get('page', 1)), 1)
-    offset = (page - 1) * per_page
+    page, per_page, offset = _parse_pagination()
 
     filtered_startups = get_startups_by_source_key(source_name, limit=per_page, offset=offset)
     source_display = source_map.get(source_name, 'All Sources')
@@ -277,7 +282,7 @@ def filter_by_source(source_name):
     source_counts = get_source_counts()
     total_results = count_startups_by_source_key(source_name)
     last_scrape_time = get_last_scrape_time()
-    total_pages = max((total_results + per_page - 1) // per_page, 1)
+    total_pages = _total_pages(total_results, per_page)
     first_item = offset + 1 if filtered_startups else 0
     last_item = offset + len(filtered_startups)
     response = render_template(
@@ -311,9 +316,7 @@ def filter_by_source(source_name):
 def search():
     """Search page"""
     query = request.args.get('q', '')
-    per_page = min(max(int(request.args.get('per_page', 20)), 1), 100)
-    page = max(int(request.args.get('page', 1)), 1)
-    offset = (page - 1) * per_page
+    page, per_page, offset = _parse_pagination()
 
     if query:
         total_results = count_search_results(query)
@@ -323,7 +326,7 @@ def search():
         startups = []
     source_counts = summarize_sources(startups)
     last_scrape_time = get_last_scrape_time()
-    total_pages = max((total_results + per_page - 1) // per_page, 1) if total_results else 1
+    total_pages = _total_pages(total_results, per_page) if total_results else 1
     first_item = offset + 1 if startups else 0
     last_item = offset + len(startups)
     response = render_template(
@@ -380,9 +383,7 @@ def tool_detail(tool_id):
 @app.route('/api/startups')
 def api_startups():
     """API endpoint for getting all startups"""
-    per_page = min(max(int(request.args.get('per_page', 50)), 1), 200)
-    page = max(int(request.args.get('page', 1)), 1)
-    offset = (page - 1) * per_page
+    page, per_page, offset = _parse_pagination(default_per_page=50, max_per_page=200)
 
     startups = get_all_startups(limit=per_page, offset=offset)
     total = count_all_startups()
@@ -391,7 +392,7 @@ def api_startups():
         'page': page,
         'per_page': per_page,
         'total': total,
-        'total_pages': max((total + per_page - 1) // per_page, 1),
+        'total_pages': _total_pages(total, per_page),
     }
     logger.info(
         "api.startups",
@@ -409,9 +410,7 @@ def api_startups():
 def api_search():
     """API endpoint for searching startups"""
     query = request.args.get('q', '')
-    per_page = min(max(int(request.args.get('per_page', 20)), 1), 200)
-    page = max(int(request.args.get('page', 1)), 1)
-    offset = (page - 1) * per_page
+    page, per_page, offset = _parse_pagination(max_per_page=200)
 
     if query:
         total = count_search_results(query)
@@ -425,7 +424,7 @@ def api_search():
         'page': page,
         'per_page': per_page,
         'total': total,
-        'total_pages': max((total + per_page - 1) // per_page, 1) if total else 1,
+        'total_pages': _total_pages(total, per_page) if total else 1,
     }
     logger.info(
         "api.search",
@@ -450,6 +449,7 @@ def health_check():
         'database': 'connected'
     })
 
+
 @app.template_filter('format_date')
 def format_date(date_str):
     """Format date for display"""
@@ -457,9 +457,10 @@ def format_date(date_str):
         try:
             dt = datetime.fromisoformat(date_str.replace('Z', '+00:00'))
             return dt.strftime('%B %d, %Y')
-        except:
+        except (ValueError, TypeError):
             return date_str
     return date_str
+
 
 @app.template_filter('format_datetime')
 def format_datetime(date_str):
@@ -468,15 +469,17 @@ def format_datetime(date_str):
         try:
             dt = datetime.fromisoformat(date_str.replace('Z', '+00:00'))
             return dt.strftime('%B %d, %Y at %I:%M %p')
-        except:
+        except (ValueError, TypeError):
             return date_str
     return date_str
+
 
 # Error handlers
 @app.errorhandler(404)
 def not_found_error(error):
     logger.warning("http.404", extra={"event": "http.404"})
     return render_template('404.html'), 404
+
 
 @app.errorhandler(500)
 def internal_error(error):
@@ -488,4 +491,4 @@ if __name__ == '__main__':
     port = int(os.getenv('PORT', 8000))
     host = os.getenv('HOST', '0.0.0.0')
     
-    app.run(host=host, port=port, debug=False) 
+    app.run(host=host, port=port, debug=False)

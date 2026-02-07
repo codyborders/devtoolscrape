@@ -43,7 +43,7 @@ def get_producthunt_token():
         token_resp.raise_for_status()
         token_info = token_resp.json()
         return token_info.get('access_token')
-    except Exception as e:
+    except Exception:
         logger.exception(
             "producthunt.token_error",
             extra={"event": "producthunt.token_error"},
@@ -169,12 +169,12 @@ def scrape_producthunt_api():
                 },
             )
             
-        except requests.RequestException as e:
+        except requests.RequestException:
             logger.exception(
                 "scraper.request_failed",
                 extra={"event": "scraper.request_failed"},
             )
-        except Exception as e:
+        except Exception:
             logger.exception(
                 "scraper.parse_error",
                 extra={"event": "scraper.parse_error"},

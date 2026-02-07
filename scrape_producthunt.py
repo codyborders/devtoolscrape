@@ -34,7 +34,7 @@ def scrape_producthunt_rss():
             return
         
         soup = BeautifulSoup(resp.content, features="xml")
-        items = soup.findAll("item")
+        items = soup.find_all("item")
         logger.info(
             "scraper.items_found",
             extra={"event": "scraper.items_found", "count": len(items)},

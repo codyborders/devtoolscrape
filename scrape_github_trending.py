@@ -12,6 +12,7 @@ from observability import trace_http_call
 
 logger = get_logger("devtools.scraper.github_trending")
 
+
 def scrape_github_trending() -> None:
     """Scrape GitHub Trending and persist new devtools.
 

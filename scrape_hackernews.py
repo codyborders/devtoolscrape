@@ -19,6 +19,18 @@ from observability import trace_http_call
 
 logger = get_logger("devtools.scraper.hackernews")
 
+
+def _build_description(title: str, text: str, category: str | None) -> str:
+    """Build a description string from title, text, and optional category prefix."""
+    if category:
+        description = f"[{category}] {title}"
+    else:
+        description = title
+    if text:
+        description += f"\n\n{text}"
+    return description
+
+
 # Retry configuration
 MAX_RETRIES = 3
 INITIAL_BACKOFF = 1  # seconds
@@ -177,14 +189,7 @@ def scrape_hackernews():
                 devtools_count += 1
 
                 category = get_devtools_category(full_text, title)
-                if category:
-                    description = f"[{category}] {title}"
-                    if text:
-                        description += f"\n\n{text}"
-                else:
-                    description = title
-                    if text:
-                        description += f"\n\n{text}"
+                description = _build_description(title, text, category)
 
                 startup = {
                     "name": title,
@@ -195,7 +200,7 @@ def scrape_hackernews():
                 }
 
                 save_startup(startup)
-            
+
             logger.info(
                 "scraper.complete",
                 extra={"event": "scraper.complete", "devtools_count": devtools_count, "candidates": len(candidates)},
@@ -266,14 +271,7 @@ def scrape_hackernews_show():
                 devtools_count += 1
 
                 category = get_devtools_category(full_text, title)
-                if category:
-                    description = f"[{category}] {title}"
-                    if text:
-                        description += f"\n\n{text}"
-                else:
-                    description = title
-                    if text:
-                        description += f"\n\n{text}"
+                description = _build_description(title, text, category)
 
                 startup = {
                     "name": title,
@@ -284,7 +282,7 @@ def scrape_hackernews_show():
                 }
 
                 save_startup(startup)
-            
+
             logger.info(
                 "scraper.complete",
                 extra={

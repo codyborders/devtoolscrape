@@ -73,7 +73,32 @@ def test_scrape_all_main_records_results(monkeypatch):
     monkeypatch.setattr("scrape_all.record_scrape_completion", lambda summary: recorded.append(summary))
 
     scrape_all.main()
-    assert recorded == ["GitHub Trending Repositories, Hacker News & Show HN"]
+    # Only the scrapers that actually succeeded should be recorded
+    assert recorded == ["GitHub Trending Repositories, Product Hunt API"]
+
+
+def test_scrape_all_main_records_all_successes(monkeypatch):
+    import scrape_all
+
+    monkeypatch.setattr("scrape_all.run_scraper", lambda name, desc: True)
+    monkeypatch.setattr("scrape_all.init_db", lambda: None)
+    recorded = []
+    monkeypatch.setattr("scrape_all.record_scrape_completion", lambda summary: recorded.append(summary))
+
+    scrape_all.main()
+    assert recorded == ["GitHub Trending Repositories, Hacker News & Show HN, Product Hunt API"]
+
+
+def test_scrape_all_main_records_no_successes(monkeypatch):
+    import scrape_all
+
+    monkeypatch.setattr("scrape_all.run_scraper", lambda name, desc: False)
+    monkeypatch.setattr("scrape_all.init_db", lambda: None)
+    recorded = []
+    monkeypatch.setattr("scrape_all.record_scrape_completion", lambda summary: recorded.append(summary))
+
+    scrape_all.main()
+    assert recorded == [""]
 
 
 def test_scrape_all_main_guard(monkeypatch):

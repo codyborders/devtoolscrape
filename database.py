@@ -98,6 +98,7 @@ def init_db():
     conn.close()
     logger.info("db.init.complete", extra={"event": "db.init.complete"})
 
+
 def is_duplicate(name: str, url: str) -> bool:
     """Check if item already exists in database"""
     conn = _connect()
@@ -115,6 +116,7 @@ def is_duplicate(name: str, url: str) -> bool:
         },
     )
     return count > 0
+
 
 def save_startup(startup):
     conn = _connect()
@@ -252,6 +254,7 @@ def count_startups_by_sources(where_clause: str, params: Iterable) -> int:
     )
     return count
 
+
 def get_startups_by_source_key(source_key: str, limit: Optional[int] = None, offset: Optional[int] = None) -> list[dict]:
     if source_key == "github":
         results = get_startups_by_sources("source = ?", ["GitHub Trending"], limit, offset)
@@ -333,6 +336,7 @@ def get_source_counts() -> dict:
     )
     return summary
 
+
 def get_all_startups(limit: Optional[int] = None, offset: Optional[int] = None):
     """Get all startups"""
     query = '''
@@ -390,6 +394,7 @@ def count_all_startups() -> int:
     )
     return count
 
+
 def search_startups(query: str, limit: int = 20, offset: int = 0):
     """Search startups using FTS."""
     if not query:
@@ -441,6 +446,7 @@ def count_search_results(query: str) -> int:
     )
     return count
 
+
 def get_startup_by_url(url):
     """Get startup by URL"""
     conn = _connect()
@@ -456,6 +462,7 @@ def get_startup_by_url(url):
         extra={"event": "db.get_startup_by_url", "url": url, "found": bool(result)},
     )
     return result
+
 
 def record_scrape_completion(scrapers_run=None):
     """Record that a scrape has completed"""
@@ -486,15 +493,10 @@ def get_last_scrape_time():
     c.execute('SELECT last_scrape FROM scrape_log ORDER BY id DESC LIMIT 1')
     row = c.fetchone()
     conn.close()
-    
-    if row:
-        logger.debug(
-            "db.get_last_scrape_time",
-            extra={"event": "db.get_last_scrape_time", "last_scrape": row[0]},
-        )
-        return row[0]
+
+    result = row[0] if row else None
     logger.debug(
         "db.get_last_scrape_time",
-        extra={"event": "db.get_last_scrape_time", "last_scrape": None},
+        extra={"event": "db.get_last_scrape_time", "last_scrape": result},
     )
-    return None
+    return result

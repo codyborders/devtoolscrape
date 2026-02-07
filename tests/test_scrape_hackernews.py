@@ -9,6 +9,34 @@ import pytest
 EXPECTED_TIMEOUT = (5, 10)
 
 
+class TestBuildDescription:
+    """Tests for the _build_description helper function."""
+
+    def test_with_category_and_text(self):
+        from scrape_hackernews import _build_description
+
+        result = _build_description("My Tool", "details here", "CLI Tool")
+        assert result == "[CLI Tool] My Tool\n\ndetails here"
+
+    def test_with_category_no_text(self):
+        from scrape_hackernews import _build_description
+
+        result = _build_description("My Tool", "", "CLI Tool")
+        assert result == "[CLI Tool] My Tool"
+
+    def test_without_category_with_text(self):
+        from scrape_hackernews import _build_description
+
+        result = _build_description("My Tool", "details here", None)
+        assert result == "My Tool\n\ndetails here"
+
+    def test_without_category_no_text(self):
+        from scrape_hackernews import _build_description
+
+        result = _build_description("My Tool", "", None)
+        assert result == "My Tool"
+
+
 class FakeJSONResponse:
     def __init__(self, payload, status_code=200):
         self._payload = payload

@@ -70,31 +70,30 @@ def main():
         ("scrape_producthunt_api", "Product Hunt API"),
     ]
     
-    successful_scrapers = 0
+    succeeded = []
     total_scrapers = len(scrapers)
-    
+
     for module_name, description in scrapers:
         if run_scraper(module_name, description):
-            successful_scrapers += 1
-    
+            succeeded.append(description)
+
     logger.info(
         "runner.summary",
         extra={
             "event": "runner.summary",
-            "successful_scrapers": successful_scrapers,
+            "successful_scrapers": len(succeeded),
             "total_scrapers": total_scrapers,
         },
     )
-    
+
     # Record the scrape completion
-    scrapers_run = [desc for _, desc in scrapers[:successful_scrapers]]
-    record_scrape_completion(', '.join(scrapers_run))
-    
-    if successful_scrapers > 0:
+    record_scrape_completion(', '.join(succeeded))
+
+    if succeeded:
         logger.info(
             "runner.success_notice",
             extra={"event": "runner.success_notice"},
         )
 
 if __name__ == "__main__":
-    main() 
+    main()

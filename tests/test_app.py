@@ -188,6 +188,49 @@ def test_template_filters(app_module):
     assert module.format_datetime(123) == 123
 
 
+def test_parse_pagination_defaults(app_module):
+    module = app_module
+    with module.app.test_request_context("/?"):
+        page, per_page, offset = module._parse_pagination()
+        assert page == 1
+        assert per_page == 20
+        assert offset == 0
+
+
+def test_parse_pagination_custom_values(app_module):
+    module = app_module
+    with module.app.test_request_context("/?page=3&per_page=10"):
+        page, per_page, offset = module._parse_pagination()
+        assert page == 3
+        assert per_page == 10
+        assert offset == 20
+
+
+def test_parse_pagination_clamps_values(app_module):
+    module = app_module
+    # per_page clamped to max
+    with module.app.test_request_context("/?per_page=500"):
+        page, per_page, offset = module._parse_pagination(max_per_page=100)
+        assert per_page == 100
+    # per_page clamped to min
+    with module.app.test_request_context("/?per_page=0"):
+        page, per_page, offset = module._parse_pagination()
+        assert per_page == 1
+    # page clamped to min
+    with module.app.test_request_context("/?page=-5"):
+        page, per_page, offset = module._parse_pagination()
+        assert page == 1
+
+
+def test_total_pages_helper(app_module):
+    module = app_module
+    assert module._total_pages(0, 20) == 1
+    assert module._total_pages(1, 20) == 1
+    assert module._total_pages(20, 20) == 1
+    assert module._total_pages(21, 20) == 2
+    assert module._total_pages(100, 10) == 10
+
+
 def test_app_main_guard(monkeypatch):
     import runpy
 
