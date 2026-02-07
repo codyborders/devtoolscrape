@@ -42,9 +42,20 @@ def scrape_producthunt_rss():
 
         devtools_count = 0
         for item in items:
-            title = item.title.text
-            description = item.description.text
-            
+            try:
+                title = item.title.text
+                description = item.description.text
+            except AttributeError:
+                logger.warning(
+                    "scraper.skip_malformed_item",
+                    extra={
+                        "event": "scraper.skip_malformed_item",
+                        "has_title": item.title is not None,
+                        "has_description": item.description is not None,
+                    },
+                )
+                continue
+
             if not is_devtools_related(title + " " + description):
                 logger.debug(
                     "scraper.skip_non_devtool",
@@ -53,7 +64,7 @@ def scrape_producthunt_rss():
                 continue
 
             devtools_count += 1
-            
+
             startup = {
                 "name": title,
                 "url": item.link.text,

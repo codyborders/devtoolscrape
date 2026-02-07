@@ -274,6 +274,55 @@ def test_scrape_producthunt_api_handles_posts_null(monkeypatch):
     assert "scraper.parse_error" not in parse_errors
 
 
+def test_scrape_producthunt_rss_handles_missing_tags(monkeypatch):
+    """Bug #13: When an RSS <item> is missing <title> or <description>,
+    item.title is None and .text raises AttributeError. The scraper should
+    skip the malformed item and continue processing the rest."""
+    import scrape_producthunt
+
+    rss = """<?xml version="1.0"?>
+    <rss><channel>
+        <item>
+            <link>https://no-title.dev</link>
+            <description>Has description but no title</description>
+            <pubDate>Mon, 01 Jan 2024 12:00:00 +0000</pubDate>
+        </item>
+        <item>
+            <title>Has Title</title>
+            <link>https://has-title.dev</link>
+            <pubDate>Mon, 01 Jan 2024 13:00:00 +0000</pubDate>
+        </item>
+        <item>
+            <title>Good Item</title>
+            <link>https://good.dev</link>
+            <description>Developer tool</description>
+            <pubDate>Mon, 01 Jan 2024 14:00:00 +0000</pubDate>
+        </item>
+    </channel></rss>
+    """
+
+    class RSSResponse:
+        status_code = 200
+        content = rss.encode("utf-8")
+
+        def raise_for_status(self):
+            return None
+
+    monkeypatch.setattr("scrape_producthunt.requests.get", lambda *a, **kw: RSSResponse())
+    monkeypatch.setattr("scrape_producthunt.is_devtools_related", lambda text: True)
+
+    saved = []
+    monkeypatch.setattr("scrape_producthunt.save_startup", lambda r: saved.append(r))
+
+    # Should not crash on items missing <title> or <description>
+    scrape_producthunt.scrape_producthunt_rss()
+
+    # The good item (3rd) should be saved. The 1st (no title) and 2nd
+    # (no description) are malformed and should be skipped gracefully.
+    assert len(saved) == 1
+    assert saved[0]["name"] == "Good Item"
+
+
 def test_scrape_producthunt_rss_main_guard(monkeypatch):
     import runpy
     from requests import RequestException
