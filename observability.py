@@ -40,7 +40,7 @@ def trace_http_call(
 
     effective_service = service or DEFAULT_SERVICE
 
-    with tracer.trace(span_name, service=effective_service, resource=resource, span_type="http") as span:
+    with tracer.trace(resource, service=effective_service, resource=url, span_type="http") as span:
         span.set_tag("http.method", method.upper())
         span.set_tag("http.url", url)
         yield span
