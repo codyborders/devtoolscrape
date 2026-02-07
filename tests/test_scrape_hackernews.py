@@ -1099,3 +1099,126 @@ class TestSingleStoryFailureDoesNotAbortLoop:
         assert len(saved) == 2, (
             f"Expected 2 saved stories (skipping bad JSON), got {len(saved)}"
         )
+
+
+class TestNoneTimestampDoesNotCrash:
+    """Bug #10: When a story's 'time' key exists but its value is None,
+    dict.get('time', default) returns None (not the default). Passing
+    None to datetime.fromtimestamp() raises TypeError, crashing the
+    save path for that story."""
+
+    @pytest.fixture
+    def stub_dependencies(self, monkeypatch) -> None:
+        """Stub out classifier and database dependencies."""
+        monkeypatch.setattr("scrape_hackernews.classify_candidates", lambda c: {
+            item["id"]: True for item in c
+        })
+        monkeypatch.setattr("scrape_hackernews.get_devtools_category", lambda t, n: None)
+
+    def test_scrape_hackernews_handles_none_timestamp(
+        self, monkeypatch, stub_dependencies
+    ) -> None:
+        """scrape_hackernews should not crash when story['time'] is None."""
+        import scrape_hackernews
+
+        top_story_ids = [1]
+        stories = {
+            1: {
+                "type": "story",
+                "title": "None Time Story",
+                "url": "https://nonetime.dev",
+                "text": "",
+                "score": 50,
+                "time": None,  # key exists but value is None
+            },
+        }
+
+        def fake_get(url, timeout):
+            if url.endswith("topstories.json"):
+                return FakeJSONResponse(top_story_ids)
+            story_id = int(url.split("/")[-1].split(".")[0])
+            return FakeJSONResponse(stories[story_id])
+
+        monkeypatch.setattr("scrape_hackernews.requests.get", fake_get)
+
+        saved = []
+        monkeypatch.setattr("scrape_hackernews.save_startup", lambda record: saved.append(record))
+
+        scrape_hackernews.scrape_hackernews()
+
+        assert len(saved) == 1, (
+            f"Expected 1 saved story even with None timestamp, got {len(saved)}"
+        )
+        assert isinstance(saved[0]["date_found"], datetime)
+
+    def test_scrape_hackernews_handles_missing_timestamp(
+        self, monkeypatch, stub_dependencies
+    ) -> None:
+        """scrape_hackernews should not crash when story has no 'time' key."""
+        import scrape_hackernews
+
+        top_story_ids = [1]
+        stories = {
+            1: {
+                "type": "story",
+                "title": "No Time Story",
+                "url": "https://notime.dev",
+                "text": "",
+                "score": 50,
+                # 'time' key is missing entirely
+            },
+        }
+
+        def fake_get(url, timeout):
+            if url.endswith("topstories.json"):
+                return FakeJSONResponse(top_story_ids)
+            story_id = int(url.split("/")[-1].split(".")[0])
+            return FakeJSONResponse(stories[story_id])
+
+        monkeypatch.setattr("scrape_hackernews.requests.get", fake_get)
+
+        saved = []
+        monkeypatch.setattr("scrape_hackernews.save_startup", lambda record: saved.append(record))
+
+        scrape_hackernews.scrape_hackernews()
+
+        assert len(saved) == 1, (
+            f"Expected 1 saved story even with missing timestamp, got {len(saved)}"
+        )
+        assert isinstance(saved[0]["date_found"], datetime)
+
+    def test_scrape_hackernews_show_handles_none_timestamp(
+        self, monkeypatch, stub_dependencies
+    ) -> None:
+        """scrape_hackernews_show should not crash when story['time'] is None."""
+        import scrape_hackernews
+
+        show_story_ids = [10]
+        stories = {
+            10: {
+                "type": "story",
+                "title": "Show HN: None Time",
+                "url": "https://nonetime.dev",
+                "text": "",
+                "score": 50,
+                "time": None,
+            },
+        }
+
+        def fake_get(url, timeout):
+            if url.endswith("showstories.json"):
+                return FakeJSONResponse(show_story_ids)
+            story_id = int(url.split("/")[-1].split(".")[0])
+            return FakeJSONResponse(stories[story_id])
+
+        monkeypatch.setattr("scrape_hackernews.requests.get", fake_get)
+
+        saved = []
+        monkeypatch.setattr("scrape_hackernews.save_startup", lambda record: saved.append(record))
+
+        scrape_hackernews.scrape_hackernews_show()
+
+        assert len(saved) == 1, (
+            f"Expected 1 saved story even with None timestamp, got {len(saved)}"
+        )
+        assert isinstance(saved[0]["date_found"], datetime)

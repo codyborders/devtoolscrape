@@ -202,7 +202,7 @@ def scrape_hackernews():
                     "name": title,
                     "url": url,
                     "description": description,
-                    "date_found": datetime.fromtimestamp(story.get('time', datetime.now().timestamp())),
+                    "date_found": datetime.fromtimestamp(story.get('time') or datetime.now().timestamp()),
                     "source": f"Hacker News (score: {score})"
                 }
 
@@ -291,7 +291,7 @@ def scrape_hackernews_show():
                     "name": title,
                     "url": url,
                     "description": description,
-                    "date_found": datetime.fromtimestamp(story.get('time', datetime.now().timestamp())),
+                    "date_found": datetime.fromtimestamp(story.get('time') or datetime.now().timestamp()),
                     "source": f"Show HN (score: {score})"
                 }
 
