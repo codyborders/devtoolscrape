@@ -119,6 +119,18 @@ def is_duplicate(name: str, url: str) -> bool:
 
 
 def save_startup(startup):
+    if is_duplicate(startup['name'], startup['url']):
+        logger.warning(
+            "db.startup_duplicate",
+            extra={
+                "event": "db.startup_duplicate",
+                "startup_name": startup.get('name'),
+                "url": startup.get('url'),
+                "reason": "name_or_url_match",
+            },
+        )
+        return
+
     conn = _connect()
     c = conn.cursor()
 
@@ -144,7 +156,7 @@ def save_startup(startup):
             },
         )
     except sqlite3.IntegrityError:
-        # URL already exists
+        # URL already exists (race condition fallback)
         logger.warning(
             "db.startup_duplicate",
             extra={

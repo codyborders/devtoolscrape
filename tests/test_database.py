@@ -245,6 +245,31 @@ def test_get_source_counts(fresh_db):
     assert fresh_db.count_startups_by_source_key("unknown") == fresh_db.count_all_startups()
 
 
+def test_save_startup_rejects_duplicate_name_different_url(fresh_db):
+    """save_startup should call is_duplicate and skip INSERT when name matches."""
+    now = datetime.now()
+    first = {
+        "name": "SameName",
+        "url": "https://first-url.com",
+        "description": "Original",
+        "source": "GitHub Trending",
+        "date_found": now,
+    }
+    fresh_db.save_startup(first)
+    assert fresh_db.count_all_startups() == 1
+
+    # Same name, different URL -- should be rejected as duplicate
+    second = {
+        "name": "SameName",
+        "url": "https://second-url.com",
+        "description": "Duplicate name",
+        "source": "GitHub Trending",
+        "date_found": now,
+    }
+    fresh_db.save_startup(second)
+    assert fresh_db.count_all_startups() == 1  # Should still be 1
+
+
 def test_search_startups_empty_query_returns_empty(fresh_db):
     assert fresh_db.search_startups("") == []
     assert fresh_db.count_search_results("") == 0
