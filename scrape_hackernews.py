@@ -1,3 +1,5 @@
+"""Hacker News scraper for top stories and Show HN posts."""
+
 import time
 import uuid
 from datetime import datetime
@@ -52,7 +54,7 @@ def _is_retryable_status_code(status_code: int) -> bool:
     return status_code in (502, 503, 504)
 
 
-def _request_with_retry(url: str, timeout: tuple, max_retries: int = MAX_RETRIES):
+def _request_with_retry(url: str, timeout: tuple, max_retries: int = MAX_RETRIES) -> requests.Response:
     """Make HTTP GET request with retry logic for transient failures.
 
     Retries on:
@@ -176,6 +178,7 @@ def scrape_hackernews():
                     story_cache[key] = (story, title, url, text, score, full_text)
                     candidates.append({"id": key, "name": title, "text": full_text})
                 except Exception:
+                    # Intentionally broad: one bad story must not kill the scrape loop
                     logger.warning(
                         "scraper.story_fetch_failed",
                         extra={"event": "scraper.story_fetch_failed", "story_id": story_id},
@@ -212,10 +215,10 @@ def scrape_hackernews():
                 "scraper.complete",
                 extra={"event": "scraper.complete", "devtools_count": devtools_count, "candidates": len(candidates)},
             )
-            
+
         except requests.RequestException:
             logger.exception("scraper.request_failed", extra={"event": "scraper.request_failed"})
-        except Exception:
+        except (KeyError, TypeError, ValueError, AttributeError):
             logger.exception("scraper.error", extra={"event": "scraper.error"})
 
 def scrape_hackernews_show():
@@ -265,6 +268,7 @@ def scrape_hackernews_show():
                     story_cache[key] = (story, title, url, text, score, full_text)
                     candidates.append({"id": key, "name": title, "text": full_text})
                 except Exception:
+                    # Intentionally broad: one bad story must not kill the scrape loop
                     logger.warning(
                         "scraper.story_fetch_failed",
                         extra={"event": "scraper.story_fetch_failed", "story_id": story_id},
@@ -305,10 +309,10 @@ def scrape_hackernews_show():
                     "candidates": len(candidates),
                 },
             )
-            
+
         except requests.RequestException:
             logger.exception("scraper.request_failed", extra={"event": "scraper.request_failed"})
-        except Exception:
+        except (KeyError, TypeError, ValueError, AttributeError):
             logger.exception("scraper.error", extra={"event": "scraper.error"})
 
 if __name__ == "__main__":

@@ -1,6 +1,7 @@
 from datetime import datetime
 
 import pytest
+import requests
 
 
 class FakeResponse:
@@ -47,7 +48,7 @@ def test_get_producthunt_token_failure(monkeypatch):
 
     class BrokenResponse(FakeResponse):
         def raise_for_status(self):
-            raise Exception("fail")
+            raise requests.exceptions.HTTPError("fail")
 
     monkeypatch.setattr("scrape_producthunt_api.requests.post", lambda *args, **kwargs: BrokenResponse({}, status_code=500))
     assert scrape_producthunt_api.get_producthunt_token() is None

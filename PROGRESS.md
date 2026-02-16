@@ -1,3 +1,17 @@
+### 2026-02-16T12:00:00Z
+- PYTHON.md compliance refactoring across 12 files (10 source + 1 test + 1 new config).
+- Added `_db_connection()` context manager to `database.py` and replaced all 16 manual `conn = _connect(); ...; conn.close()` patterns with `with _db_connection() as conn:` to guarantee connection cleanup on error paths.
+- Added type hints to all functions missing return types or parameter types across `database.py`, `ai_classifier.py`, `app_production.py`, `scrape_hackernews.py`, `scrape_all.py`, and `scrape_producthunt.py`.
+- Added Google-style module docstrings to all 10 Python source files and function docstrings to ~30 undocumented functions.
+- Narrowed overly broad `except Exception:` blocks to specific exception types in 7 locations across 3 scraper files. Added explanatory comments to 6 intentionally broad exception blocks.
+- Fixed SECRET_KEY security issue in `app_production.py`: replaced hardcoded fallback with `secrets.token_hex(32)` auto-generation.
+- Removed unused imports from `logging_config.py`, `scrape_all.py`, and `app_production.py`.
+- Fixed `test_get_producthunt_token_failure` to raise `requests.exceptions.HTTPError` instead of bare `Exception`.
+- Created `pyproject.toml` with pytest and mypy configuration.
+- Ran `/software-design` and `code-simplifier` reviews; documented findings for future work.
+- Wrote detailed analysis in `2026-02-16-refactor.md`.
+- Full test suite passes (125 tests, 0 failures).
+
 ### 2026-02-07T05:58:00Z
 - Fixed Bug #9 in `scrape_github_trending.py`: line 126 used `candidate["description"]` (empty string for repos with no HTML description) instead of `candidate["text"]` (which falls back to repo name). Changed to use `candidate["text"]` so the categorizer always gets useful input.
 - Fixed Bug #5 in `dev_utils.py`: `keyword.lower() in text` substring matching caused false positives ("log" matched "blog", "API" matched "therapist", "CI" matched "social"). Replaced with pre-compiled word-boundary regex patterns (`\b...\b` with re.IGNORECASE).

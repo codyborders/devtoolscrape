@@ -1,3 +1,5 @@
+"""Keyword-based utility for filtering developer-tool-related content."""
+
 import re
 
 DEVTOOLS_KEYWORDS = [
@@ -13,4 +15,5 @@ _KEYWORD_PATTERNS = [
 
 
 def is_devtools_related(text: str) -> bool:
+    """Return True if text matches any developer-tool keyword pattern."""
     return any(pattern.search(text) for pattern in _KEYWORD_PATTERNS)

@@ -1,3 +1,5 @@
+"""GitHub Trending page scraper for discovering new developer tools."""
+
 import sqlite3
 import uuid
 from datetime import datetime
@@ -104,7 +106,7 @@ def scrape_github_trending() -> None:
                     }
                     for candidate in filtered_candidates
                 )
-            except Exception:
+            except (KeyError, TypeError, ValueError, AttributeError):
                 logger.exception(
                     "scraper.classify_error", extra={"event": "scraper.classify_error"}
                 )
@@ -127,7 +129,7 @@ def scrape_github_trending() -> None:
                 description = candidate["text"]
                 try:
                     category = get_devtools_category(description, candidate["name"])
-                except Exception:
+                except (KeyError, TypeError, ValueError, AttributeError):
                     logger.exception(
                         "scraper.categorize_error",
                         extra={
@@ -161,7 +163,7 @@ def scrape_github_trending() -> None:
             
         except requests.RequestException:
             logger.exception("scraper.request_failed", extra={"event": "scraper.request_failed"})
-        except Exception:
+        except (KeyError, TypeError, ValueError, AttributeError):
             logger.exception("scraper.parse_error", extra={"event": "scraper.parse_error"})
 
 if __name__ == "__main__":

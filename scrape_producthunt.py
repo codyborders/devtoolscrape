@@ -1,3 +1,5 @@
+"""Product Hunt RSS feed scraper for developer tool discovery."""
+
 import requests
 import uuid
 from datetime import datetime
@@ -11,7 +13,8 @@ from observability import trace_http_call
 
 logger = get_logger("devtools.scraper.producthunt_rss")
 
-def scrape_producthunt_rss():
+def scrape_producthunt_rss() -> None:
+    """Fetch the Product Hunt RSS feed and persist devtools-related entries."""
     url = "https://www.producthunt.com/feed"
     run_id = str(uuid.uuid4())
     with logging_context(scraper="producthunt_rss", scrape_run_id=run_id):
