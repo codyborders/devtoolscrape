@@ -30,6 +30,7 @@ services:
       - DD_APPSEC_ENABLED=true
       - DD_IAST_ENABLED=true
       - DD_IAST_REQUEST_SAMPLING=100
+      - DD_API_KEY=${DATADOG_API_KEY}
       - DD_LLMOBS_ENABLED=1
       - DD_LLMOBS_ML_APP=devtoolscrape
       - DD_CODE_ORIGIN_FOR_SPANS_ENABLED=true

@@ -1,3 +1,12 @@
+### 2026-02-17T16:30:00Z
+- Integrated Datadog Prompt Management and Prompt Tracking into the chatbot.
+- `chatbot.py`: imports `LLMObs` from `ddtrace.llmobs`, fetches the system prompt at runtime via `LLMObs.get_prompt("devtools-assistant", label="production", fallback=_FALLBACK_PROMPT)` instead of using a hardcoded string. Agent is now created per-request with the fetched instructions, allowing prompt changes from the Datadog UI to propagate within ~60s (cache TTL). The agent run is wrapped in `LLMObs.annotation_context(prompt=prompt.to_annotation_dict())` for prompt tracking in LLM Observability traces.
+- Added `_get_prompt()` and `_instructions_from_prompt()` helpers. The latter handles both text templates (str) and chat templates (list of message dicts) by extracting the system message.
+- Upgraded ddtrace from >=4.4.0 to ==4.5.0rc1 (pre-release with Prompt Management SDK). Updated `requirements.txt`, `Dockerfile`, and CI workflow to install from the S3 pre-release index (`https://dd-trace-py-builds.s3.amazonaws.com/96035140/index.html`).
+- Added `DD_API_KEY=${DATADOG_API_KEY}` to the app container environment in both `docker-compose.yml` and `docker-compose.yaml` (required by the prompt fetch HTTP API).
+- Updated `tests/conftest.py` with `_FakeManagedPrompt` and `_FakeAnnotationContext` stubs, plus `get_prompt()` and `annotation_context()` methods on `_FakeLLMObs`. All 139 tests pass.
+- Next step: create the "devtools-assistant" prompt in the Datadog UI (AI Observability > Prompts > New Prompt) with the system instructions and assign the "production" label.
+
 ### 2026-02-17T15:55:00Z
 - Fixed `sqlite3.OperationalError: fts5: syntax error near "/"` in chatbot search (PR #22, merged).
 - The FTS5 query sanitizer only stripped `"`, `*`, `(`, `)` but FTS5 also treats `/`, `+`, `-`, `^`, `:`, `{`, `}` as special syntax. Agent-generated queries like "CI/CD" triggered the error.
