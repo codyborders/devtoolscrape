@@ -12,6 +12,8 @@ from dotenv import load_dotenv
 from flask import Flask, render_template, request, jsonify, g
 
 from database import (
+    SOURCE_REGISTRY,
+    classify_source,
     count_all_startups,
     count_search_results,
     count_startups_by_source_key,
@@ -219,30 +221,31 @@ def _total_pages(total_results: int, per_page: int) -> int:
     return max((total_results + per_page - 1) // per_page, 1)
 
 
+def _pagination_vars(items: list, total_results: int, page: int, per_page: int, offset: int) -> dict:
+    """Compute the common pagination template variables."""
+    return {
+        "page": page,
+        "per_page": per_page,
+        "total_pages": _total_pages(total_results, per_page) if total_results else 1,
+        "total_results": total_results,
+        "first_item": offset + 1 if items else 0,
+        "last_item": offset + len(items),
+    }
+
+
 def summarize_sources(startups: list[Dict[str, Any]]) -> Dict[str, int]:
     """Aggregate startup counts by source category."""
     logger.debug(
         "summarize.sources",
         extra={"event": "summarize.sources", "startup_count": len(startups)},
     )
-    counts = {
-        'total': len(startups),
-        'github': 0,
-        'hackernews': 0,
-        'producthunt': 0,
-        'other': 0
-    }
+    counts: dict[str, int] = {"total": len(startups), "other": 0}
+    for key in SOURCE_REGISTRY:
+        counts[key] = 0
 
     for startup in startups:
-        source = startup['source']
-        if 'GitHub' in source:
-            counts['github'] += 1
-        elif 'Hacker News' in source or 'Show HN' in source:
-            counts['hackernews'] += 1
-        elif 'Product Hunt' in source:
-            counts['producthunt'] += 1
-        else:
-            counts['other'] += 1
+        bucket = classify_source(startup["source"])
+        counts[bucket] += 1
 
     return counts
 
@@ -259,23 +262,14 @@ def index():
         total_results = count_all_startups()
         startups = get_all_startups(limit=per_page, offset=offset)
 
-    source_counts = get_source_counts()
-    last_scrape_time = get_last_scrape_time()
-    total_pages = _total_pages(total_results, per_page)
-    first_item = offset + 1 if startups else 0
-    last_item = offset + len(startups)
+    paging = _pagination_vars(startups, total_results, page, per_page, offset)
     response = render_template(
         'index.html',
         startups=startups,
-        source_counts=source_counts,
+        source_counts=get_source_counts(),
         current_filter=source_filter,
-        last_scrape_time=last_scrape_time,
-        page=page,
-        per_page=per_page,
-        total_pages=total_pages,
-        total_results=total_results,
-        first_item=first_item,
-        last_item=last_item,
+        last_scrape_time=get_last_scrape_time(),
+        **paging,
     )
     logger.info(
         "render.index",
@@ -293,35 +287,22 @@ def index():
 @app.route('/source/<source_name>')
 def filter_by_source(source_name):
     """Filter tools by source"""
-    source_map = {
-        'github': 'GitHub Trending',
-        'hackernews': 'Hacker News',
-        'producthunt': 'Product Hunt',
-    }
     page, per_page, offset = _parse_pagination()
 
     filtered_startups = get_startups_by_source_key(source_name, limit=per_page, offset=offset)
-    source_display = source_map.get(source_name, 'All Sources')
+    entry = SOURCE_REGISTRY.get(source_name)
+    source_display = entry["display"] if entry else "All Sources"
 
-    source_counts = get_source_counts()
     total_results = count_startups_by_source_key(source_name)
-    last_scrape_time = get_last_scrape_time()
-    total_pages = _total_pages(total_results, per_page)
-    first_item = offset + 1 if filtered_startups else 0
-    last_item = offset + len(filtered_startups)
+    paging = _pagination_vars(filtered_startups, total_results, page, per_page, offset)
     response = render_template(
         'index.html',
         startups=filtered_startups,
-        source_counts=source_counts,
+        source_counts=get_source_counts(),
         current_filter=source_name,
         source_display=source_display,
-        last_scrape_time=last_scrape_time,
-        page=page,
-        per_page=per_page,
-        total_pages=total_pages,
-        total_results=total_results,
-        first_item=first_item,
-        last_item=last_item,
+        last_scrape_time=get_last_scrape_time(),
+        **paging,
     )
     logger.info(
         "render.source",
@@ -348,23 +329,14 @@ def search():
     else:
         total_results = 0
         startups = []
-    source_counts = summarize_sources(startups)
-    last_scrape_time = get_last_scrape_time()
-    total_pages = _total_pages(total_results, per_page) if total_results else 1
-    first_item = offset + 1 if startups else 0
-    last_item = offset + len(startups)
+    paging = _pagination_vars(startups, total_results, page, per_page, offset)
     response = render_template(
         'search.html',
         startups=startups,
         query=query,
-        source_counts=source_counts,
-        last_scrape_time=last_scrape_time,
-        total_results=total_results,
-        page=page,
-        per_page=per_page,
-        total_pages=total_pages,
-        first_item=first_item,
-        last_item=last_item,
+        source_counts=summarize_sources(startups),
+        last_scrape_time=get_last_scrape_time(),
+        **paging,
     )
     logger.info(
         "render.search",
@@ -413,10 +385,8 @@ def api_startups():
     total = count_all_startups()
     payload = {
         'items': startups,
-        'page': page,
-        'per_page': per_page,
         'total': total,
-        'total_pages': _total_pages(total, per_page),
+        **_pagination_vars(startups, total, page, per_page, offset),
     }
     logger.info(
         "api.startups",
@@ -445,10 +415,8 @@ def api_search():
 
     payload = {
         'items': startups,
-        'page': page,
-        'per_page': per_page,
         'total': total,
-        'total_pages': _total_pages(total, per_page) if total else 1,
+        **_pagination_vars(startups, total, page, per_page, offset),
     }
     logger.info(
         "api.search",

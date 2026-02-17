@@ -116,6 +116,28 @@ def test_scrape_all_main_records_no_successes(monkeypatch):
     assert recorded == [""]
 
 
+def test_scraper_entrypoints_registry_covers_all_scrapers():
+    """SCRAPER_ENTRYPOINTS should map every module used in main()."""
+    import scrape_all
+
+    for name in ["scrape_github_trending", "scrape_hackernews", "scrape_producthunt_api"]:
+        assert name in scrape_all.SCRAPER_ENTRYPOINTS
+    # hackernews has two entry points
+    assert len(scrape_all.SCRAPER_ENTRYPOINTS["scrape_hackernews"]) == 2
+
+
+def test_run_scraper_unknown_module_logs_warning(monkeypatch):
+    """An unknown module name should trigger the missing_entrypoint warning."""
+    import scrape_all
+
+    factories = {
+        "unknown_scraper": lambda module: None,
+    }
+    configure_loader(monkeypatch, factories)
+
+    assert scrape_all.run_scraper("unknown_scraper", "Unknown")
+
+
 def test_scrape_all_main_guard(monkeypatch):
     import importlib.machinery
     import runpy

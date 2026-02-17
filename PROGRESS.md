@@ -1,3 +1,19 @@
+### 2026-02-17T18:00:00Z -- Software Design Refactoring
+Applied "A Philosophy of Software Design" review and fixed 5 structural issues:
+
+1. **SOURCE_REGISTRY consolidation** (`database.py`, `app_production.py`): Replaced 5 scattered source-name if/elif chains with a single `SOURCE_REGISTRY` dict and `classify_source()` function in `database.py`. `get_startups_by_source_key`, `count_startups_by_source_key`, `get_source_counts`, `summarize_sources`, and `filter_by_source` all now reference the registry.
+
+2. **Extracted shared HN scraper loop** (`scrape_hackernews.py`): Consolidated ~120 lines of duplicated code between `scrape_hackernews()` and `scrape_hackernews_show()` into `_scrape_hn_feed()` parameterized by list URL, trace name, source label, key prefix, max stories, and min score.
+
+3. **Deleted dead `dev_utils.py`**: Removed shallow wrapper duplicating `DEVTOOLS_KEYWORDS` from `ai_classifier.py`. Updated `scrape_producthunt.py` to import `has_devtools_keywords` directly. Deleted `tests/test_dev_utils.py`.
+
+4. **Entry point dispatch registry** (`scrape_all.py`): Added `SCRAPER_ENTRYPOINTS` dict mapping module names to function-name lists, replacing brittle `hasattr`-based dispatch.
+
+5. **Pagination helper** (`app_production.py`): Added `_pagination_vars()` returning common pagination template variables. All 5 routes use `**paging` unpacking instead of repeating 6 assignments each.
+
+- Added 12 new tests covering SOURCE_REGISTRY, classify_source, _db_connection, _pagination_vars, summarize_sources, SCRAPER_ENTRYPOINTS.
+- Test suite: 146 passed (up from 139), 0 failures.
+
 ### 2026-02-17T17:30:00Z
 - Fixed `AttributeError: type object 'LLMObs' has no attribute 'get_prompt'` in production.
 - ddtrace 4.5.0rc1 does NOT include the Prompt Management API (`LLMObs.get_prompt()`). That API was documented but not shipped in this pre-release build.

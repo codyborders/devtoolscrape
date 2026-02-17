@@ -15,6 +15,13 @@ from logging_config import get_logger, logging_context
 
 logger = get_logger("devtools.scraper.runner")
 
+SCRAPER_ENTRYPOINTS: dict[str, list[str]] = {
+    "scrape_github_trending": ["scrape_github_trending"],
+    "scrape_hackernews": ["scrape_hackernews", "scrape_hackernews_show"],
+    "scrape_producthunt_api": ["scrape_producthunt_api"],
+}
+
+
 def run_scraper(module_name: str, description: str) -> bool:
     """Run a scraper module and handle any errors."""
     run_id = str(uuid.uuid4())
@@ -28,13 +35,10 @@ def run_scraper(module_name: str, description: str) -> bool:
             module = importlib.util.module_from_spec(spec)
             spec.loader.exec_module(module)
 
-            if hasattr(module, 'scrape_github_trending'):
-                module.scrape_github_trending()
-            elif hasattr(module, 'scrape_hackernews'):
-                module.scrape_hackernews()
-                module.scrape_hackernews_show()
-            elif hasattr(module, 'scrape_producthunt_api'):
-                module.scrape_producthunt_api()
+            fn_names = SCRAPER_ENTRYPOINTS.get(module_name)
+            if fn_names:
+                for fn_name in fn_names:
+                    getattr(module, fn_name)()
             else:
                 logger.warning(
                     "runner.missing_entrypoint",

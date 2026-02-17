@@ -131,27 +131,34 @@ def _request_with_retry(url: str, timeout: tuple, max_retries: int = MAX_RETRIES
         raise last_exception
     raise RuntimeError("Unexpected state in retry logic")
 
-def scrape_hackernews():
-    """Scrape Hacker News for devtools using their API"""
+def _scrape_hn_feed(
+    list_url: str,
+    trace_name: str,
+    scraper_name: str,
+    source_label: str,
+    key_prefix: str = "",
+    max_stories: int = 50,
+    min_score: int = 10,
+) -> None:
+    """Shared scrape loop for Hacker News feeds (top stories and Show HN)."""
     run_id = str(uuid.uuid4())
-    with logging_context(scraper="hackernews", scrape_run_id=run_id):
+    with logging_context(scraper=scraper_name, scrape_run_id=run_id):
         try:
-            top_stories_url = 'https://hacker-news.firebaseio.com/v0/topstories.json'
-            with trace_http_call("hackernews.topstories", "GET", top_stories_url) as span:
-                top_stories_resp = _request_with_retry(top_stories_url, timeout=(5, 10))
+            with trace_http_call(trace_name, "GET", list_url) as span:
+                list_resp = _request_with_retry(list_url, timeout=(5, 10))
                 if span:
-                    span.set_tag("http.status_code", top_stories_resp.status_code)
-            top_stories_resp.raise_for_status()
-            top_story_ids = top_stories_resp.json()[:50]
+                    span.set_tag("http.status_code", list_resp.status_code)
+            list_resp.raise_for_status()
+            story_ids = list_resp.json()[:max_stories]
 
             logger.info(
-                "scraper.top_stories",
-                extra={"event": "scraper.top_stories", "count": len(top_story_ids)},
+                "scraper.stories_fetched",
+                extra={"event": "scraper.stories_fetched", "count": len(story_ids)},
             )
 
             story_cache = {}
             candidates = []
-            for story_id in top_story_ids:
+            for story_id in story_ids:
                 try:
                     story_url = f'https://hacker-news.firebaseio.com/v0/item/{story_id}.json'
                     with trace_http_call("hackernews.story", "GET", story_url) as span:
@@ -170,10 +177,10 @@ def scrape_hackernews():
                     text = story.get('text', '')
                     score = story.get('score', 0)
 
-                    if not url or score < 10:
+                    if not url or score < min_score:
                         continue
 
-                    key = str(story_id)
+                    key = f"{key_prefix}{story_id}"
                     full_text = f"{title} {text}"
                     story_cache[key] = (story, title, url, text, score, full_text)
                     candidates.append({"id": key, "name": title, "text": full_text})
@@ -206,7 +213,7 @@ def scrape_hackernews():
                     "url": url,
                     "description": description,
                     "date_found": datetime.fromtimestamp(story.get('time') or datetime.now().timestamp()),
-                    "source": f"Hacker News (score: {score})"
+                    "source": f"{source_label} (score: {score})"
                 }
 
                 save_startup(startup)
@@ -221,99 +228,31 @@ def scrape_hackernews():
         except (KeyError, TypeError, ValueError, AttributeError):
             logger.exception("scraper.error", extra={"event": "scraper.error"})
 
+
+def scrape_hackernews():
+    """Scrape Hacker News for devtools using their API"""
+    _scrape_hn_feed(
+        list_url="https://hacker-news.firebaseio.com/v0/topstories.json",
+        trace_name="hackernews.topstories",
+        scraper_name="hackernews",
+        source_label="Hacker News",
+        key_prefix="",
+        max_stories=50,
+        min_score=10,
+    )
+
+
 def scrape_hackernews_show():
     """Scrape Hacker News Show HN posts (often devtools)"""
-    run_id = str(uuid.uuid4())
-    with logging_context(scraper="hackernews_show", scrape_run_id=run_id):
-        try:
-            show_hn_url = 'https://hacker-news.firebaseio.com/v0/showstories.json'
-            with trace_http_call("hackernews.showstories", "GET", show_hn_url) as span:
-                show_hn_resp = _request_with_retry(show_hn_url, timeout=(5, 10))
-                if span:
-                    span.set_tag("http.status_code", show_hn_resp.status_code)
-            show_hn_resp.raise_for_status()
-            show_story_ids = show_hn_resp.json()[:30]
-
-            logger.info(
-                "scraper.show_stories",
-                extra={"event": "scraper.show_stories", "count": len(show_story_ids)},
-            )
-
-            story_cache = {}
-            candidates = []
-            for story_id in show_story_ids:
-                try:
-                    story_url = f'https://hacker-news.firebaseio.com/v0/item/{story_id}.json'
-                    with trace_http_call("hackernews.story", "GET", story_url) as span:
-                        story_resp = _request_with_retry(story_url, timeout=(5, 10))
-                        if span:
-                            span.set_tag("http.status_code", story_resp.status_code)
-                            span.set_tag("hackernews.story_id", story_id)
-                    story_resp.raise_for_status()
-                    story = story_resp.json()
-
-                    if not story or story.get('type') != 'story':
-                        continue
-
-                    title = story.get('title', '')
-                    url = story.get('url', '')
-                    text = story.get('text', '')
-                    score = story.get('score', 0)
-
-                    if not url or score < 5:
-                        continue
-
-                    full_text = f"{title} {text}"
-                    key = f"show-{story_id}"
-                    story_cache[key] = (story, title, url, text, score, full_text)
-                    candidates.append({"id": key, "name": title, "text": full_text})
-                except Exception:
-                    # Intentionally broad: one bad story must not kill the scrape loop
-                    logger.warning(
-                        "scraper.story_fetch_failed",
-                        extra={"event": "scraper.story_fetch_failed", "story_id": story_id},
-                    )
-                    continue
-
-            results = classify_candidates(candidates)
-
-            devtools_count = 0
-            for key, (story, title, url, text, score, full_text) in story_cache.items():
-                if not results.get(key):
-                    logger.debug(
-                        "scraper.skip_non_devtool",
-                        extra={"event": "scraper.skip_non_devtool", "story_id": key},
-                    )
-                    continue
-
-                devtools_count += 1
-
-                category = get_devtools_category(full_text, title)
-                description = _build_description(title, text, category)
-
-                startup = {
-                    "name": title,
-                    "url": url,
-                    "description": description,
-                    "date_found": datetime.fromtimestamp(story.get('time') or datetime.now().timestamp()),
-                    "source": f"Show HN (score: {score})"
-                }
-
-                save_startup(startup)
-
-            logger.info(
-                "scraper.complete",
-                extra={
-                    "event": "scraper.complete",
-                    "devtools_count": devtools_count,
-                    "candidates": len(candidates),
-                },
-            )
-
-        except requests.RequestException:
-            logger.exception("scraper.request_failed", extra={"event": "scraper.request_failed"})
-        except (KeyError, TypeError, ValueError, AttributeError):
-            logger.exception("scraper.error", extra={"event": "scraper.error"})
+    _scrape_hn_feed(
+        list_url="https://hacker-news.firebaseio.com/v0/showstories.json",
+        trace_name="hackernews.showstories",
+        scraper_name="hackernews_show",
+        source_label="Show HN",
+        key_prefix="show-",
+        max_stories=30,
+        min_score=5,
+    )
 
 if __name__ == "__main__":
     init_db()

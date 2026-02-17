@@ -7,7 +7,7 @@ from datetime import datetime
 from bs4 import BeautifulSoup
 
 from database import init_db, save_startup
-from dev_utils import is_devtools_related
+from ai_classifier import has_devtools_keywords as is_devtools_related
 from logging_config import get_logger, logging_context
 from observability import trace_http_call
 

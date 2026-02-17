@@ -291,6 +291,44 @@ def test_non_numeric_page_returns_200_not_500(app_module, monkeypatch):
     assert payload["per_page"] >= 1
 
 
+def test_pagination_vars_with_results(app_module):
+    module = app_module
+    items = [1, 2, 3]
+    result = module._pagination_vars(items, total_results=50, page=2, per_page=10, offset=10)
+    assert result["page"] == 2
+    assert result["per_page"] == 10
+    assert result["total_pages"] == 5
+    assert result["total_results"] == 50
+    assert result["first_item"] == 11
+    assert result["last_item"] == 13
+
+
+def test_pagination_vars_empty_results(app_module):
+    module = app_module
+    result = module._pagination_vars([], total_results=0, page=1, per_page=20, offset=0)
+    assert result["total_pages"] == 1
+    assert result["first_item"] == 0
+    assert result["last_item"] == 0
+
+
+def test_summarize_sources_uses_classify_source(app_module, monkeypatch):
+    """summarize_sources should classify sources via the shared registry."""
+    module = app_module
+    startups = [
+        {"source": "GitHub Trending"},
+        {"source": "Hacker News (score: 50)"},
+        {"source": "Show HN (score: 10)"},
+        {"source": "Product Hunt"},
+        {"source": "Indie Hackers"},
+    ]
+    counts = module.summarize_sources(startups)
+    assert counts["total"] == 5
+    assert counts["github"] == 1
+    assert counts["hackernews"] == 2
+    assert counts["producthunt"] == 1
+    assert counts["other"] == 1
+
+
 def test_app_main_guard(monkeypatch):
     import runpy
 

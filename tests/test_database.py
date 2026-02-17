@@ -314,3 +314,89 @@ def test_init_db_retry_exhaustion(monkeypatch):
 
     with pytest.raises(database.sqlite3.OperationalError):
         database.init_db()
+
+
+# --- SOURCE_REGISTRY and classify_source tests ---
+
+def test_source_registry_keys():
+    import database
+
+    assert "github" in database.SOURCE_REGISTRY
+    assert "hackernews" in database.SOURCE_REGISTRY
+    assert "producthunt" in database.SOURCE_REGISTRY
+
+
+def test_classify_source_known_sources():
+    import database
+
+    assert database.classify_source("GitHub Trending") == "github"
+    assert database.classify_source("Hacker News (score: 42)") == "hackernews"
+    assert database.classify_source("Show HN (score: 10)") == "hackernews"
+    assert database.classify_source("Product Hunt") == "producthunt"
+
+
+def test_classify_source_unknown_returns_other():
+    import database
+
+    assert database.classify_source("Indie Hackers") == "other"
+    assert database.classify_source("") == "other"
+
+
+def test_source_registry_consistency_with_get_source_counts(fresh_db):
+    """get_source_counts should use the same classification as classify_source."""
+    fresh_db.save_startup({
+        "name": "GH Tool", "url": "https://gh.test",
+        "description": "d", "source": "GitHub Trending",
+        "date_found": datetime.now(),
+    })
+    fresh_db.save_startup({
+        "name": "HN Tool", "url": "https://hn.test",
+        "description": "d", "source": "Hacker News (score: 5)",
+        "date_found": datetime.now(),
+    })
+    fresh_db.save_startup({
+        "name": "SHN Tool", "url": "https://shn.test",
+        "description": "d", "source": "Show HN (score: 3)",
+        "date_found": datetime.now(),
+    })
+    fresh_db.save_startup({
+        "name": "PH Tool", "url": "https://ph.test",
+        "description": "d", "source": "Product Hunt",
+        "date_found": datetime.now(),
+    })
+    fresh_db.save_startup({
+        "name": "Other Tool", "url": "https://other.test",
+        "description": "d", "source": "Unknown Source",
+        "date_found": datetime.now(),
+    })
+
+    counts = fresh_db.get_source_counts()
+    assert counts["github"] == 1
+    assert counts["hackernews"] == 2  # HN + Show HN
+    assert counts["producthunt"] == 1
+    assert counts["other"] == 1
+    assert counts["total"] == 5
+
+
+# --- _db_connection context manager tests ---
+
+def test_db_connection_closes_on_success(fresh_db):
+    """_db_connection should close the connection after the block."""
+    import database
+
+    with database._db_connection() as conn:
+        conn.execute("SELECT 1")
+    # After exiting, the connection should be closed.
+    with pytest.raises(database.sqlite3.ProgrammingError):
+        conn.execute("SELECT 1")
+
+
+def test_db_connection_closes_on_exception(fresh_db):
+    """_db_connection should close the connection even if an exception occurs."""
+    import database
+
+    with pytest.raises(ValueError):
+        with database._db_connection() as conn:
+            raise ValueError("boom")
+    with pytest.raises(database.sqlite3.ProgrammingError):
+        conn.execute("SELECT 1")

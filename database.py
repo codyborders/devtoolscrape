@@ -12,6 +12,36 @@ from logging_config import get_logger
 
 logger = get_logger("devtools.db")
 
+
+SOURCE_REGISTRY: dict[str, dict] = {
+    "github": {
+        "display": "GitHub Trending",
+        "where": "source = ?",
+        "params": ["GitHub Trending"],
+        "match": lambda s: s == "GitHub Trending",
+    },
+    "hackernews": {
+        "display": "Hacker News",
+        "where": "source LIKE ? OR source LIKE ?",
+        "params": ["Hacker News%", "Show HN%"],
+        "match": lambda s: s.startswith("Hacker News") or s.startswith("Show HN"),
+    },
+    "producthunt": {
+        "display": "Product Hunt",
+        "where": "source = ?",
+        "params": ["Product Hunt"],
+        "match": lambda s: s == "Product Hunt",
+    },
+}
+
+
+def classify_source(source: str) -> str:
+    """Classify a source string into a registry key, or 'other'."""
+    for key, info in SOURCE_REGISTRY.items():
+        if info["match"](source):
+            return key
+    return "other"
+
 DEFAULT_DATA_DIR = Path(os.getcwd()) / "data"
 DATA_DIR = Path(os.getenv("DEVTOOLS_DATA_DIR", DEFAULT_DATA_DIR))
 DATA_DIR.mkdir(parents=True, exist_ok=True)
@@ -289,17 +319,9 @@ def count_startups_by_sources(where_clause: str, params: Iterable) -> int:
 
 def get_startups_by_source_key(source_key: str, limit: Optional[int] = None, offset: Optional[int] = None) -> list[Dict[str, Any]]:
     """Fetch startups for a named source key (github, hackernews, producthunt) with pagination."""
-    if source_key == "github":
-        results = get_startups_by_sources("source = ?", ["GitHub Trending"], limit, offset)
-    elif source_key == "hackernews":
-        results = get_startups_by_sources(
-            "source LIKE ? OR source LIKE ?",
-            ["Hacker News%", "Show HN%"],
-            limit,
-            offset,
-        )
-    elif source_key == "producthunt":
-        results = get_startups_by_sources("source = ?", ["Product Hunt"], limit, offset)
+    entry = SOURCE_REGISTRY.get(source_key)
+    if entry:
+        results = get_startups_by_sources(entry["where"], entry["params"], limit, offset)
     else:
         results = get_all_startups(limit, offset)
     logger.debug(
@@ -317,15 +339,9 @@ def get_startups_by_source_key(source_key: str, limit: Optional[int] = None, off
 
 def count_startups_by_source_key(source_key: str) -> int:
     """Count startups for a named source key."""
-    if source_key == "github":
-        count = count_startups_by_sources("source = ?", ["GitHub Trending"])
-    elif source_key == "hackernews":
-        count = count_startups_by_sources(
-            "source LIKE ? OR source LIKE ?",
-            ["Hacker News%", "Show HN%"],
-        )
-    elif source_key == "producthunt":
-        count = count_startups_by_sources("source = ?", ["Product Hunt"])
+    entry = SOURCE_REGISTRY.get(source_key)
+    if entry:
+        count = count_startups_by_sources(entry["where"], entry["params"])
     else:
         count = count_all_startups()
     logger.debug(
@@ -344,26 +360,16 @@ def get_source_counts() -> Dict[str, int]:
     with _db_connection() as conn:
         rows = conn.execute("SELECT source, COUNT(*) as count FROM startups GROUP BY source").fetchall()
 
-    summary: Dict[str, int] = {
-        "total": 0,
-        "github": 0,
-        "hackernews": 0,
-        "producthunt": 0,
-        "other": 0,
-    }
+    summary: Dict[str, int] = {"total": 0, "other": 0}
+    for key in SOURCE_REGISTRY:
+        summary[key] = 0
 
     for row in rows:
         source = row["source"]
         count = row["count"]
         summary["total"] += count
-        if source == "GitHub Trending":
-            summary["github"] += count
-        elif source.startswith("Hacker News") or source.startswith("Show HN"):
-            summary["hackernews"] += count
-        elif source == "Product Hunt":
-            summary["producthunt"] += count
-        else:
-            summary["other"] += count
+        bucket = classify_source(source)
+        summary[bucket] += count
     logger.debug(
         "db.get_source_counts",
         extra={"event": "db.get_source_counts", "summary": summary},

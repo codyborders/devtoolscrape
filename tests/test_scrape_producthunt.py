@@ -433,6 +433,6 @@ def test_scrape_producthunt_rss_main_guard(monkeypatch):
         "requests.get",
         lambda *args, **kwargs: (_ for _ in ()).throw(RequestException("no network")),
     )
-    monkeypatch.setattr("dev_utils.is_devtools_related", lambda text: False)
+    monkeypatch.setattr("ai_classifier.has_devtools_keywords", lambda text, name="": False)
 
     runpy.run_module("scrape_producthunt", run_name="__main__")
