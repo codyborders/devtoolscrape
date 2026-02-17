@@ -16,8 +16,9 @@ from logging_config import get_logger
 
 # Datadog LLM Observability: ddtrace 4.0.0's openai_agents integration is
 # incompatible with openai-agents >=0.9.0 (missing _run_single_turn).
-# Disable the auto-patch before importing the agents SDK; the underlying
-# openai calls are still traced by ddtrace's openai integration.
+# The primary fix is DD_TRACE_OPENAI_AGENTS_ENABLED=false in docker-compose
+# (must be set before ddtrace-run starts).  This setdefault is a fallback
+# for local development without docker-compose env vars.
 os.environ.setdefault("DD_TRACE_OPENAI_AGENTS_ENABLED", "false")
 
 from agents import Agent, Runner, function_tool, set_tracing_disabled  # noqa: E402
