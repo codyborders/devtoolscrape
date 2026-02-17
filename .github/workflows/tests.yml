@@ -20,7 +20,7 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install -r requirements.txt
+          pip install --find-links=https://dd-trace-py-builds.s3.amazonaws.com/96035140/index.html -r requirements.txt
           pip install pytest
 
       - name: Configure Datadog Test Optimization

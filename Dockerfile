@@ -10,7 +10,9 @@ ENV DD_GIT_COMMIT_SHA=${DD_GIT_COMMIT_SHA}
 ENV DD_VERSION=${DD_VERSION}
 
 COPY requirements.txt ./
-RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install --no-cache-dir \
+    --find-links=https://dd-trace-py-builds.s3.amazonaws.com/96035140/index.html \
+    -r requirements.txt
 
 COPY . .
 
