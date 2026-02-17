@@ -1,3 +1,10 @@
+### 2026-02-17T14:57:00Z
+- Fixed production 502: app container was crash-looping due to ddtrace 4.0.0 IAST loader interaction with openai-agents SDK.
+- Root cause: `DD_IAST_ENABLED=true` in production causes ddtrace's `_exec_iast_patched_module` to propagate the `AttributeError` from patching `AgentRunner._run_single_turn` (removed in openai-agents >=0.9.0) as a fatal ImportError, instead of catching it gracefully as it does without IAST.
+- Fix: added `DD_TRACE_OPENAI_AGENTS_ENABLED=false` to both `docker-compose.yml` and `docker-compose.yaml` environment sections, preventing ddtrace-run from registering the incompatible import hook before Python starts.
+- Hotfixed production server directly via SSH, then committed and opened PR #19 to persist the fix through CI.
+- Also stubbed `openai-agents` SDK in test conftest (PR #18, merged) to fix CI test failure from chatbot commit's missing stubs.
+
 ### 2026-02-17T05:42:00Z
 - Added chatbot feature: natural language tool recommendation agent using the OpenAI Agents SDK.
 - New `chatbot.py`: defines a tool-calling agent with `search_tools` and `count_tools` function_tools that query the existing SQLite FTS5 database. Uses `Runner.run_sync()` with max 3 turns. Includes FTS5 query sanitization, structured logging, and graceful degradation when OpenAI is unavailable.
