@@ -24,5 +24,6 @@ from chatbot import _sanitize_fts_query
         ("***", ""),
     ],
 )
-def test_sanitize_fts_query_strips_operators(raw, expected):
+def test_sanitize_fts_query_strips_operators(raw: str, expected: str) -> None:
+    """Verify FTS5 special characters and keywords are stripped from queries."""
     assert _sanitize_fts_query(raw) == expected
