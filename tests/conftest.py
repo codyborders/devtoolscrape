@@ -92,7 +92,41 @@ def stub_external_sdks():
             self.chat = _FakeChat()
 
     openai_module.OpenAI = _FakeOpenAI
+    openai_module.AsyncOpenAI = _FakeOpenAI
     sys.modules["openai"] = openai_module
+
+    # Stub the openai-agents SDK so chatbot.py can import without the full
+    # openai type tree.  Only the symbols actually used by chatbot.py are
+    # provided; tests that exercise the agent itself should patch
+    # chatbot.generate_chat_response directly.
+    agents_module = types.ModuleType("agents")
+
+    def _noop_decorator(fn=None, **kwargs):
+        """Stand-in for @function_tool -- returns the function unchanged."""
+        if fn is not None:
+            return fn
+        return lambda f: f
+
+    class _FakeAgent:
+        def __init__(self, *args, **kwargs):
+            pass
+
+    class _FakeRunner:
+        @staticmethod
+        def run_sync(*args, **kwargs):
+            return types.SimpleNamespace(final_output="stub", new_items=[])
+
+    agents_module.Agent = _FakeAgent
+    agents_module.Runner = _FakeRunner
+    agents_module.function_tool = _noop_decorator
+    agents_module.set_tracing_disabled = lambda *a, **k: None
+
+    agents_items_module = types.ModuleType("agents.items")
+    agents_items_module.ToolCallOutputItem = type("ToolCallOutputItem", (), {})
+    agents_module.items = agents_items_module
+
+    sys.modules["agents"] = agents_module
+    sys.modules["agents.items"] = agents_items_module
 
     yield
 
@@ -101,6 +135,8 @@ def stub_external_sdks():
     sys.modules.pop("ddtrace.llmobs", None)
     sys.modules.pop("ddtrace.tracer", None)
     sys.modules.pop("openai", None)
+    sys.modules.pop("agents", None)
+    sys.modules.pop("agents.items", None)
 
 
 @pytest.fixture
