@@ -1,3 +1,10 @@
+### 2026-02-17T15:25:00Z
+- Upgraded ddtrace from 4.0.0 to >=4.4.0 and pinned openai-agents to >=0.7.0,<0.8.0 to restore agent span collection (PR #20, merged).
+- openai-agents 0.7.x is the last version with `AgentRunner._run_single_turn` that ddtrace's integration requires; 0.8.0+ removed it.
+- Removed the `DD_TRACE_OPENAI_AGENTS_ENABLED=false` workaround from both docker-compose files and the `os.environ.setdefault` hack from chatbot.py.
+- CI passed (125 tests), Depot built, and deployed to production. Cleaned up the leftover hotfix line on the server (`git checkout -- docker-compose.yml`), restarted containers with clean config.
+- Verified production healthy: container `Up (healthy)`, /health 200, homepage 200, ddtrace agent integration active for agent span collection.
+
 ### 2026-02-17T14:57:00Z
 - Fixed production 502: app container was crash-looping due to ddtrace 4.0.0 IAST loader interaction with openai-agents SDK.
 - Root cause: `DD_IAST_ENABLED=true` in production causes ddtrace's `_exec_iast_patched_module` to propagate the `AttributeError` from patching `AgentRunner._run_single_turn` (removed in openai-agents >=0.9.0) as a fatal ImportError, instead of catching it gracefully as it does without IAST.
