@@ -24,7 +24,7 @@ _CHATBOT_MAX_TURNS = max(1, int(os.getenv("CHATBOT_MAX_TURNS", "3")))
 _MAX_TOOLS_IN_CONTEXT = int(os.getenv("CHATBOT_MAX_TOOLS", "10"))
 
 # FTS5 operator pattern to sanitize user-supplied queries
-_FTS5_OPERATORS = re.compile(r'["\*\(\)]')
+_FTS5_OPERATORS = re.compile(r'["\*\(\)\+\-\^:/\{\}]')
 _FTS5_KEYWORDS = re.compile(r'\b(AND|OR|NOT|NEAR)\b', re.IGNORECASE)
 
 _SYSTEM_PROMPT = """\
