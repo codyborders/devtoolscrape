@@ -119,7 +119,6 @@ def stub_external_sdks():
     agents_module.Agent = _FakeAgent
     agents_module.Runner = _FakeRunner
     agents_module.function_tool = _noop_decorator
-    agents_module.set_tracing_disabled = lambda *a, **k: None
 
     agents_items_module = types.ModuleType("agents.items")
     agents_items_module.ToolCallOutputItem = type("ToolCallOutputItem", (), {})

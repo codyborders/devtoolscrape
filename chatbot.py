@@ -11,14 +11,11 @@ from dotenv import load_dotenv
 BASE_DIR = Path(__file__).resolve().parent
 load_dotenv(BASE_DIR / ".env")
 
-from agents import Agent, Runner, function_tool, set_tracing_disabled
+from agents import Agent, Runner, function_tool
 from agents.items import ToolCallOutputItem
 
 from database import count_all_startups, search_startups
 from logging_config import get_logger
-
-# Disable the SDK's built-in tracing; Datadog traces the openai calls directly.
-set_tracing_disabled(True)
 
 logger = get_logger("devtools.chatbot")
 
