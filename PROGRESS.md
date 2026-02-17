@@ -1,3 +1,9 @@
+### 2026-02-17T15:45:00Z
+- Fixed LLM Observability traces showing flat, disconnected spans instead of hierarchical agent workflows (PR #21, merged).
+- Root cause: `set_tracing_disabled(True)` in chatbot.py was preventing ddtrace's `LLMObsTraceProcessor` from receiving agent lifecycle events. ddtrace's openai-agents integration registers into the SDK's native tracing pipeline via `add_trace_processor()`, so the SDK's tracing must be active.
+- Removed `set_tracing_disabled(True)` and the `set_tracing_disabled` import from chatbot.py. Cleaned up the corresponding test stub in conftest.py.
+- Traces should now show hierarchical structure: workflow -> agent -> llm/tool spans, matching the properly instrumented examples in Datadog docs.
+
 ### 2026-02-17T15:25:00Z
 - Upgraded ddtrace from 4.0.0 to >=4.4.0 and pinned openai-agents to >=0.7.0,<0.8.0 to restore agent span collection (PR #20, merged).
 - openai-agents 0.7.x is the last version with `AgentRunner._run_single_turn` that ddtrace's integration requires; 0.8.0+ removed it.
