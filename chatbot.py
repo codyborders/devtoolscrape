@@ -11,18 +11,11 @@ from dotenv import load_dotenv
 BASE_DIR = Path(__file__).resolve().parent
 load_dotenv(BASE_DIR / ".env")
 
+from agents import Agent, Runner, function_tool, set_tracing_disabled
+from agents.items import ToolCallOutputItem
+
 from database import count_all_startups, search_startups
 from logging_config import get_logger
-
-# Datadog LLM Observability: ddtrace 4.0.0's openai_agents integration is
-# incompatible with openai-agents >=0.9.0 (missing _run_single_turn).
-# The primary fix is DD_TRACE_OPENAI_AGENTS_ENABLED=false in docker-compose
-# (must be set before ddtrace-run starts).  This setdefault is a fallback
-# for local development without docker-compose env vars.
-os.environ.setdefault("DD_TRACE_OPENAI_AGENTS_ENABLED", "false")
-
-from agents import Agent, Runner, function_tool, set_tracing_disabled  # noqa: E402
-from agents.items import ToolCallOutputItem  # noqa: E402
 
 # Disable the SDK's built-in tracing; Datadog traces the openai calls directly.
 set_tracing_disabled(True)
