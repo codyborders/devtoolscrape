@@ -24,14 +24,11 @@ _CHATBOT_MODEL = os.getenv("CHATBOT_MODEL", "gpt-4o-mini")
 _CHATBOT_MAX_TURNS = max(1, int(os.getenv("CHATBOT_MAX_TURNS", "3")))
 _MAX_TOOLS_IN_CONTEXT = int(os.getenv("CHATBOT_MAX_TOOLS", "10"))
 
-_PROMPT_ID = "devtools-assistant"
-_PROMPT_LABEL = os.getenv("CHATBOT_PROMPT_LABEL", "production")
-
 # FTS5 operator pattern to sanitize user-supplied queries
 _FTS5_OPERATORS = re.compile(r'["\*\(\)\+\-\^:/\{\}]')
 _FTS5_KEYWORDS = re.compile(r'\b(AND|OR|NOT|NEAR)\b', re.IGNORECASE)
 
-_FALLBACK_PROMPT = """\
+_SYSTEM_PROMPT = """\
 You are a helpful assistant for DevTools Scraper, a developer tools discovery platform.
 Your job is to recommend developer tools from our database based on what the user asks.
 
@@ -44,6 +41,12 @@ Guidelines:
 - Never invent tools that are not in the search results.
 - Keep the total response under 300 words.
 """
+
+_PROMPT_TRACKING = {
+    "id": "devtools-assistant",
+    "template": _SYSTEM_PROMPT,
+    "version": "1.0",
+}
 
 
 def _sanitize_fts_query(query: str) -> str:
@@ -85,44 +88,6 @@ def count_tools() -> str:
     return str(total)
 
 
-def _get_prompt() -> Any:
-    """Fetch the chatbot system prompt from Datadog Prompt Management.
-
-    Returns:
-        A ManagedPrompt backed by the Datadog-hosted prompt, or
-        a fallback-backed prompt if the fetch fails.
-    """
-    return LLMObs.get_prompt(
-        _PROMPT_ID,
-        label=_PROMPT_LABEL,
-        fallback=_FALLBACK_PROMPT,
-    )
-
-
-def _instructions_from_prompt(prompt: Any) -> str:
-    """Extract a plain instruction string from a managed prompt.
-
-    Handles both text templates (returns str) and chat templates
-    (returns list of message dicts) by pulling the system message.
-
-    Args:
-        prompt: A ManagedPrompt from LLMObs.get_prompt().
-
-    Returns:
-        The instruction string to pass to the agent.
-    """
-    rendered = prompt.format()
-    if isinstance(rendered, str):
-        return rendered
-    # Chat template: prefer the system message content.
-    for msg in rendered:
-        if isinstance(msg, dict) and msg.get("role") == "system":
-            return msg["content"]
-    if rendered and isinstance(rendered[0], dict):
-        return rendered[0].get("content", _FALLBACK_PROMPT)
-    return _FALLBACK_PROMPT
-
-
 def _collect_tools(result: Any) -> list[dict[str, Any]]:
     """Extract deduplicated tool dicts from the agent run's tool call outputs."""
     seen_ids: set[int] = set()
@@ -144,12 +109,20 @@ def _collect_tools(result: Any) -> list[dict[str, Any]]:
     return tools
 
 
+_agent = Agent(
+    name="DevToolsAssistant",
+    instructions=_SYSTEM_PROMPT,
+    model=_CHATBOT_MODEL,
+    tools=[search_tools, count_tools],
+)
+
+
 def generate_chat_response(user_message: str) -> dict[str, Any]:
     """Generate a chatbot response for a user's natural language question.
 
-    Fetches the latest prompt from Datadog Prompt Management, creates an
-    agent with those instructions, and wraps the run in an annotation
-    context for prompt tracking in LLM Observability.
+    Wraps the agent run in an ``LLMObs.annotation_context`` so that
+    the prompt template, version, and variables are tracked alongside
+    the LLM spans in Datadog LLM Observability.
 
     Args:
         user_message: The user's question (should be pre-validated by caller).
@@ -158,19 +131,9 @@ def generate_chat_response(user_message: str) -> dict[str, Any]:
         Dict with "response" (str) and "tools" (list of matched tool dicts).
     """
     try:
-        prompt = _get_prompt()
-        instructions = _instructions_from_prompt(prompt)
-
-        agent = Agent(
-            name="DevToolsAssistant",
-            instructions=instructions,
-            model=_CHATBOT_MODEL,
-            tools=[search_tools, count_tools],
-        )
-
-        with LLMObs.annotation_context(prompt=prompt.to_annotation_dict()):
+        with LLMObs.annotation_context(prompt=_PROMPT_TRACKING):
             result = Runner.run_sync(
-                agent,
+                _agent,
                 input=user_message,
                 max_turns=_CHATBOT_MAX_TURNS,
             )
@@ -185,7 +148,6 @@ def generate_chat_response(user_message: str) -> dict[str, Any]:
                 "message_length": len(user_message),
                 "tools_found": len(tools),
                 "response_length": len(response_text),
-                "prompt_version": getattr(prompt, "version", "unknown"),
             },
         )
         return {"response": response_text, "tools": tools}

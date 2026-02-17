@@ -25,21 +25,6 @@ def stub_external_sdks():
     llmobs_module = types.ModuleType("ddtrace.llmobs")
     tracer_module = types.ModuleType("ddtrace.tracer")
 
-    class _FakeManagedPrompt:
-        """Stub for ddtrace ManagedPrompt returned by LLMObs.get_prompt()."""
-
-        def __init__(self, text: str):
-            self._text = text
-            self.id = "devtools-assistant"
-            self.version = "fallback"
-            self.label = "production"
-
-        def format(self, **kwargs):
-            return self._text
-
-        def to_annotation_dict(self, **kwargs):
-            return {"prompt_id": self.id, "version": self.version}
-
     class _FakeAnnotationContext:
         """Stub for LLMObs.annotation_context() context manager."""
 
@@ -58,12 +43,6 @@ def stub_external_sdks():
         @classmethod
         def enable(cls, *args, **kwargs):
             cls.calls.append((args, kwargs))
-
-        @classmethod
-        def get_prompt(cls, prompt_id, label=None, fallback=None):
-            """Return a fake ManagedPrompt backed by the fallback text."""
-            text = fallback if isinstance(fallback, str) else ""
-            return _FakeManagedPrompt(text)
 
         @classmethod
         def annotation_context(cls, **kwargs):

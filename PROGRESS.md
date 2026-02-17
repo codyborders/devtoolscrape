@@ -1,11 +1,15 @@
+### 2026-02-17T17:30:00Z
+- Fixed `AttributeError: type object 'LLMObs' has no attribute 'get_prompt'` in production.
+- ddtrace 4.5.0rc1 does NOT include the Prompt Management API (`LLMObs.get_prompt()`). That API was documented but not shipped in this pre-release build.
+- Replaced the Prompt Management approach with Prompt Tracking only: `LLMObs.annotation_context(prompt=_PROMPT_TRACKING)` wraps the agent run, passing a dict with `id`, `template`, and `version` so LLM Observability traces include the prompt metadata.
+- Restored module-level `_agent` (no per-request creation needed without runtime prompt fetching).
+- Removed `_get_prompt()`, `_instructions_from_prompt()`, and `_FakeManagedPrompt` stub from conftest.py.
+
 ### 2026-02-17T16:30:00Z
-- Integrated Datadog Prompt Management and Prompt Tracking into the chatbot.
-- `chatbot.py`: imports `LLMObs` from `ddtrace.llmobs`, fetches the system prompt at runtime via `LLMObs.get_prompt("devtools-assistant", label="production", fallback=_FALLBACK_PROMPT)` instead of using a hardcoded string. Agent is now created per-request with the fetched instructions, allowing prompt changes from the Datadog UI to propagate within ~60s (cache TTL). The agent run is wrapped in `LLMObs.annotation_context(prompt=prompt.to_annotation_dict())` for prompt tracking in LLM Observability traces.
-- Added `_get_prompt()` and `_instructions_from_prompt()` helpers. The latter handles both text templates (str) and chat templates (list of message dicts) by extracting the system message.
-- Upgraded ddtrace from >=4.4.0 to ==4.5.0rc1 (pre-release with Prompt Management SDK). Updated `requirements.txt`, `Dockerfile`, and CI workflow to install from the S3 pre-release index (`https://dd-trace-py-builds.s3.amazonaws.com/96035140/index.html`).
-- Added `DD_API_KEY=${DATADOG_API_KEY}` to the app container environment in both `docker-compose.yml` and `docker-compose.yaml` (required by the prompt fetch HTTP API).
-- Updated `tests/conftest.py` with `_FakeManagedPrompt` and `_FakeAnnotationContext` stubs, plus `get_prompt()` and `annotation_context()` methods on `_FakeLLMObs`. All 139 tests pass.
-- Next step: create the "devtools-assistant" prompt in the Datadog UI (AI Observability > Prompts > New Prompt) with the system instructions and assign the "production" label.
+- Integrated Datadog Prompt Management and Prompt Tracking into the chatbot (PR #24, merged).
+- Upgraded ddtrace from >=4.4.0 to ==4.5.0rc1. Updated `requirements.txt`, `Dockerfile`, and CI workflow to install from the S3 pre-release index.
+- Added `DD_API_KEY=${DATADOG_API_KEY}` to the app container environment in both compose files.
+- Added `_FakeAnnotationContext` stub and `annotation_context()` method on `_FakeLLMObs` in conftest.py. All 139 tests pass.
 
 ### 2026-02-17T15:55:00Z
 - Fixed `sqlite3.OperationalError: fts5: syntax error near "/"` in chatbot search (PR #22, merged).
