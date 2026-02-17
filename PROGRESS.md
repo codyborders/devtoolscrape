@@ -1,3 +1,9 @@
+### 2026-02-17T15:55:00Z
+- Fixed `sqlite3.OperationalError: fts5: syntax error near "/"` in chatbot search (PR #22, merged).
+- The FTS5 query sanitizer only stripped `"`, `*`, `(`, `)` but FTS5 also treats `/`, `+`, `-`, `^`, `:`, `{`, `}` as special syntax. Agent-generated queries like "CI/CD" triggered the error.
+- Broadened `_FTS5_OPERATORS` regex to cover all FTS5 special characters.
+- Added 14 parametrized tests in `tests/test_chatbot.py` covering all operator characters (139 total tests).
+
 ### 2026-02-17T15:45:00Z
 - Fixed LLM Observability traces showing flat, disconnected spans instead of hierarchical agent workflows (PR #21, merged).
 - Root cause: `set_tracing_disabled(True)` in chatbot.py was preventing ddtrace's `LLMObsTraceProcessor` from receiving agent lifecycle events. ddtrace's openai-agents integration registers into the SDK's native tracing pipeline via `add_trace_processor()`, so the SDK's tracing must be active.
