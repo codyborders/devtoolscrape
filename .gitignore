@@ -4,7 +4,7 @@
 *.sqlite3
 __pycache__/
 *.py[cod]
-*.log
+*.log*
 .venv/
 venv/
 node_modules/

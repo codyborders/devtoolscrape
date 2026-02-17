@@ -4,6 +4,7 @@ import os
 import secrets
 import time
 import uuid
+from collections import defaultdict
 from datetime import datetime
 from typing import Any, Dict, Optional
 
@@ -23,6 +24,7 @@ from database import (
     init_db,
     search_startups,
 )
+from chatbot import generate_chat_response
 from logging_config import bind_context, get_logger, unbind_context
 
 # Load environment variables
@@ -460,6 +462,52 @@ def api_search():
         },
     )
     return jsonify(payload)
+
+
+# Chat endpoint rate limiting
+_chat_rate_limits: dict[str, list[float]] = defaultdict(list)
+_CHAT_RATE_LIMIT = int(os.getenv("CHATBOT_RATE_LIMIT", "10"))
+_CHAT_RATE_WINDOW = 60
+
+
+@app.route('/api/chat', methods=['POST'])
+def api_chat():
+    """API endpoint for chatbot tool recommendations."""
+    client_ip = request.headers.get("X-Forwarded-For", request.remote_addr)
+    now = time.time()
+    _chat_rate_limits[client_ip] = [
+        t for t in _chat_rate_limits[client_ip] if now - t < _CHAT_RATE_WINDOW
+    ]
+    if len(_chat_rate_limits[client_ip]) >= _CHAT_RATE_LIMIT:
+        logger.warning(
+            "api.chat.rate_limited",
+            extra={"event": "api.chat.rate_limited", "client_ip": client_ip},
+        )
+        return jsonify({
+            'error': 'Rate limit exceeded',
+            'response': 'You are sending messages too quickly. Please wait a moment and try again.',
+            'tools': [],
+        }), 429
+    _chat_rate_limits[client_ip].append(now)
+
+    data = request.get_json(silent=True)
+    user_message = (data.get("message", "") if data else "").strip()
+    if not user_message:
+        return jsonify({"error": "Message is required"}), 400
+    if len(user_message) > 500:
+        return jsonify({"error": "Message too long (max 500 characters)"}), 400
+
+    result = generate_chat_response(user_message)
+    logger.info(
+        "api.chat",
+        extra={
+            "event": "api.chat",
+            "message_length": len(user_message),
+            "tools_found": len(result.get("tools", [])),
+        },
+    )
+    return jsonify(result)
+
 
 @app.route('/health')
 def health_check():

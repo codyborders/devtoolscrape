@@ -1,3 +1,14 @@
+### 2026-02-17T05:42:00Z
+- Added chatbot feature: natural language tool recommendation agent using the OpenAI Agents SDK.
+- New `chatbot.py`: defines a tool-calling agent with `search_tools` and `count_tools` function_tools that query the existing SQLite FTS5 database. Uses `Runner.run_sync()` with max 3 turns. Includes FTS5 query sanitization, structured logging, and graceful degradation when OpenAI is unavailable.
+- Modified `app_production.py`: added `POST /api/chat` endpoint with JSON request/response, in-memory IP-based rate limiting (10 req/min), input validation (max 500 chars).
+- Modified `templates/base.html`: added floating chat widget (bottom-right) with toggle button, message panel, tool card rendering, loading indicator animation. Pure vanilla JS, Tailwind CSS, no framework deps.
+- Added `openai-agents>=0.9.0` to `requirements.txt`.
+- Updated `.gitignore` to use `*.log*` pattern (catches rotated/compressed logs).
+- Worked around ddtrace 4.0.0 incompatibility with openai-agents 0.9.0 (`AgentRunner._run_single_turn` missing) by disabling the `DD_TRACE_OPENAI_AGENTS_ENABLED` integration; underlying openai API calls are still traced.
+- Applied software-design review: eliminated module-level mutable state (`_last_search_results` global list) by extracting tool results from `RunResult.new_items` via `ToolCallOutputItem.output`. Removed duplicate validation between endpoint and chatbot module.
+- Applied code-simplifier: switched to built-in generics, removed dead try/except, consolidated input extraction, moved `hideLoading()` to `finally` block.
+
 ### 2026-02-16T12:00:00Z
 - PYTHON.md compliance refactoring across 12 files (10 source + 1 test + 1 new config).
 - Added `_db_connection()` context manager to `database.py` and replaced all 16 manual `conn = _connect(); ...; conn.close()` patterns with `with _db_connection() as conn:` to guarantee connection cleanup on error paths.
