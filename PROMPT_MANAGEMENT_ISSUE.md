@@ -145,9 +145,14 @@ This works and is our current workaround. It provides prompt tracking in LLM Obs
 
 ## Hypothesis
 
-The S3 pre-release build at `https://dd-trace-py-builds.s3.amazonaws.com/96035140/index.html` is a CI artifact from a specific commit (build #96035140) that predates or does not include the Prompt Management feature branch. The documentation was written ahead of the actual release, or the feature is gated behind a different build/branch.
+**Update (2026-02-17):** We discovered that our Datadog account has not yet been enrolled in the Prompt Management beta -- the enabling PR on Datadog's side has not been merged. This is almost certainly the root cause. The S3 pre-release build was likely generated from a CI artifact that either:
 
-The `annotation_context` for Prompt Tracking was already in the codebase and works. The missing piece is specifically the Prompt Management runtime API:
+1. Predates the Prompt Management feature branch being merged into the ddtrace codebase, or
+2. Is a general-purpose pre-release build that does not include the Prompt Management code path, which may be gated behind beta enrollment
+
+The documentation was written ahead of the feature being available in this build. The Prompt Tracking API (`annotation_context`) shipped earlier and works because it does not require any server-side beta gate -- it simply attaches metadata to LLM Observability spans locally.
+
+The missing piece is specifically the Prompt Management runtime API:
 - `LLMObs.get_prompt(prompt_id, label, fallback)` -- server-side prompt fetching
 - `ManagedPrompt` class with `.format(**variables)` and `.to_annotation_dict(**variables)`
 - `LLMObs.clear_prompt_cache()` -- cache invalidation
@@ -155,8 +160,9 @@ The `annotation_context` for Prompt Tracking was already in the codebase and wor
 
 ## What We Need
 
-1. A build of ddtrace that actually includes `LLMObs.get_prompt()` and the `ManagedPrompt` class
-2. Or confirmation that Prompt Management requires a different installation path, configuration flag, or feature gate not mentioned in the documentation
+1. Beta enrollment for our Datadog account so the Prompt Management feature is enabled
+2. A build of ddtrace that actually includes `LLMObs.get_prompt()` and the `ManagedPrompt` class (this may require a new S3 build after the feature PR is merged)
+3. Or confirmation that additional configuration flags or feature gates are needed beyond beta enrollment
 
 ## Workaround
 
