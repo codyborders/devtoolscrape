@@ -1,12 +1,8 @@
 #!/usr/bin/env python3
-"""
-Master scraper that runs all data sources
-"""
+"""Master scraper that runs all data sources."""
 
 import importlib.util
-import sys
 import uuid
-from datetime import datetime
 from pathlib import Path
 
 from dotenv import load_dotenv
@@ -19,8 +15,8 @@ from logging_config import get_logger, logging_context
 
 logger = get_logger("devtools.scraper.runner")
 
-def run_scraper(module_name, description):
-    """Run a scraper module and handle any errors"""
+def run_scraper(module_name: str, description: str) -> bool:
+    """Run a scraper module and handle any errors."""
     run_id = str(uuid.uuid4())
     with logging_context(scraper_runner_module=module_name, scrape_run_id=run_id):
         logger.info(
@@ -45,6 +41,7 @@ def run_scraper(module_name, description):
                     extra={"event": "runner.missing_entrypoint"},
                 )
         except Exception:
+            # Intentionally broad: scraper modules may raise arbitrary exceptions
             logger.exception(
                 "runner.scraper_failed",
                 extra={"event": "runner.scraper_failed"},
@@ -56,8 +53,8 @@ def run_scraper(module_name, description):
         )
         return True
 
-def main():
-    """Run all scrapers"""
+def main() -> None:
+    """Run all scrapers."""
     logger.info("runner.start", extra={"event": "runner.start"})
 
     # Initialize database

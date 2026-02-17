@@ -1,4 +1,5 @@
-import json
+"""Structured JSON logging with Datadog trace correlation."""
+
 import logging
 import logging.config
 import logging.handlers

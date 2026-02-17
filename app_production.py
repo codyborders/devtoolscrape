@@ -1,7 +1,11 @@
+"""Flask web application serving the DevTools Scrape frontend and JSON API."""
+
 import os
+import secrets
 import time
 import uuid
 from datetime import datetime
+from typing import Any, Dict, Optional
 
 from dotenv import load_dotenv
 from flask import Flask, render_template, request, jsonify, g
@@ -16,7 +20,6 @@ from database import (
     get_source_counts,
     get_startup_by_id,
     get_startups_by_source_key,
-    get_startups_by_sources,
     init_db,
     search_startups,
 )
@@ -32,10 +35,15 @@ logger = get_logger("devtools.app")
 init_db()
 
 # Production configuration
-app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'dev-secret-key-change-in-production')
+_secret_key = os.getenv('SECRET_KEY')
+if not _secret_key:
+    _secret_key = secrets.token_hex(32)
+    logger.warning("config.generated_secret_key", extra={"event": "config.generated_secret_key"})
+app.config['SECRET_KEY'] = _secret_key
 app.config['DEBUG'] = False
 
 def _truthy_env(var_name: str, default: bool = False) -> bool:
+    """Parse an environment variable as a boolean flag."""
     value = os.getenv(var_name)
     if value is None:
         return default
@@ -43,6 +51,7 @@ def _truthy_env(var_name: str, default: bool = False) -> bool:
 
 
 def _safe_float_env(var_name: str, default: float) -> float:
+    """Read an environment variable as a float, returning default on failure."""
     raw_value = os.getenv(var_name)
     if raw_value is None:
         return default
@@ -53,6 +62,7 @@ def _safe_float_env(var_name: str, default: float) -> float:
 
 
 def _parse_csv_env(var_name: str) -> list[str]:
+    """Split a comma-separated environment variable into a list of strings."""
     raw_value = os.getenv(var_name, "")
     return [item.strip() for item in raw_value.split(",") if item.strip()]
 
@@ -66,6 +76,7 @@ def _safe_int(value, default: int) -> int:
 
 
 def _rum_script_source(site: str) -> str:
+    """Return the Datadog RUM browser agent script URL for the given site."""
     region_map = {
         "datadoghq.com": "us1",
         "datadoghq.eu": "eu1",
@@ -80,7 +91,8 @@ def _rum_script_source(site: str) -> str:
     return f"https://www.datadoghq-browser-agent.com/{region}/{version_segment}/datadog-rum.js"
 
 
-def _build_rum_context():
+def _build_rum_context() -> Optional[Dict[str, Any]]:
+    """Build the Datadog RUM configuration dict, or None when credentials are missing."""
     application_id = os.getenv("DATADOG_RUM_APPLICATION_ID")
     client_token = os.getenv("DATADOG_RUM_CLIENT_TOKEN")
     if not application_id or not client_token:
@@ -132,7 +144,8 @@ def _build_rum_context():
 
 
 @app.context_processor
-def inject_datadog_rum():
+def inject_datadog_rum() -> Dict[str, Any]:
+    """Inject Datadog RUM configuration into every template context."""
     return {"datadog_rum": _build_rum_context()}
 
 if not app.debug:
@@ -204,7 +217,8 @@ def _total_pages(total_results: int, per_page: int) -> int:
     return max((total_results + per_page - 1) // per_page, 1)
 
 
-def summarize_sources(startups):
+def summarize_sources(startups: list[Dict[str, Any]]) -> Dict[str, int]:
+    """Aggregate startup counts by source category."""
     logger.debug(
         "summarize.sources",
         extra={"event": "summarize.sources", "startup_count": len(startups)},

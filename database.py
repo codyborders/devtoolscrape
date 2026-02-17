@@ -1,9 +1,12 @@
+"""SQLite persistence layer with FTS5 full-text search for developer tools."""
+
 import os
 import sqlite3
 import time
+from contextlib import contextmanager
 from datetime import datetime
 from pathlib import Path
-from typing import Iterable, Optional
+from typing import Any, Dict, Iterable, Iterator, Optional
 
 from logging_config import get_logger
 
@@ -19,6 +22,7 @@ DB_NAME = str(DB_PATH)
 
 
 def _connect() -> sqlite3.Connection:
+    """Create a new SQLite connection with Row factory enabled."""
     start = time.perf_counter()
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
@@ -30,10 +34,26 @@ def _connect() -> sqlite3.Connection:
     return conn
 
 
-def _row_to_dict(row: sqlite3.Row) -> dict:
+@contextmanager
+def _db_connection() -> Iterator[sqlite3.Connection]:
+    """Open a database connection and ensure it is closed after use."""
+    conn = _connect()
+    try:
+        yield conn
+    finally:
+        conn.close()
+
+
+def _row_to_dict(row: sqlite3.Row) -> Dict[str, Any]:
+    """Convert a sqlite3.Row to a plain dictionary."""
     return dict(row)
 
-def init_db():
+
+def init_db() -> None:
+    """Initialize the database schema, creating tables and indices if needed.
+
+    Retries once on OperationalError to handle transient filesystem issues.
+    """
     logger.info("db.init.start", extra={"event": "db.init.start", "db_path": str(DB_PATH)})
     conn = None
     for attempt in range(2):
@@ -45,67 +65,68 @@ def init_db():
                 raise
             continue
 
-    c = conn.cursor()
-
-    c.execute('''
-        CREATE TABLE IF NOT EXISTS startups (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            name TEXT NOT NULL,
-            url TEXT UNIQUE,
-            description TEXT,
-            source TEXT,
-            date_found TIMESTAMP
-        )
-    ''')
-
-    # Add index on name for faster duplicate checking
-    c.execute('CREATE INDEX IF NOT EXISTS idx_startups_name ON startups(name)')
-    c.execute('CREATE INDEX IF NOT EXISTS idx_startups_source ON startups(source)')
-
-    # Create table for tracking last scrape time
-    c.execute('''
-        CREATE TABLE IF NOT EXISTS scrape_log (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            last_scrape TIMESTAMP NOT NULL,
-            scrapers_run TEXT
-        )
-    ''')
-
-    # Create FTS index for fast search
-    c.execute('''
-        CREATE VIRTUAL TABLE IF NOT EXISTS startups_fts
-        USING fts5(name, description, content='startups', content_rowid='id')
-    ''')
-    c.executescript('''
-        CREATE TRIGGER IF NOT EXISTS startups_ai AFTER INSERT ON startups BEGIN
-            INSERT INTO startups_fts(rowid, name, description) VALUES (new.id, new.name, new.description);
-        END;
-        CREATE TRIGGER IF NOT EXISTS startups_ad AFTER DELETE ON startups BEGIN
-            INSERT INTO startups_fts(startups_fts, rowid, name, description) VALUES('delete', old.id, old.name, old.description);
-        END;
-        CREATE TRIGGER IF NOT EXISTS startups_au AFTER UPDATE ON startups BEGIN
-            INSERT INTO startups_fts(startups_fts, rowid, name, description) VALUES('delete', old.id, old.name, old.description);
-            INSERT INTO startups_fts(rowid, name, description) VALUES (new.id, new.name, new.description);
-        END;
-    ''')
     try:
-        c.execute("INSERT INTO startups_fts(startups_fts) VALUES('rebuild')")
-    except sqlite3.OperationalError:
-        # Rebuild may fail if table is empty or FTS not initialised yet; safe to ignore
-        pass
+        c = conn.cursor()
 
-    conn.commit()
-    conn.close()
+        c.execute('''
+            CREATE TABLE IF NOT EXISTS startups (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                name TEXT NOT NULL,
+                url TEXT UNIQUE,
+                description TEXT,
+                source TEXT,
+                date_found TIMESTAMP
+            )
+        ''')
+
+        # Add index on name for faster duplicate checking
+        c.execute('CREATE INDEX IF NOT EXISTS idx_startups_name ON startups(name)')
+        c.execute('CREATE INDEX IF NOT EXISTS idx_startups_source ON startups(source)')
+
+        # Create table for tracking last scrape time
+        c.execute('''
+            CREATE TABLE IF NOT EXISTS scrape_log (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                last_scrape TIMESTAMP NOT NULL,
+                scrapers_run TEXT
+            )
+        ''')
+
+        # Create FTS index for fast search
+        c.execute('''
+            CREATE VIRTUAL TABLE IF NOT EXISTS startups_fts
+            USING fts5(name, description, content='startups', content_rowid='id')
+        ''')
+        c.executescript('''
+            CREATE TRIGGER IF NOT EXISTS startups_ai AFTER INSERT ON startups BEGIN
+                INSERT INTO startups_fts(rowid, name, description) VALUES (new.id, new.name, new.description);
+            END;
+            CREATE TRIGGER IF NOT EXISTS startups_ad AFTER DELETE ON startups BEGIN
+                INSERT INTO startups_fts(startups_fts, rowid, name, description) VALUES('delete', old.id, old.name, old.description);
+            END;
+            CREATE TRIGGER IF NOT EXISTS startups_au AFTER UPDATE ON startups BEGIN
+                INSERT INTO startups_fts(startups_fts, rowid, name, description) VALUES('delete', old.id, old.name, old.description);
+                INSERT INTO startups_fts(rowid, name, description) VALUES (new.id, new.name, new.description);
+            END;
+        ''')
+        try:
+            c.execute("INSERT INTO startups_fts(startups_fts) VALUES('rebuild')")
+        except sqlite3.OperationalError:
+            # Rebuild may fail if table is empty or FTS not initialised yet; safe to ignore
+            pass
+
+        conn.commit()
+    finally:
+        conn.close()
     logger.info("db.init.complete", extra={"event": "db.init.complete"})
 
 
 def is_duplicate(name: str, url: str) -> bool:
-    """Check if item already exists in database"""
-    conn = _connect()
-    cursor = conn.cursor()
-    cursor.execute("SELECT COUNT(*) FROM startups WHERE name = ? OR url = ?", (name, url))
-    count = cursor.fetchone()[0]
-    conn.close()
+    """Check if a startup already exists by name or URL."""
+    with _db_connection() as conn:
+        cursor = conn.cursor()
+        cursor.execute("SELECT COUNT(*) FROM startups WHERE name = ? OR url = ?", (name, url))
+        count = cursor.fetchone()[0]
     logger.debug(
         "db.is_duplicate",
         extra={
@@ -118,7 +139,8 @@ def is_duplicate(name: str, url: str) -> bool:
     return count > 0
 
 
-def save_startup(startup):
+def save_startup(startup: Dict[str, Any]) -> None:
+    """Persist a startup record, skipping duplicates by name or URL."""
     if is_duplicate(startup['name'], startup['url']):
         logger.warning(
             "db.startup_duplicate",
@@ -131,53 +153,51 @@ def save_startup(startup):
         )
         return
 
-    conn = _connect()
-    c = conn.cursor()
+    with _db_connection() as conn:
+        c = conn.cursor()
+        try:
+            c.execute('''
+                INSERT INTO startups (name, url, description, source, date_found)
+                VALUES (?, ?, ?, ?, ?)
+            ''', (
+                startup['name'],
+                startup['url'],
+                startup['description'],
+                startup['source'],
+                startup['date_found']
+            ))
+            conn.commit()
+            logger.info(
+                "db.startup_saved",
+                extra={
+                    "event": "db.startup_saved",
+                    "startup_name": startup.get('name'),
+                    "url": startup.get('url'),
+                    "source": startup.get('source'),
+                },
+            )
+        except sqlite3.IntegrityError:
+            # URL already exists (race condition fallback)
+            logger.warning(
+                "db.startup_duplicate",
+                extra={
+                    "event": "db.startup_duplicate",
+                    "startup_name": startup.get('name'),
+                    "url": startup.get('url'),
+                },
+            )
 
-    try:
-        c.execute('''
-            INSERT INTO startups (name, url, description, source, date_found)
-            VALUES (?, ?, ?, ?, ?)
-        ''', (
-            startup['name'],
-            startup['url'],
-            startup['description'],
-            startup['source'],
-            startup['date_found']
-        ))
-        conn.commit()
-        logger.info(
-            "db.startup_saved",
-            extra={
-                "event": "db.startup_saved",
-                "startup_name": startup.get('name'),
-                "url": startup.get('url'),
-                "source": startup.get('source'),
-            },
-        )
-    except sqlite3.IntegrityError:
-        # URL already exists (race condition fallback)
-        logger.warning(
-            "db.startup_duplicate",
-            extra={
-                "event": "db.startup_duplicate",
-                "startup_name": startup.get('name'),
-                "url": startup.get('url'),
-            },
-        )
-    finally:
-        conn.close()
 
-def get_startup_by_id(startup_id: int) -> Optional[dict]:
-    conn = _connect()
-    row = conn.execute(
-        '''
-        SELECT id, name, url, description, source, date_found
-        FROM startups WHERE id = ?
-        ''',
-        (startup_id,),
-    ).fetchone()
-    conn.close()
+def get_startup_by_id(startup_id: int) -> Optional[Dict[str, Any]]:
+    """Fetch a single startup by its primary key."""
+    with _db_connection() as conn:
+        row = conn.execute(
+            '''
+            SELECT id, name, url, description, source, date_found
+            FROM startups WHERE id = ?
+            ''',
+            (startup_id,),
+        ).fetchone()
     result = _row_to_dict(row) if row else None
     logger.debug(
         "db.get_startup_by_id",
@@ -190,19 +210,19 @@ def get_startup_by_id(startup_id: int) -> Optional[dict]:
     return result
 
 
-def get_related_startups(source: str, exclude_id: int, limit: int = 4) -> list[dict]:
-    conn = _connect()
-    rows = conn.execute(
-        '''
-        SELECT id, name, url, description, source, date_found
-        FROM startups
-        WHERE source = ? AND id != ?
-        ORDER BY date_found DESC
-        LIMIT ?
-        ''',
-        (source, exclude_id, limit),
-    ).fetchall()
-    conn.close()
+def get_related_startups(source: str, exclude_id: int, limit: int = 4) -> list[Dict[str, Any]]:
+    """Fetch startups from the same source, excluding a given ID."""
+    with _db_connection() as conn:
+        rows = conn.execute(
+            '''
+            SELECT id, name, url, description, source, date_found
+            FROM startups
+            WHERE source = ? AND id != ?
+            ORDER BY date_found DESC
+            LIMIT ?
+            ''',
+            (source, exclude_id, limit),
+        ).fetchall()
     results = [_row_to_dict(row) for row in rows]
     logger.debug(
         "db.get_related_startups",
@@ -217,7 +237,8 @@ def get_related_startups(source: str, exclude_id: int, limit: int = 4) -> list[d
     return results
 
 
-def get_startups_by_sources(where_clause: str, params: Iterable, limit: Optional[int] = None, offset: Optional[int] = None) -> list[dict]:
+def get_startups_by_sources(where_clause: str, params: Iterable, limit: Optional[int] = None, offset: Optional[int] = None) -> list[Dict[str, Any]]:
+    """Query startups matching a dynamic WHERE clause with optional pagination."""
     query = '''
         SELECT id, name, url, description, source, date_found
         FROM startups
@@ -234,9 +255,8 @@ def get_startups_by_sources(where_clause: str, params: Iterable, limit: Optional
         query += " OFFSET ?"
         args.append(offset)
 
-    conn = _connect()
-    rows = conn.execute(query, args).fetchall()
-    conn.close()
+    with _db_connection() as conn:
+        rows = conn.execute(query, args).fetchall()
     results = [_row_to_dict(row) for row in rows]
     logger.debug(
         "db.get_startups_by_sources",
@@ -252,10 +272,10 @@ def get_startups_by_sources(where_clause: str, params: Iterable, limit: Optional
 
 
 def count_startups_by_sources(where_clause: str, params: Iterable) -> int:
+    """Count startups matching a dynamic WHERE clause."""
     query = 'SELECT COUNT(*) FROM startups WHERE {}'.format(where_clause)
-    conn = _connect()
-    (count,) = conn.execute(query, params).fetchone()
-    conn.close()
+    with _db_connection() as conn:
+        (count,) = conn.execute(query, params).fetchone()
     logger.debug(
         "db.count_startups_by_sources",
         extra={
@@ -267,7 +287,8 @@ def count_startups_by_sources(where_clause: str, params: Iterable) -> int:
     return count
 
 
-def get_startups_by_source_key(source_key: str, limit: Optional[int] = None, offset: Optional[int] = None) -> list[dict]:
+def get_startups_by_source_key(source_key: str, limit: Optional[int] = None, offset: Optional[int] = None) -> list[Dict[str, Any]]:
+    """Fetch startups for a named source key (github, hackernews, producthunt) with pagination."""
     if source_key == "github":
         results = get_startups_by_sources("source = ?", ["GitHub Trending"], limit, offset)
     elif source_key == "hackernews":
@@ -295,6 +316,7 @@ def get_startups_by_source_key(source_key: str, limit: Optional[int] = None, off
 
 
 def count_startups_by_source_key(source_key: str) -> int:
+    """Count startups for a named source key."""
     if source_key == "github":
         count = count_startups_by_sources("source = ?", ["GitHub Trending"])
     elif source_key == "hackernews":
@@ -317,12 +339,12 @@ def count_startups_by_source_key(source_key: str) -> int:
     return count
 
 
-def get_source_counts() -> dict:
-    conn = _connect()
-    rows = conn.execute("SELECT source, COUNT(*) as count FROM startups GROUP BY source").fetchall()
-    conn.close()
+def get_source_counts() -> Dict[str, int]:
+    """Aggregate startup counts grouped by source category."""
+    with _db_connection() as conn:
+        rows = conn.execute("SELECT source, COUNT(*) as count FROM startups GROUP BY source").fetchall()
 
-    summary = {
+    summary: Dict[str, int] = {
         "total": 0,
         "github": 0,
         "hackernews": 0,
@@ -349,8 +371,8 @@ def get_source_counts() -> dict:
     return summary
 
 
-def get_all_startups(limit: Optional[int] = None, offset: Optional[int] = None):
-    """Get all startups"""
+def get_all_startups(limit: Optional[int] = None, offset: Optional[int] = None) -> list[Dict[str, Any]]:
+    """Fetch all startups ordered by date, with optional pagination."""
     query = '''
         SELECT id, name, url, description, source, date_found
         FROM startups ORDER BY date_found DESC
@@ -365,9 +387,8 @@ def get_all_startups(limit: Optional[int] = None, offset: Optional[int] = None):
         query += " OFFSET ?"
         params.append(offset)
 
-    conn = _connect()
-    rows = conn.execute(query, params).fetchall()
-    conn.close()
+    with _db_connection() as conn:
+        rows = conn.execute(query, params).fetchall()
 
     results = [_row_to_dict(row) for row in rows]
     logger.debug(
@@ -382,11 +403,10 @@ def get_all_startups(limit: Optional[int] = None, offset: Optional[int] = None):
     return results
 
 
-def get_existing_startup_keys() -> list[dict]:
-    """Return existing startup name/url pairs for fast duplicate checks."""
-    conn = _connect()
-    rows = conn.execute('SELECT name, url FROM startups').fetchall()
-    conn.close()
+def get_existing_startup_keys() -> list[Dict[str, str]]:
+    """Return existing startup name/url pairs for fast duplicate pre-filtering."""
+    with _db_connection() as conn:
+        rows = conn.execute('SELECT name, url FROM startups').fetchall()
 
     results = [{"name": row["name"], "url": row["url"]} for row in rows]
     logger.debug(
@@ -397,9 +417,9 @@ def get_existing_startup_keys() -> list[dict]:
 
 
 def count_all_startups() -> int:
-    conn = _connect()
-    (count,) = conn.execute('SELECT COUNT(*) FROM startups').fetchone()
-    conn.close()
+    """Return the total number of startups in the database."""
+    with _db_connection() as conn:
+        (count,) = conn.execute('SELECT COUNT(*) FROM startups').fetchone()
     logger.debug(
         "db.count_all_startups",
         extra={"event": "db.count_all_startups", "count": count},
@@ -407,24 +427,23 @@ def count_all_startups() -> int:
     return count
 
 
-def search_startups(query: str, limit: int = 20, offset: int = 0):
-    """Search startups using FTS."""
+def search_startups(query: str, limit: int = 20, offset: int = 0) -> list[Dict[str, Any]]:
+    """Search startups using FTS5 full-text search."""
     if not query:
         return []
 
-    conn = _connect()
-    rows = conn.execute(
-        '''
-        SELECT s.id, s.name, s.url, s.description, s.source, s.date_found
-        FROM startups s
-        JOIN startups_fts fts ON s.id = fts.rowid
-        WHERE startups_fts MATCH ?
-        ORDER BY rank
-        LIMIT ? OFFSET ?
-        ''',
-        (query, limit, offset),
-    ).fetchall()
-    conn.close()
+    with _db_connection() as conn:
+        rows = conn.execute(
+            '''
+            SELECT s.id, s.name, s.url, s.description, s.source, s.date_found
+            FROM startups s
+            JOIN startups_fts fts ON s.id = fts.rowid
+            WHERE startups_fts MATCH ?
+            ORDER BY rank
+            LIMIT ? OFFSET ?
+            ''',
+            (query, limit, offset),
+        ).fetchall()
 
     results = [_row_to_dict(row) for row in rows]
     logger.debug(
@@ -441,17 +460,17 @@ def search_startups(query: str, limit: int = 20, offset: int = 0):
 
 
 def count_search_results(query: str) -> int:
+    """Count FTS matches for the given query string."""
     if not query:
         return 0
-    conn = _connect()
-    (count,) = conn.execute(
-        '''
-        SELECT COUNT(*) FROM startups_fts
-        WHERE startups_fts MATCH ?
-        ''',
-        (query,),
-    ).fetchone()
-    conn.close()
+    with _db_connection() as conn:
+        (count,) = conn.execute(
+            '''
+            SELECT COUNT(*) FROM startups_fts
+            WHERE startups_fts MATCH ?
+            ''',
+            (query,),
+        ).fetchone()
     logger.debug(
         "db.count_search_results",
         extra={"event": "db.count_search_results", "query": query, "count": count},
@@ -459,14 +478,13 @@ def count_search_results(query: str) -> int:
     return count
 
 
-def get_startup_by_url(url):
-    """Get startup by URL"""
-    conn = _connect()
-    row = conn.execute('''
-        SELECT id, name, url, description, source, date_found
-        FROM startups WHERE url = ?
-    ''', (url,)).fetchone()
-    conn.close()
+def get_startup_by_url(url: str) -> Optional[Dict[str, Any]]:
+    """Fetch a single startup by its URL."""
+    with _db_connection() as conn:
+        row = conn.execute('''
+            SELECT id, name, url, description, source, date_found
+            FROM startups WHERE url = ?
+        ''', (url,)).fetchone()
 
     result = _row_to_dict(row) if row else None
     logger.debug(
@@ -476,20 +494,17 @@ def get_startup_by_url(url):
     return result
 
 
-def record_scrape_completion(scrapers_run=None):
-    """Record that a scrape has completed"""
-    conn = _connect()
-    c = conn.cursor()
-
-    # Clear old entries and insert new one
-    c.execute('DELETE FROM scrape_log')
-    c.execute('''
-        INSERT INTO scrape_log (last_scrape, scrapers_run)
-        VALUES (?, ?)
-    ''', (datetime.now().isoformat(), scrapers_run))
-
-    conn.commit()
-    conn.close()
+def record_scrape_completion(scrapers_run: Optional[str] = None) -> None:
+    """Record that a scrape has completed, replacing any previous entry."""
+    with _db_connection() as conn:
+        c = conn.cursor()
+        # Clear old entries and insert new one
+        c.execute('DELETE FROM scrape_log')
+        c.execute('''
+            INSERT INTO scrape_log (last_scrape, scrapers_run)
+            VALUES (?, ?)
+        ''', (datetime.now().isoformat(), scrapers_run))
+        conn.commit()
     logger.info(
         "db.scrape_log_updated",
         extra={
@@ -498,13 +513,13 @@ def record_scrape_completion(scrapers_run=None):
         },
     )
 
-def get_last_scrape_time():
-    """Get the timestamp of the last completed scrape"""
-    conn = _connect()
-    c = conn.cursor()
-    c.execute('SELECT last_scrape FROM scrape_log ORDER BY id DESC LIMIT 1')
-    row = c.fetchone()
-    conn.close()
+
+def get_last_scrape_time() -> Optional[str]:
+    """Return the ISO timestamp of the most recent completed scrape."""
+    with _db_connection() as conn:
+        c = conn.cursor()
+        c.execute('SELECT last_scrape FROM scrape_log ORDER BY id DESC LIMIT 1')
+        row = c.fetchone()
 
     result = row[0] if row else None
     logger.debug(

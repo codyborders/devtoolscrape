@@ -1,9 +1,11 @@
+"""OpenAI-powered classifier for identifying developer tools from scraped content."""
+
 import json
 import os
 import threading
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
-from typing import Dict, Iterable, List, Optional
+from typing import Any, Dict, Iterable, List, Optional
 
 from cachetools import TTLCache
 from dotenv import load_dotenv
@@ -21,6 +23,7 @@ from observability import trace_external_call
 from ddtrace.llmobs import LLMObs
 
 def _strtobool(val: Optional[str]) -> bool:
+    """Convert a string environment variable to a boolean."""
     return str(val).lower() not in {"0", "false", "none", "", "null"}
 
 _llmobs_enabled = _strtobool(os.getenv("DD_LLMOBS_ENABLED", "1"))
@@ -58,6 +61,7 @@ _MAX_RETRIES = max(1, int(os.getenv("AI_CLASSIFIER_MAX_RETRIES", "3")))
 
 
 def _has_openai_key() -> bool:
+    """Return True when an OpenAI API key is configured."""
     return bool(os.getenv('OPENAI_API_KEY'))
 
 
@@ -66,14 +70,16 @@ _category_cache = TTLCache(_CACHE_SIZE, _CACHE_TTL)
 _cache_lock = threading.RLock()
 
 
-def _cache_get(cache: TTLCache, key: str):
+def _cache_get(cache: TTLCache, key: str) -> Optional[Any]:
+    """Look up a cached value, returning None on miss or when caching is disabled."""
     if not _CACHE_ENABLED:
         return None
     with _cache_lock:
         return cache.get(key)
 
 
-def _cache_set(cache: TTLCache, key: str, value) -> None:
+def _cache_set(cache: TTLCache, key: str, value: Any) -> None:
+    """Store a value in the cache unless caching is disabled."""
     if not _CACHE_ENABLED:
         return
     with _cache_lock:
@@ -97,10 +103,12 @@ def has_devtools_keywords(text: str, name: str = "") -> bool:
     return any(keyword in combined_text for keyword in _DEVTOOLS_KEYWORDS_LOWER)
 
 def _cache_key(name: str, text: str) -> str:
+    """Build a normalised cache key from a tool name and description."""
     return f"{name.strip().lower()}|{text.strip().lower()}"
 
 
 def _is_retryable_error(exc: Exception) -> bool:
+    """Return True for transient OpenAI errors worth retrying."""
     if exc is None:
         return False
     message = str(exc).lower()
@@ -108,6 +116,7 @@ def _is_retryable_error(exc: Exception) -> bool:
 
 
 def _build_openai_retry() -> Retrying:
+    """Create a tenacity Retrying instance for OpenAI API calls."""
     return Retrying(
         stop=stop_after_attempt(_MAX_RETRIES),
         wait=wait_exponential(multiplier=1, min=1),
@@ -116,7 +125,8 @@ def _build_openai_retry() -> Retrying:
     )
 
 
-def _call_openai(messages: List[Dict[str, str]], max_tokens: int, temperature: float = 0.0, response_format=None):
+def _call_openai(messages: List[Dict[str, str]], max_tokens: int, temperature: float = 0.0, response_format: Optional[Dict[str, str]] = None) -> Any:
+    """Send a chat completion request to OpenAI with automatic retries."""
     retrying = _build_openai_retry()
     for attempt in retrying:
         with attempt:
@@ -162,6 +172,7 @@ def _call_openai(messages: List[Dict[str, str]], max_tokens: int, temperature: f
                         span.set_tag("openai.total_tokens", getattr(usage, "total_tokens", 0))
                     return response
             except Exception as exc:  # pragma: no cover - relies on API behaviour
+                # Intentionally broad: log any API error and let tenacity decide whether to retry
                 logger.warning(
                     "openai.error",
                     extra={
@@ -255,6 +266,7 @@ def classify_candidates(candidates: Iterable[Dict[str, str]]) -> Dict[str, bool]
             data = json.loads(content)
             result_map = data.get("results", {})
         except Exception as exc:
+            # Intentionally broad: any batch failure falls back to per-item classification
             logger.exception(
                 "classifier.batch_failure",
                 extra={"event": "classifier.batch_failure", "error": str(exc)},
@@ -301,6 +313,7 @@ def classify_candidates(candidates: Iterable[Dict[str, str]]) -> Dict[str, bool]
 
 
 def _classify_single(name: str, text: str) -> bool:
+    """Classify a single candidate via the OpenAI API, falling back to keywords."""
     if not has_devtools_keywords(text, name):
         return False
     if not _has_openai_key():
@@ -364,6 +377,7 @@ def _classify_single(name: str, text: str) -> bool:
             return is_devtools_related_fallback(text)
         return answer == "yes"
     except Exception as exc:
+        # Intentionally broad: any classification failure degrades to keyword matching
         logger.exception(
             "classifier.single_error",
             extra={"event": "classifier.single_error", "tool_name": name},
@@ -477,6 +491,7 @@ def get_devtools_category(text: str, name: str = "") -> Optional[str]:
         return category
 
     except Exception as e:
+        # Intentionally broad: category failures return None rather than crashing
         logger.exception(
             "classifier.category_error",
             extra={"event": "classifier.category_error", "tool_name": name},
