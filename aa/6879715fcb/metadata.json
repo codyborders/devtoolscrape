@@ -5,7 +5,13 @@
   "branch": "main",
   "checkpoints_count": 2,
   "files_touched": [
-    "scrape_hackernews.py"
+    "PROGRESS.md",
+    "ai_classifier.py",
+    "scrape_github_trending.py",
+    "scrape_hackernews.py",
+    "tests/test_ai_classifier.py",
+    "tests/test_scrape_github_trending.py",
+    "tests/test_scrape_hackernews.py"
   ],
   "sessions": [
     {
@@ -14,13 +20,20 @@
       "context": "/aa/6879715fcb/0/context.md",
       "content_hash": "/aa/6879715fcb/0/content_hash.txt",
       "prompt": "/aa/6879715fcb/0/prompt.txt"
+    },
+    {
+      "metadata": "/aa/6879715fcb/1/metadata.json",
+      "transcript": "/aa/6879715fcb/1/full.jsonl",
+      "context": "/aa/6879715fcb/1/context.md",
+      "content_hash": "/aa/6879715fcb/1/content_hash.txt",
+      "prompt": "/aa/6879715fcb/1/prompt.txt"
     }
   ],
   "token_usage": {
-    "input_tokens": 123,
-    "cache_creation_tokens": 849966,
-    "cache_read_tokens": 11531813,
-    "output_tokens": 22673,
-    "api_call_count": 100
+    "input_tokens": 6557,
+    "cache_creation_tokens": 1040614,
+    "cache_read_tokens": 15612579,
+    "output_tokens": 36160,
+    "api_call_count": 138
   }
 }

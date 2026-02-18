@@ -1,0 +1,37 @@
+{
+  "cli_version": "0.4.5",
+  "checkpoint_id": "aa6879715fcb",
+  "session_id": "7c7a08da-a40e-4786-bc66-b3b441772a8e",
+  "strategy": "manual-commit",
+  "created_at": "2026-02-18T15:14:47.130578Z",
+  "branch": "main",
+  "checkpoints_count": 0,
+  "files_touched": [
+    "tests/test_ai_classifier.py",
+    "tests/test_scrape_github_trending.py",
+    "tests/test_scrape_hackernews.py",
+    "PROGRESS.md",
+    "ai_classifier.py",
+    "scrape_github_trending.py",
+    "scrape_hackernews.py"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "390456beb6b4",
+  "token_usage": {
+    "input_tokens": 6434,
+    "cache_creation_tokens": 190648,
+    "cache_read_tokens": 4080766,
+    "output_tokens": 13487,
+    "api_call_count": 38
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-02-18T15:14:46.502333Z",
+    "agent_lines": 0,
+    "human_added": 320,
+    "human_modified": 39,
+    "human_removed": 0,
+    "total_committed": 321,
+    "agent_percentage": 0
+  },
+  "transcript_path": ".claude/projects/-Users-user-projects-devtoolscrape/7c7a08da-a40e-4786-bc66-b3b441772a8e.jsonl"
+}
