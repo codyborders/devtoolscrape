@@ -1,3 +1,13 @@
+### 2026-02-17T20:30:00Z -- Fix Missing LLM Observability Spans for Scraper
+
+Diagnosed and fixed missing LLM Observability spans in Datadog for scraper OpenAI calls. Chatbot spans were appearing correctly, but classifier/scraper spans were not -- despite APM traces being present.
+
+**Root cause**: `ai_classifier.py` was calling `LLMObs.enable()` manually at import time, which conflicted with `ddtrace-run`'s automatic LLM Observability initialization. The duplicate initialization suppressed OpenAI auto-instrumentation spans for the classifier. The chatbot worked because `chatbot.py` correctly relies on `ddtrace-run` without calling `LLMObs.enable()` itself.
+
+**Fix**: Removed the manual `LLMObs.enable()` call and all related setup code (`_strtobool`, `_llmobs_enabled`, `_llmobs_ml_app` variables, the `ddtrace.llmobs` import) from `ai_classifier.py`. Added a comment explaining why manual initialization must not be done.
+
+- Test suite: 146 passed, 0 failures.
+
 ### 2026-02-17T19:00:00Z -- Code Simplification Pass
 Reviewed all Python source and test files for clarity, redundancy, and dead code. Changes preserve all existing functionality (146 tests pass).
 

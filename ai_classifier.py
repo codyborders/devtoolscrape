@@ -19,32 +19,9 @@ load_dotenv(BASE_DIR / ".env")
 from logging_config import get_logger, logging_context
 from observability import trace_external_call
 
-# Initialize LLM Observability before creating OpenAI client
-from ddtrace.llmobs import LLMObs
-
-def _strtobool(val: Optional[str]) -> bool:
-    """Convert a string environment variable to a boolean."""
-    return str(val).lower() not in {"0", "false", "none", "", "null"}
-
-_llmobs_enabled = _strtobool(os.getenv("DD_LLMOBS_ENABLED", "1"))
-_llmobs_ml_app = (
-    os.getenv("DD_LLMOBS_ML_APP")
-    or os.getenv("LLMOBS_ML_APP")
-    or os.getenv("DD_SERVICE")
-    or "devtoolscrape"
-)
-
-if _llmobs_enabled:
-    LLMObs.enable(
-        ml_app=_llmobs_ml_app,
-        api_key=os.getenv("DATADOG_API_KEY"),
-        site=os.getenv("DD_SITE", "datadoghq.com"),
-        agentless_enabled=False,
-        env=os.getenv("DD_ENV"),
-        service=os.getenv("DD_SERVICE"),
-    )
-
-# Set up OpenAI client
+# Set up OpenAI client — LLM Observability is handled by ddtrace-run at process
+# startup (DD_LLMOBS_ENABLED=1); calling LLMObs.enable() again here would
+# conflict with the auto-instrumented session and suppress OpenAI LLM Obs spans.
 client = openai.OpenAI(api_key=os.getenv('OPENAI_API_KEY'))
 _OPENAI_MODEL = os.getenv("OPENAI_MODEL", "gpt-4o-mini")
 
