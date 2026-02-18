@@ -1,0 +1,31 @@
+{
+  "cli_version": "0.4.5",
+  "checkpoint_id": "aa6879715fcb",
+  "session_id": "725a7c5a-d1ce-4622-bc66-5d3410d1bf7c",
+  "strategy": "manual-commit",
+  "created_at": "2026-02-18T15:14:45.786909Z",
+  "branch": "main",
+  "checkpoints_count": 2,
+  "files_touched": [
+    "scrape_hackernews.py"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "e25483d43615",
+  "token_usage": {
+    "input_tokens": 123,
+    "cache_creation_tokens": 849966,
+    "cache_read_tokens": 11531813,
+    "output_tokens": 22673,
+    "api_call_count": 100
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-02-18T15:14:44.479721Z",
+    "agent_lines": 0,
+    "human_added": 451,
+    "human_modified": 2,
+    "human_removed": 0,
+    "total_committed": 451,
+    "agent_percentage": 0
+  },
+  "transcript_path": ".claude/projects/-Users-user-projects-devtoolscrape/725a7c5a-d1ce-4622-bc66-5d3410d1bf7c.jsonl"
+}
