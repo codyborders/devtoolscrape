@@ -1,0 +1,32 @@
+{
+  "cli_version": "0.4.5",
+  "checkpoint_id": "eb4ed3cd97ef",
+  "strategy": "manual-commit",
+  "branch": "main",
+  "checkpoints_count": 0,
+  "files_touched": [
+    "PROGRESS.md",
+    "ai_classifier.py",
+    "app_production.py",
+    "database.py",
+    "scrape_all.py",
+    "scrape_github_trending.py",
+    "scrape_hackernews.py"
+  ],
+  "sessions": [
+    {
+      "metadata": "/eb/4ed3cd97ef/0/metadata.json",
+      "transcript": "/eb/4ed3cd97ef/0/full.jsonl",
+      "context": "/eb/4ed3cd97ef/0/context.md",
+      "content_hash": "/eb/4ed3cd97ef/0/content_hash.txt",
+      "prompt": "/eb/4ed3cd97ef/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 4,
+    "cache_creation_tokens": 42815,
+    "cache_read_tokens": 41987,
+    "output_tokens": 430,
+    "api_call_count": 2
+  }
+}
