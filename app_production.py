@@ -488,28 +488,28 @@ def health_check():
     })
 
 
+def _parse_iso_date(date_str):
+    """Parse an ISO date string, returning None on failure or non-string input."""
+    if not isinstance(date_str, str):
+        return None
+    try:
+        return datetime.fromisoformat(date_str.replace('Z', '+00:00'))
+    except (ValueError, TypeError):
+        return None
+
+
 @app.template_filter('format_date')
 def format_date(date_str):
     """Format date for display"""
-    if isinstance(date_str, str):
-        try:
-            dt = datetime.fromisoformat(date_str.replace('Z', '+00:00'))
-            return dt.strftime('%B %d, %Y')
-        except (ValueError, TypeError):
-            return date_str
-    return date_str
+    dt = _parse_iso_date(date_str)
+    return dt.strftime('%B %d, %Y') if dt else date_str
 
 
 @app.template_filter('format_datetime')
 def format_datetime(date_str):
     """Format datetime for display"""
-    if isinstance(date_str, str):
-        try:
-            dt = datetime.fromisoformat(date_str.replace('Z', '+00:00'))
-            return dt.strftime('%B %d, %Y at %I:%M %p')
-        except (ValueError, TypeError):
-            return date_str
-    return date_str
+    dt = _parse_iso_date(date_str)
+    return dt.strftime('%B %d, %Y at %I:%M %p') if dt else date_str
 
 
 # Error handlers

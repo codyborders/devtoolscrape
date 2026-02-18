@@ -1,3 +1,20 @@
+### 2026-02-17T19:00:00Z -- Code Simplification Pass
+Reviewed all Python source and test files for clarity, redundancy, and dead code. Changes preserve all existing functionality (146 tests pass).
+
+1. **app_production.py**: Extracted `_parse_iso_date()` helper to eliminate duplicated ISO datetime parsing between `format_date` and `format_datetime` template filters.
+
+2. **database.py**: Removed trivial `_row_to_dict()` wrapper (was just `dict(row)`) and inlined it at all 6 call sites. Extracted `_append_pagination()` helper to consolidate duplicated LIMIT/OFFSET SQL building logic between `get_all_startups` and `get_startups_by_sources`.
+
+3. **scrape_all.py**: Inlined `total_scrapers` variable (only used once in log message). Removed redundant `runner.success_notice` log call that duplicated information from `runner.summary`.
+
+4. **ai_classifier.py**: Removed unused `as e` binding in `get_devtools_category` exception handler for consistency with other exception handlers in the file.
+
+5. **scrape_hackernews.py**: Removed unused `HTTPError` import. Extracted `_backoff_delay()` helper to eliminate duplicated exponential backoff calculation in `_request_with_retry`.
+
+6. **scrape_github_trending.py**: Removed unused `List` import from typing and unnecessary type annotations on local variables (`candidates: List[Dict]`, `existing: List[Dict]`, `filtered_candidates: List[Dict]`) where types are obvious from initialization. Also removed unused `Dict` import after cleanup.
+
+- Test suite: 146 passed, 0 failures.
+
 ### 2026-02-17T18:00:00Z -- Software Design Refactoring
 Applied "A Philosophy of Software Design" review and fixed 5 structural issues:
 

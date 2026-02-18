@@ -74,9 +74,18 @@ def _db_connection() -> Iterator[sqlite3.Connection]:
         conn.close()
 
 
-def _row_to_dict(row: sqlite3.Row) -> Dict[str, Any]:
-    """Convert a sqlite3.Row to a plain dictionary."""
-    return dict(row)
+
+def _append_pagination(query: str, params: list, limit: Optional[int], offset: Optional[int]) -> tuple[str, list]:
+    """Append LIMIT/OFFSET clauses to a SQL query string, returning the updated query and params."""
+    if limit is not None:
+        query += " LIMIT ?"
+        params.append(limit)
+    if offset is not None:
+        if limit is None:
+            query += " LIMIT -1"
+        query += " OFFSET ?"
+        params.append(offset)
+    return query, params
 
 
 def init_db() -> None:
@@ -228,7 +237,7 @@ def get_startup_by_id(startup_id: int) -> Optional[Dict[str, Any]]:
             ''',
             (startup_id,),
         ).fetchone()
-    result = _row_to_dict(row) if row else None
+    result = dict(row) if row else None
     logger.debug(
         "db.get_startup_by_id",
         extra={
@@ -253,7 +262,7 @@ def get_related_startups(source: str, exclude_id: int, limit: int = 4) -> list[D
             ''',
             (source, exclude_id, limit),
         ).fetchall()
-    results = [_row_to_dict(row) for row in rows]
+    results = [dict(row) for row in rows]
     logger.debug(
         "db.get_related_startups",
         extra={
@@ -276,18 +285,11 @@ def get_startups_by_sources(where_clause: str, params: Iterable, limit: Optional
     '''.format(where_clause)
 
     args = list(params)
-    if limit is not None:
-        query += " LIMIT ?"
-        args.append(limit)
-    if offset is not None:
-        if limit is None:
-            query += " LIMIT -1"
-        query += " OFFSET ?"
-        args.append(offset)
+    query, args = _append_pagination(query, args, limit, offset)
 
     with _db_connection() as conn:
         rows = conn.execute(query, args).fetchall()
-    results = [_row_to_dict(row) for row in rows]
+    results = [dict(row) for row in rows]
     logger.debug(
         "db.get_startups_by_sources",
         extra={
@@ -384,19 +386,12 @@ def get_all_startups(limit: Optional[int] = None, offset: Optional[int] = None) 
         FROM startups ORDER BY date_found DESC
     '''
     params: list = []
-    if limit is not None:
-        query += " LIMIT ?"
-        params.append(limit)
-    if offset is not None:
-        if limit is None:
-            query += " LIMIT -1"
-        query += " OFFSET ?"
-        params.append(offset)
+    query, params = _append_pagination(query, params, limit, offset)
 
     with _db_connection() as conn:
         rows = conn.execute(query, params).fetchall()
 
-    results = [_row_to_dict(row) for row in rows]
+    results = [dict(row) for row in rows]
     logger.debug(
         "db.get_all_startups",
         extra={
@@ -451,7 +446,7 @@ def search_startups(query: str, limit: int = 20, offset: int = 0) -> list[Dict[s
             (query, limit, offset),
         ).fetchall()
 
-    results = [_row_to_dict(row) for row in rows]
+    results = [dict(row) for row in rows]
     logger.debug(
         "db.search_startups",
         extra={
@@ -492,7 +487,7 @@ def get_startup_by_url(url: str) -> Optional[Dict[str, Any]]:
             FROM startups WHERE url = ?
         ''', (url,)).fetchone()
 
-    result = _row_to_dict(row) if row else None
+    result = dict(row) if row else None
     logger.debug(
         "db.get_startup_by_url",
         extra={"event": "db.get_startup_by_url", "url": url, "found": bool(result)},

@@ -3,7 +3,6 @@
 import sqlite3
 import uuid
 from datetime import datetime
-from typing import Dict, List
 
 import requests
 
@@ -48,7 +47,7 @@ def scrape_github_trending() -> None:
                 extra={"event": "scraper.repos_found", "count": len(repos)},
             )
             
-            candidates: List[Dict] = []
+            candidates = []
             for repo in repos:
                 name_elem = repo.find('h2', class_='h3')
                 if not name_elem:
@@ -75,7 +74,7 @@ def scrape_github_trending() -> None:
             existing_names = set()
             existing_urls = set()
             try:
-                existing: List[Dict] = get_existing_startup_keys()
+                existing = get_existing_startup_keys()
                 for row in existing:
                     nm = row.get("name")
                     u = row.get("url")
@@ -87,7 +86,7 @@ def scrape_github_trending() -> None:
                 # Log DB issues explicitly; continue without pre-filtering
                 logger.exception("scraper.db_error", extra={"event": "scraper.db_error"})
 
-            filtered_candidates: List[Dict] = []
+            filtered_candidates = []
             for candidate in candidates:
                 if candidate["name"] in existing_names or candidate["url"] in existing_urls:
                     logger.debug(

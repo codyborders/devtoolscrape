@@ -72,8 +72,6 @@ def main() -> None:
     ]
 
     successful_names = []
-    total_scrapers = len(scrapers)
-
     for module_name, description in scrapers:
         if run_scraper(module_name, description):
             successful_names.append(description)
@@ -83,18 +81,11 @@ def main() -> None:
         extra={
             "event": "runner.summary",
             "successful_scrapers": len(successful_names),
-            "total_scrapers": total_scrapers,
+            "total_scrapers": len(scrapers),
         },
     )
 
-    # Record the scrape completion
     record_scrape_completion(', '.join(successful_names))
-
-    if successful_names:
-        logger.info(
-            "runner.success_notice",
-            extra={"event": "runner.success_notice"},
-        )
 
 if __name__ == "__main__":
     main()

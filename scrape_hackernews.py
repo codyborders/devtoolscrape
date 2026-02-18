@@ -8,7 +8,6 @@ import requests
 from requests.exceptions import (
     ConnectionError,
     ConnectTimeout,
-    HTTPError,
     ReadTimeout,
     SSLError,
     Timeout,
@@ -54,6 +53,11 @@ def _is_retryable_status_code(status_code: int) -> bool:
     return status_code in (502, 503, 504)
 
 
+def _backoff_delay(attempt: int) -> float:
+    """Calculate exponential backoff delay for a given attempt number."""
+    return min(INITIAL_BACKOFF * (BACKOFF_MULTIPLIER ** attempt), MAX_BACKOFF)
+
+
 def _request_with_retry(url: str, timeout: tuple, max_retries: int = MAX_RETRIES) -> requests.Response:
     """Make HTTP GET request with retry logic for transient failures.
 
@@ -76,13 +80,9 @@ def _request_with_retry(url: str, timeout: tuple, max_retries: int = MAX_RETRIES
         try:
             response = requests.get(url, timeout=timeout)
 
-            # Check for retryable status codes before raise_for_status
             if _is_retryable_status_code(response.status_code):
                 if attempt < max_retries:
-                    backoff = min(
-                        INITIAL_BACKOFF * (BACKOFF_MULTIPLIER ** attempt),
-                        MAX_BACKOFF
-                    )
+                    backoff = _backoff_delay(attempt)
                     logger.warning(
                         "scraper.retrying",
                         extra={
@@ -105,10 +105,7 @@ def _request_with_retry(url: str, timeout: tuple, max_retries: int = MAX_RETRIES
         except RETRYABLE_EXCEPTIONS as e:
             last_exception = e
             if attempt < max_retries:
-                backoff = min(
-                    INITIAL_BACKOFF * (BACKOFF_MULTIPLIER ** attempt),
-                    MAX_BACKOFF
-                )
+                backoff = _backoff_delay(attempt)
                 logger.warning(
                     "scraper.retrying",
                     extra={

@@ -490,7 +490,7 @@ def get_devtools_category(text: str, name: str = "") -> Optional[str]:
         )
         return category
 
-    except Exception as e:
+    except Exception:
         # Intentionally broad: category failures return None rather than crashing
         logger.exception(
             "classifier.category_error",
