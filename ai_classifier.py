@@ -46,7 +46,7 @@ if _llmobs_enabled:
 
 # Set up OpenAI client
 client = openai.OpenAI(api_key=os.getenv('OPENAI_API_KEY'))
-_OPENAI_MODEL = os.getenv("OPENAI_MODEL", "gpt-3.5-turbo")
+_OPENAI_MODEL = os.getenv("OPENAI_MODEL", "gpt-4o-mini")
 
 logger = get_logger("devtools.ai")
 
