@@ -113,7 +113,7 @@ def test_scrape_all_main_records_no_successes(monkeypatch):
     monkeypatch.setattr("scrape_all.record_scrape_completion", lambda summary: recorded.append(summary))
 
     scrape_all.main()
-    assert recorded == [""]
+    assert recorded == []
 
 
 def test_scraper_entrypoints_registry_covers_all_scrapers():

@@ -222,7 +222,8 @@ def _scrape_hn_feed(
 
         except requests.RequestException:
             logger.exception("scraper.request_failed", extra={"event": "scraper.request_failed"})
-        except (KeyError, TypeError, ValueError, AttributeError):
+        except Exception:
+            # Intentionally broad: isolate this feed from classifier/runtime failures
             logger.exception("scraper.error", extra={"event": "scraper.error"})
 
 

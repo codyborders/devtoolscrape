@@ -85,7 +85,13 @@ def main() -> None:
         },
     )
 
-    record_scrape_completion(', '.join(successful_names))
+    if successful_names:
+        record_scrape_completion(', '.join(successful_names))
+    else:
+        logger.warning(
+            "runner.no_successful_scrapers",
+            extra={"event": "runner.no_successful_scrapers"},
+        )
 
 if __name__ == "__main__":
     main()

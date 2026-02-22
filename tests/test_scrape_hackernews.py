@@ -181,6 +181,63 @@ def test_scrape_hackernews_handles_errors(monkeypatch):
     scrape_hackernews.scrape_hackernews_show()
 
 
+def test_scrape_hackernews_handles_classifier_exceptions_per_feed(monkeypatch):
+    """Bug #35: classifier failures should be isolated to the current feed."""
+    import scrape_hackernews
+
+    top_story = {
+        "type": "story",
+        "title": "Top Story",
+        "url": "https://top.dev",
+        "text": "Developer tool",
+        "score": 50,
+        "time": datetime.now().timestamp(),
+    }
+    show_story = {
+        "type": "story",
+        "title": "Show Story",
+        "url": "https://show.dev",
+        "text": "Developer tool",
+        "score": 50,
+        "time": datetime.now().timestamp(),
+    }
+
+    def fake_get(url, timeout):
+        if url.endswith("topstories.json"):
+            return FakeJSONResponse([1])
+        if url.endswith("showstories.json"):
+            return FakeJSONResponse([2])
+        if "/item/1.json" in url:
+            return FakeJSONResponse(top_story)
+        if "/item/2.json" in url:
+            return FakeJSONResponse(show_story)
+        return FakeJSONResponse({})
+
+    monkeypatch.setattr("scrape_hackernews.requests.get", fake_get)
+
+    classify_calls = {"count": 0}
+
+    def flaky_classify(candidates):
+        classify_calls["count"] += 1
+        if classify_calls["count"] == 1:
+            raise RuntimeError("OpenAI rate limited")
+        return {item["id"]: True for item in candidates}
+
+    saved = []
+    monkeypatch.setattr("scrape_hackernews.classify_candidates", flaky_classify)
+    monkeypatch.setattr("scrape_hackernews.get_devtools_category", lambda *_: None)
+    monkeypatch.setattr("scrape_hackernews.save_startup", lambda record: saved.append(record))
+
+    # First feed should log-and-continue despite classifier exception.
+    scrape_hackernews.scrape_hackernews()
+    # Second feed should still run.
+    scrape_hackernews.scrape_hackernews_show()
+
+    assert classify_calls["count"] == 2
+    assert len(saved) == 1
+    assert saved[0]["name"] == "Show Story"
+
+
 def test_scrape_hackernews_main_guard(monkeypatch):
     import runpy
 

@@ -251,23 +251,34 @@ def get_startup_by_id(startup_id: int) -> Optional[Dict[str, Any]]:
 
 def get_related_startups(source: str, exclude_id: int, limit: int = 4) -> list[Dict[str, Any]]:
     """Fetch startups from the same source, excluding a given ID."""
+    source_key = classify_source(source)
+    entry = SOURCE_REGISTRY.get(source_key)
+    if entry:
+        where_clause = entry["where"]
+        params = list(entry["params"])
+    else:
+        where_clause = "source = ?"
+        params = [source]
+
+    query = f'''
+        SELECT id, name, url, description, source, date_found
+        FROM startups
+        WHERE ({where_clause}) AND id != ?
+        ORDER BY date_found DESC
+        LIMIT ?
+    '''
+
+    query_params = [*params, exclude_id, limit]
+
     with _db_connection() as conn:
-        rows = conn.execute(
-            '''
-            SELECT id, name, url, description, source, date_found
-            FROM startups
-            WHERE source = ? AND id != ?
-            ORDER BY date_found DESC
-            LIMIT ?
-            ''',
-            (source, exclude_id, limit),
-        ).fetchall()
+        rows = conn.execute(query, query_params).fetchall()
     results = [dict(row) for row in rows]
     logger.debug(
         "db.get_related_startups",
         extra={
             "event": "db.get_related_startups",
             "source": source,
+            "source_key": source_key,
             "exclude_id": exclude_id,
             "limit": limit,
             "returned": len(results),

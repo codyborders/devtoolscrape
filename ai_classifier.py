@@ -22,10 +22,10 @@ from observability import trace_external_call
 # Set up OpenAI client — LLM Observability is handled by ddtrace-run at process
 # startup (DD_LLMOBS_ENABLED=1); calling LLMObs.enable() again here would
 # conflict with the auto-instrumented session and suppress OpenAI LLM Obs spans.
-client = openai.OpenAI(api_key=os.getenv('OPENAI_API_KEY'))
-_OPENAI_MODEL = os.getenv("OPENAI_MODEL", "gpt-4o-mini")
-
 logger = get_logger("devtools.ai")
+client: Optional[Any] = None
+_client_lock = threading.Lock()
+_OPENAI_MODEL = os.getenv("OPENAI_MODEL", "gpt-4o-mini")
 
 # Feature flags and tuning knobs
 _CACHE_ENABLED = os.getenv("AI_CLASSIFIER_DISABLE_CACHE", "0") != "1"
@@ -40,6 +40,33 @@ _MAX_RETRIES = max(1, int(os.getenv("AI_CLASSIFIER_MAX_RETRIES", "3")))
 def _has_openai_key() -> bool:
     """Return True when an OpenAI API key is configured."""
     return bool(os.getenv('OPENAI_API_KEY'))
+
+
+def _get_openai_client() -> Optional[Any]:
+    """Lazily create the OpenAI client when an API key is available."""
+    global client
+    if client is not None:
+        return client
+
+    api_key = os.getenv("OPENAI_API_KEY")
+    if not api_key:
+        return None
+
+    with _client_lock:
+        if client is None:
+            try:
+                client = openai.OpenAI(api_key=api_key)
+            except Exception:
+                logger.exception(
+                    "classifier.client_init_failed",
+                    extra={"event": "classifier.client_init_failed"},
+                )
+                return None
+    return client
+
+
+if _has_openai_key():
+    _get_openai_client()
 
 
 _classification_cache = TTLCache(_CACHE_SIZE, _CACHE_TTL)
@@ -104,6 +131,10 @@ def _build_openai_retry() -> Retrying:
 
 def _call_openai(messages: List[Dict[str, str]], max_tokens: int, temperature: float = 0.0, response_format: Optional[Dict[str, str]] = None) -> Any:
     """Send a chat completion request to OpenAI with automatic retries."""
+    openai_client = _get_openai_client()
+    if openai_client is None:
+        raise RuntimeError("OPENAI_API_KEY is missing or OpenAI client failed to initialize")
+
     retrying = _build_openai_retry()
     for attempt in retrying:
         with attempt:
@@ -135,7 +166,7 @@ def _call_openai(messages: List[Dict[str, str]], max_tokens: int, temperature: f
                     if span:
                         span.set_tag("span.kind", "client")
                         span.set_tag("component", "openai")
-                    response = client.chat.completions.create(
+                    response = openai_client.chat.completions.create(
                         model=_OPENAI_MODEL,
                         messages=messages,
                         max_tokens=max_tokens,

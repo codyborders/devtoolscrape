@@ -440,3 +440,24 @@ docker-compose exec -T devtoolscrape \
 ```
 
 That run emits fresh spans and errors with sourcemap coverage so Datadog can correlate browser issues back to the source code.
+
+## 2026-02-22 - Backlog Triage And Reliability Hardening
+I spent this cycle clearing the issue backlog in two phases: first I reconciled open GitHub issues against commit history, then I prioritized unresolved defects by operational risk and user-facing impact. The historical issues that already had implementing commits were closed with commit-linked comments, and the active set was narrowed to six current regressions. The highest-risk fix was in `ai_classifier.py`: OpenAI client initialization was happening at import time, so environments without `OPENAI_API_KEY` could fail before fallback logic had a chance to run. I moved client creation behind a lazy helper, kept fallback behavior intact, and added a regression test that proves module import does not initialize the client when the key is absent.
+
+The rest of the work focused on consistency and failure isolation. I unified related-startup matching with the source registry so Hacker News/Show HN entries no longer return empty related lists due to dynamic score suffixes, corrected HTTP tracing semantics so `span_name` and `resource` map to Datadog fields as intended, and prevented scrape completion timestamps from being overwritten when every scraper fails. I also widened feed-level exception handling in the Hacker News scraper so classifier errors do not abort later feeds, and updated the Product Hunt GraphQL query to target last-24h trending posts using `postedAfter` with `VOTES_COUNT`. I validated the changes with both targeted and full test runs (109 + 151 passing), and documented the full severity assessment in `code_reviews/2026-02-21-2002-code-review.md`.
+
+
+```python
+# ai_classifier.py (simplified)
+def _get_openai_client() -> Optional[Any]:
+    global client
+    if client is not None:
+        return client
+    api_key = os.getenv("OPENAI_API_KEY")
+    if not api_key:
+        return None
+    with _client_lock:
+        if client is None:
+            client = openai.OpenAI(api_key=api_key)
+    return client
+```

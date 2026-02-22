@@ -361,3 +361,10 @@ Applied "A Philosophy of Software Design" review and fixed 5 structural issues:
 - Added a request-scoped Datadog RUM context builder that reads tokens plus service/env/version from `.env`, defaults `allowedTracingUrls` to the current host when unset, and pins `tracePropagationMode` to `datadog` so browser requests inject trace headers that backend spans can consume.
 - Injected a guarded RUM loader into `templates/base.html` that pulls the CDN script, initializes `DD_RUM` with the JSON-ified config, and optionally starts session replay when `DATADOG_RUM_SESSION_REPLAY` is true—keeping correlation wiring contained to one place.
 - Rebuilt `devtoolscrape` via `docker compose up -d --build --no-deps devtoolscrape` so the running container now includes the correlation-ready template and config helpers while the Datadog agent sidecar stays healthy.
+
+### 2026-02-22T04:02:56Z
+- Triage pass completed for open GitHub issues: closed already-fixed issues `#2, #3, #4, #5, #6, #7, #8, #9, #10, #11, #13, #14, #15, #16` by linking each to its fixing commit.
+- Prioritized and fixed all remaining open issues `#31`-`#36` by severity: import-time OpenAI crash without key, stale scrape completion recording on total failures, feed isolation on classifier exceptions, Product Hunt trending query scope, Hacker News related-tools source matching, and HTTP trace helper span/resource contract.
+- Added regression coverage across `tests/test_ai_classifier.py`, `tests/test_database.py`, `tests/test_observability.py`, `tests/test_scrape_all.py`, `tests/test_scrape_hackernews.py`, and `tests/test_scrape_producthunt.py` (plus fixture updates in `tests/conftest.py`).
+- Wrote severity-ranked review artifact at `code_reviews/2026-02-21-2002-code-review.md`.
+- Verification: `.venv/bin/pytest tests/test_ai_classifier.py tests/test_database.py tests/test_observability.py tests/test_scrape_all.py tests/test_scrape_hackernews.py tests/test_scrape_producthunt.py` passed (109 tests), and `.venv/bin/pytest tests` passed (151 tests).

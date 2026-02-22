@@ -3,7 +3,7 @@
 import json
 import os
 import uuid
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 
 import requests
 from dotenv import load_dotenv
@@ -71,9 +71,13 @@ def scrape_producthunt_api():
         
         url = "https://api.producthunt.com/v2/api/graphql"
         
+        posted_after = (
+            datetime.now(timezone.utc) - timedelta(days=1)
+        ).isoformat().replace("+00:00", "Z")
+
         query = """
-    query {
-        posts(first: 50, order: NEWEST) {
+    query($postedAfter: DateTime!) {
+        posts(first: 20, order: VOTES_COUNT, postedAfter: $postedAfter) {
             edges {
                 node {
                     id
@@ -100,10 +104,15 @@ def scrape_producthunt_api():
             'Authorization': f'Bearer {access_token}',
             'User-Agent': 'DevTools Scraper/1.0'
         }
+
+        payload = {
+            "query": query,
+            "variables": {"postedAfter": posted_after},
+        }
         
         try:
             with trace_http_call("producthunt.graphql", "POST", url) as span:
-                resp = requests.post(url, json={'query': query}, headers=headers, timeout=10)
+                resp = requests.post(url, json=payload, headers=headers, timeout=10)
                 if span:
                     span.set_tag("http.status_code", resp.status_code)
             resp.raise_for_status()

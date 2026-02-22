@@ -175,7 +175,9 @@ def reset_ai_classifier(monkeypatch):
     monkeypatch.setenv("AI_CLASSIFIER_DISABLE_CACHE", "1")
     monkeypatch.setenv("AI_CLASSIFIER_DISABLE_BATCH", "1")
     monkeypatch.setenv("AI_CLASSIFIER_MAX_CONCURRENCY", "1")
+    monkeypatch.setenv("OPENAI_API_KEY", "test-key")
     import ai_classifier
 
     importlib.reload(ai_classifier)
+    ai_classifier._get_openai_client()
     yield ai_classifier

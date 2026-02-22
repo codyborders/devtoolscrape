@@ -94,6 +94,36 @@ def test_scrape_producthunt_api_success(monkeypatch):
     assert calls["count"] == 1
 
 
+def test_scrape_producthunt_api_queries_last_24h_trending(monkeypatch):
+    import scrape_producthunt_api
+
+    monkeypatch.setenv("PRODUCTHUNT_CLIENT_ID", "id")
+    monkeypatch.setenv("PRODUCTHUNT_CLIENT_SECRET", "secret")
+
+    graphql_payloads = []
+
+    def fake_post(url, *_, **kwargs):
+        if "oauth/token" in url:
+            return FakeResponse({"access_token": "token"})
+        graphql_payloads.append(kwargs.get("json", {}))
+        return FakeResponse({"data": {"posts": {"edges": []}}})
+
+    monkeypatch.setattr("scrape_producthunt_api.requests.post", fake_post)
+    monkeypatch.setattr("scrape_producthunt_api.classify_candidates", lambda candidates: {})
+    monkeypatch.setattr("scrape_producthunt_api.get_devtools_category", lambda *a, **kw: None)
+
+    scrape_producthunt_api.scrape_producthunt_api()
+
+    assert len(graphql_payloads) == 1
+    payload = graphql_payloads[0]
+    query = payload.get("query", "")
+    variables = payload.get("variables", {})
+
+    assert "postedAfter" in query
+    assert "VOTES_COUNT" in query
+    assert variables.get("postedAfter")
+
+
 def test_scrape_producthunt_api_handles_request_errors(monkeypatch):
     import scrape_producthunt_api
     from requests import RequestException

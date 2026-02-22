@@ -7,6 +7,21 @@ import pytest
 import tenacity
 
 
+def test_import_without_api_key_skips_client_initialization(monkeypatch):
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+
+    import openai
+    import ai_classifier
+
+    def fail_if_called(*args, **kwargs):
+        raise RuntimeError("OpenAI client should not initialize without API key")
+
+    monkeypatch.setattr(openai, "OpenAI", fail_if_called)
+    importlib.reload(ai_classifier)
+
+    assert ai_classifier.client is None
+
+
 def test_devtools_keywords_module_level_constant(reset_ai_classifier):
     classifier = reset_ai_classifier
     # Verify the module-level constant exists and is non-empty

@@ -20,10 +20,9 @@ def _make_mock_tracer():
     return mock_tracer, mock_span
 
 
-def test_trace_http_call_uses_descriptive_span_name():
-    """Bug #7: The descriptive resource string (e.g. 'hackernews.topstories')
-    should become the Datadog span name, not the generic 'external.http.request'.
-    """
+def test_trace_http_call_uses_default_span_name_and_resource():
+    """trace_http_call should use span_name for the Datadog span name and
+    resource for Datadog resource grouping."""
     mock_tracer, mock_span = _make_mock_tracer()
 
     with patch("observability.tracer", mock_tracer):
@@ -37,13 +36,34 @@ def test_trace_http_call_uses_descriptive_span_name():
     span_name = trace_call[0][0]  # first positional arg
     resource_kwarg = trace_call[1].get("resource", "")
 
-    assert span_name == "hackernews.topstories", (
-        f"Expected span name 'hackernews.topstories' but got '{span_name}'"
+    assert span_name == "external.http.request", (
+        f"Expected default span name 'external.http.request' but got '{span_name}'"
     )
-    # Resource should be the URL, not the descriptive name
-    assert resource_kwarg == "https://hn.algolia.com/api", (
-        f"Expected resource to be the URL but got '{resource_kwarg}'"
+    assert resource_kwarg == "hackernews.topstories", (
+        f"Expected resource 'hackernews.topstories' but got '{resource_kwarg}'"
     )
+
+
+def test_trace_http_call_honors_custom_span_name():
+    """Callers can override the default HTTP span name when needed."""
+    mock_tracer, _ = _make_mock_tracer()
+
+    with patch("observability.tracer", mock_tracer):
+        from observability import trace_http_call
+
+        with trace_http_call(
+            "hackernews.topstories",
+            "GET",
+            "https://hn.algolia.com/api",
+            span_name="hackernews.fetch",
+        ):
+            pass
+
+    trace_call = mock_tracer.trace.call_args
+    span_name = trace_call[0][0]
+    resource_kwarg = trace_call[1].get("resource", "")
+    assert span_name == "hackernews.fetch"
+    assert resource_kwarg == "hackernews.topstories"
 
 
 def test_trace_external_call_uses_descriptive_span_name():

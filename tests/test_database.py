@@ -342,6 +342,56 @@ def test_classify_source_unknown_returns_other():
     assert database.classify_source("") == "other"
 
 
+def test_get_related_startups_matches_hackernews_by_prefix(fresh_db):
+    now = datetime.now()
+    fresh_db.save_startup(
+        {
+            "name": "HN Alpha",
+            "url": "https://hn-alpha.dev",
+            "description": "HN A",
+            "source": "Hacker News (score: 11)",
+            "date_found": now,
+        }
+    )
+    fresh_db.save_startup(
+        {
+            "name": "HN Beta",
+            "url": "https://hn-beta.dev",
+            "description": "HN B",
+            "source": "Hacker News (score: 99)",
+            "date_found": now,
+        }
+    )
+    fresh_db.save_startup(
+        {
+            "name": "Show HN Gamma",
+            "url": "https://show-hn-gamma.dev",
+            "description": "Show HN",
+            "source": "Show HN (score: 42)",
+            "date_found": now,
+        }
+    )
+    fresh_db.save_startup(
+        {
+            "name": "PH Delta",
+            "url": "https://ph-delta.dev",
+            "description": "PH",
+            "source": "Product Hunt",
+            "date_found": now,
+        }
+    )
+
+    rows_by_name = {row["name"]: row for row in fresh_db.get_all_startups()}
+    target = rows_by_name["HN Alpha"]
+
+    related = fresh_db.get_related_startups(target["source"], target["id"], limit=10)
+    related_names = {row["name"] for row in related}
+
+    assert "HN Beta" in related_names
+    assert "Show HN Gamma" in related_names
+    assert "PH Delta" not in related_names
+
+
 def test_source_registry_consistency_with_get_source_counts(fresh_db):
     """get_source_counts should use the same classification as classify_source."""
     fresh_db.save_startup({
