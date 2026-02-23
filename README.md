@@ -32,7 +32,7 @@ A Flask app (`app_production.py`) serves:
 - **Runtime**: gunicorn behind nginx on a DigitalOcean droplet
 - **Container**: Docker image built with Depot, published to GHCR
 - **CI/CD**: GitHub Actions (test -> Depot build -> SSH deploy)
-- **Observability**: Datadog APM, profiling, ASM/IAST, LLM Observability, and load testing via Locust
+- **Observability**: Datadog APM, profiling, ASM/IAST, LLM Observability
 
 ### Observability Stack
 
@@ -45,8 +45,6 @@ The app is heavily instrumented with Datadog as a testbed for their observabilit
 - **Dynamic Instrumentation** -- live debugging and exception replay
 - **Code Origin for Spans** -- source code links in traces
 - **Test Optimization** -- CI test visibility with `ddtrace-run pytest`
-- **Load Testing** -- Locust runs continuously against the production site
-
 ## Project Structure
 
 ```
@@ -64,10 +62,9 @@ observability.py         Datadog tracing helpers
 gunicorn.conf.py         Gunicorn configuration
 entrypoint.sh            Container entrypoint (ddtrace-run)
 Dockerfile               Container build
-docker-compose.yml       Production stack (app + dd-agent + locust)
+docker-compose.yml       Production stack (app + dd-agent)
 docker-compose.yaml      Development stack
 tests/                   pytest suite (~140 tests)
-loadtests/               Locust load test scenarios
 templates/               Jinja2 HTML templates
 static/                  Frontend assets
 ```

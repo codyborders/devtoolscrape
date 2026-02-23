@@ -171,13 +171,6 @@ Applied "A Philosophy of Software Design" review and fixed 5 structural issues:
 ### 2025-12-06T20:19:07Z
 - Rebuilt and redeployed the production stack on `147.182.194.230` with `ddtrace` 4.0.0, confirmed both app and agent containers returned healthy, and ran a traced scrape with AppSec/IAST/LLMObs envs to seed telemetry under the upgraded tracer.
 
-### 2025-12-06T20:33:31Z
-- Added a dedicated Locust load-testing container plus suite hitting `/`, `/source/<source_name>`, `/search`, `/tool/<id>`, `/api/startups`, `/api/search`, and `/health`, each on a fixed 10s cadence with randomized resources where applicable.
-- Deployed the updated stack (including Locust) to `147.182.194.230`, confirmed app/agent/locust containers healthy, and reran the traced scraper to verify the app after the new service came online.
-
-### 2025-12-06T22:42:04Z
-- Pointed the Locust load generator at the public site (`https://devtoolscrape.com`) instead of the internal container port by updating both compose files; prepared to redeploy so load tests exercise the external endpoint.
-
 ### 2025-12-06T22:53:26Z
 - Added a GitHub Actions workflow (`.github/workflows/tests.yml`) that configures Datadog Test Optimization for Python via `datadog/test-visibility-github-action@v2` and runs `ddtrace-run pytest` with agentless test visibility and optimization enabled using the existing `DD_API_KEY` secret.
 
