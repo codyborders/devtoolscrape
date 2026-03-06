@@ -37,6 +37,39 @@ def stub_external_sdks():
         def __exit__(self, exc_type, exc_val, exc_tb):
             return False
 
+    class _FakeManagedPrompt:
+        """Stub for ManagedPrompt returned by LLMObs.get_prompt()."""
+
+        def __init__(self, prompt_id, template, label=None):
+            self.id = prompt_id
+            self.version = "test"
+            self.label = label or "production"
+            self._template = template
+
+        def format(self, **variables):
+            if isinstance(self._template, str):
+                result = self._template
+                for key, value in variables.items():
+                    result = result.replace("{{" + key + "}}", str(value))
+                return result
+            if isinstance(self._template, list):
+                result = []
+                for msg in self._template:
+                    content = msg["content"]
+                    for key, value in variables.items():
+                        content = content.replace("{{" + key + "}}", str(value))
+                    result.append({"role": msg["role"], "content": content})
+                return result
+            return self._template
+
+        def to_annotation_dict(self, **variables):
+            return {
+                "id": self.id,
+                "version": self.version,
+                "template": self._template,
+                "variables": variables,
+            }
+
     class _FakeLLMObs:
         calls = []
 
@@ -48,6 +81,18 @@ def stub_external_sdks():
         def annotation_context(cls, **kwargs):
             """Return a no-op context manager."""
             return _FakeAnnotationContext(**kwargs)
+
+        @classmethod
+        def get_prompt(cls, prompt_id, label=None, fallback=None):
+            return _FakeManagedPrompt(prompt_id, fallback, label=label)
+
+        @classmethod
+        def clear_prompt_cache(cls, **kwargs):
+            pass
+
+        @classmethod
+        def refresh_prompt(cls, prompt_id, label=None):
+            return _FakeManagedPrompt(prompt_id, [], label=label)
 
     class _FakeSpan:
         def __enter__(self):

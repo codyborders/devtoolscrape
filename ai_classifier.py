@@ -4,6 +4,7 @@ import json
 import os
 import threading
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from contextlib import contextmanager
 from pathlib import Path
 from typing import Any, Dict, Iterable, List, Optional
 
@@ -18,6 +19,15 @@ load_dotenv(BASE_DIR / ".env")
 
 from logging_config import get_logger, logging_context
 from observability import trace_external_call
+
+# Ensure DD_API_KEY is set for ddtrace prompt management
+if not os.getenv("DD_API_KEY") and os.getenv("DATADOG_API_KEY"):
+    os.environ["DD_API_KEY"] = os.getenv("DATADOG_API_KEY")
+
+try:
+    from ddtrace.llmobs import LLMObs as _LLMObs
+except Exception:
+    _LLMObs = None
 
 # Set up OpenAI client — LLM Observability is handled by ddtrace-run at process
 # startup (DD_LLMOBS_ENABLED=1); calling LLMObs.enable() again here would
@@ -100,11 +110,168 @@ DEVTOOLS_KEYWORDS = [
 
 _DEVTOOLS_KEYWORDS_LOWER = [kw.lower() for kw in DEVTOOLS_KEYWORDS]
 
+# ---------------------------------------------------------------------------
+# Prompt Management: fallback chat templates used when Datadog prompts are
+# unavailable.  Variable placeholders use {{var}} syntax matching the Datadog
+# Prompt Management template format.
+# ---------------------------------------------------------------------------
+
+_BINARY_CLASSIFIER_FALLBACK = [
+    {
+        "role": "system",
+        "content": (
+            "You are a binary classifier for developer tools. "
+            "Respond with EXACTLY 'yes' or 'no'. If uncertain, respond 'no'."
+        ),
+    },
+    {
+        "role": "user",
+        "content": (
+            "You are a classifier that determines if software/tools are "
+            "developer tools (devtools).\n\n"
+            "Devtools include:\n"
+            "- Development tools (IDEs, text editors, debuggers)\n"
+            "- Build tools, package managers, CI/CD tools\n"
+            "- Testing frameworks, monitoring tools\n"
+            "- API tools, SDKs, libraries\n"
+            "- DevOps tools, infrastructure tools\n"
+            "- Code analysis, linting, formatting tools\n"
+            "- Database tools, deployment tools\n"
+            "- Terminal tools, CLI applications\n"
+            "- Developer productivity tools\n\n"
+            "NOT devtools:\n"
+            "- End-user applications (games, social media, productivity apps)\n"
+            "- Business software, marketing tools\n"
+            "- Consumer apps, entertainment apps\n"
+            "- E-commerce, finance apps (unless specifically for developers)\n\n"
+            "Content to classify:\n"
+            "Name: {{name}}\n"
+            "Description: {{description}}\n\n"
+            "Answer with ONLY \"yes\" or \"no\"."
+        ),
+    },
+]
+
+_BATCH_CLASSIFIER_FALLBACK = [
+    {
+        "role": "system",
+        "content": (
+            "Classify each item as devtools-related. "
+            "Respond with JSON object {\"results\": {\"<item_id>\": \"yes\"|\"no\", ...}}. "
+            "If unsure, respond with \"no\"."
+        ),
+    },
+    {
+        "role": "user",
+        "content": "{{items_json}}",
+    },
+]
+
+_CATEGORY_CLASSIFIER_FALLBACK = [
+    {
+        "role": "system",
+        "content": (
+            "You are a devtool categorizer. Respond with EXACTLY one of the "
+            "specified category names. If the tool doesn't fit, respond with 'Other'."
+        ),
+    },
+    {
+        "role": "user",
+        "content": (
+            "Classify this devtool into one of these categories:\n"
+            "- IDE/Editor: Integrated development environments, code editors\n"
+            "- CLI Tool: Command line tools, terminal applications\n"
+            "- Testing: Testing frameworks, test runners, mocking tools\n"
+            "- Build/Deploy: Build tools, deployment tools, CI/CD\n"
+            "- Monitoring/Observability: Logging, metrics, tracing, alerting\n"
+            "- Database: Database tools, ORMs, query builders\n"
+            "- API/SDK: API tools, SDKs, client libraries\n"
+            "- DevOps: Infrastructure, containerization, orchestration\n"
+            "- Code Quality: Linters, formatters, static analysis\n"
+            "- Package Manager: Dependency management, package managers\n"
+            "- Other: Anything else\n\n"
+            "Examples:\n"
+            "Name: VSCode\n"
+            "Description: A code editor for developers.\n"
+            "Category: IDE/Editor\n\n"
+            "Name: GitHub Actions\n"
+            "Description: A CI/CD automation tool for code repositories.\n"
+            "Category: Build/Deploy\n\n"
+            "Name: Postman\n"
+            "Description: API development and testing tool.\n"
+            "Category: API/SDK\n\n"
+            "Name: Datadog\n"
+            "Description: Cloud monitoring and observability platform.\n"
+            "Category: Monitoring/Observability\n\n"
+            "Name: Slack\n"
+            "Description: A team chat and collaboration app.\n"
+            "Category: Other\n\n"
+            "Name: QuickBooks\n"
+            "Description: Accounting software for small businesses.\n"
+            "Category: Other\n\n"
+            "Name: {{name}}\n"
+            "Description: {{description}}\n\n"
+            "Respond with ONLY the category name."
+        ),
+    },
+]
+
+
+class _LocalPrompt:
+    """Minimal ManagedPrompt stand-in when ddtrace is unavailable."""
+
+    def __init__(self, prompt_id, template):
+        self.id = prompt_id
+        self.version = "fallback"
+        self.label = "local"
+        self._template = template
+
+    def format(self, **variables):
+        result = []
+        for msg in self._template:
+            content = msg["content"]
+            for key, value in variables.items():
+                content = content.replace("{{" + key + "}}", str(value))
+            result.append({"role": msg["role"], "content": content})
+        return result
+
+    def to_annotation_dict(self, **variables):
+        return {
+            "id": self.id,
+            "version": self.version,
+            "template": self._template,
+            "variables": variables,
+        }
+
+
+def _get_prompt(prompt_id, fallback):
+    """Fetch a managed prompt from Datadog, falling back to local template."""
+    if _LLMObs is not None:
+        try:
+            return _LLMObs.get_prompt(prompt_id, label="production", fallback=fallback)
+        except Exception:
+            logger.warning(
+                "prompt.fetch_failed",
+                extra={"event": "prompt.fetch_failed", "prompt_id": prompt_id},
+            )
+    return _LocalPrompt(prompt_id, fallback)
+
+
+@contextmanager
+def _prompt_context(prompt, variables):
+    """Wrap a block in LLMObs.annotation_context when available."""
+    if _LLMObs is not None:
+        with _LLMObs.annotation_context(prompt=prompt.to_annotation_dict(**variables)):
+            yield
+    else:
+        yield
+
 
 def has_devtools_keywords(text: str, name: str = "") -> bool:
     """Quick keyword pre-filter to avoid unnecessary API calls."""
     combined_text = f"{name} {text}".lower()
     return any(keyword in combined_text for keyword in _DEVTOOLS_KEYWORDS_LOWER)
+
 
 def _cache_key(name: str, text: str) -> str:
     """Build a normalised cache key from a tool name and description."""
@@ -253,23 +420,17 @@ def classify_candidates(candidates: Iterable[Dict[str, str]]) -> Dict[str, bool]
             }
             for candidate in chunk
         ]
+        batch_prompt = _get_prompt("devtools-batch-classifier", _BATCH_CLASSIFIER_FALLBACK)
+        batch_variables = {"items_json": json.dumps(payload)}
+        batch_messages = batch_prompt.format(**batch_variables)
         try:
-            response = _call_openai(
-                [
-                    {
-                        "role": "system",
-                        "content": (
-                            "Classify each item as devtools-related. "
-                            "Respond with JSON object {\"results\": {\"<item_id>\": \"yes\"|\"no\", ...}}. "
-                            "If unsure, respond with \"no\"."
-                        ),
-                    },
-                    {"role": "user", "content": json.dumps(payload)},
-                ],
-                max_tokens=len(payload) * 20 + 50,
-                temperature=0.0,
-                response_format={"type": "json_object"},
-            )
+            with _prompt_context(batch_prompt, batch_variables):
+                response = _call_openai(
+                    batch_messages,
+                    max_tokens=len(payload) * 20 + 50,
+                    temperature=0.0,
+                    response_format={"type": "json_object"},
+                )
             content = response.choices[0].message.content.strip()
             data = json.loads(content)
             result_map = data.get("results", {})
@@ -331,47 +492,16 @@ def _classify_single(name: str, text: str) -> bool:
         )
         return is_devtools_related_fallback(text)
 
-    prompt = f"""
-    You are a classifier that determines if software/tools are developer tools (devtools).
-
-    Devtools include:
-    - Development tools (IDEs, text editors, debuggers)
-    - Build tools, package managers, CI/CD tools
-    - Testing frameworks, monitoring tools
-    - API tools, SDKs, libraries
-    - DevOps tools, infrastructure tools
-    - Code analysis, linting, formatting tools
-    - Database tools, deployment tools
-    - Terminal tools, CLI applications
-    - Developer productivity tools
-
-    NOT devtools:
-    - End-user applications (games, social media, productivity apps)
-    - Business software, marketing tools
-    - Consumer apps, entertainment apps
-    - E-commerce, finance apps (unless specifically for developers)
-
-    Content to classify:
-    Name: {name}
-    Description: {text}
-
-    Answer with ONLY "yes" or "no".
-    """
+    prompt = _get_prompt("devtools-binary-classifier", _BINARY_CLASSIFIER_FALLBACK)
+    variables = {"name": name, "description": text}
+    messages = prompt.format(**variables)
     try:
-        response = _call_openai(
-            [
-                {
-                    "role": "system",
-                    "content": (
-                        "You are a binary classifier for developer tools. "
-                        "Respond with EXACTLY 'yes' or 'no'. If uncertain, respond 'no'."
-                    ),
-                },
-                {"role": "user", "content": prompt},
-            ],
-            max_tokens=5,
-            temperature=0.0,
-        )
+        with _prompt_context(prompt, variables):
+            response = _call_openai(
+                messages,
+                max_tokens=5,
+                temperature=0.0,
+            )
         answer = response.choices[0].message.content.strip().lower()
         if answer not in {"yes", "no"}:
             logger.warning(
@@ -406,6 +536,7 @@ def is_devtools_related_ai(text: str, name: str = "") -> bool:
     _cache_set(_classification_cache, key, result)
     return result
 
+
 def is_devtools_related_fallback(text: str) -> bool:
     """Fallback keyword-based classifier when AI is unavailable."""
     text_lower = text.lower()
@@ -425,66 +556,17 @@ def get_devtools_category(text: str, name: str = "") -> Optional[str]:
     if cached is not None:
         return cached
     
-    prompt = f"""
-    Classify this devtool into one of these categories:
-    - IDE/Editor: Integrated development environments, code editors
-    - CLI Tool: Command line tools, terminal applications
-    - Testing: Testing frameworks, test runners, mocking tools
-    - Build/Deploy: Build tools, deployment tools, CI/CD
-    - Monitoring/Observability: Logging, metrics, tracing, alerting
-    - Database: Database tools, ORMs, query builders
-    - API/SDK: API tools, SDKs, client libraries
-    - DevOps: Infrastructure, containerization, orchestration
-    - Code Quality: Linters, formatters, static analysis
-    - Package Manager: Dependency management, package managers
-    - Other: Anything else
-
-    Examples:
-    Name: VSCode
-    Description: A code editor for developers.
-    Category: IDE/Editor
-
-    Name: GitHub Actions
-    Description: A CI/CD automation tool for code repositories.
-    Category: Build/Deploy
-
-    Name: Postman
-    Description: API development and testing tool.
-    Category: API/SDK
-
-    Name: Datadog
-    Description: Cloud monitoring and observability platform.
-    Category: Monitoring/Observability
-
-    Name: Slack
-    Description: A team chat and collaboration app.
-    Category: Other
-
-    Name: QuickBooks
-    Description: Accounting software for small businesses.
-    Category: Other
-
-    Name: {name}
-    Description: {text}
-
-    Respond with ONLY the category name.
-    """
+    prompt = _get_prompt("devtools-category-classifier", _CATEGORY_CLASSIFIER_FALLBACK)
+    variables = {"name": name, "description": text}
+    messages = prompt.format(**variables)
 
     try:
-        response = _call_openai(
-            [
-                {
-                    "role": "system",
-                    "content": (
-                        "You are a devtool categorizer. Respond with EXACTLY one of the specified category names. "
-                        "If the tool doesn't fit, respond with 'Other'."
-                    ),
-                },
-                {"role": "user", "content": prompt},
-            ],
-            max_tokens=15,
-            temperature=0.0,
-        )
+        with _prompt_context(prompt, variables):
+            response = _call_openai(
+                messages,
+                max_tokens=15,
+                temperature=0.0,
+            )
 
         category = response.choices[0].message.content.strip()
         _cache_set(_category_cache, key, category)

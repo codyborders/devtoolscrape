@@ -49,6 +49,17 @@ _PROMPT_TRACKING = {
 }
 
 
+def _get_prompt_annotation():
+    """Fetch managed prompt for annotation tracking, falling back to static dict."""
+    try:
+        prompt = LLMObs.get_prompt(
+            "devtools-assistant", label="production", fallback=_SYSTEM_PROMPT,
+        )
+        return prompt.to_annotation_dict()
+    except Exception:
+        return _PROMPT_TRACKING
+
+
 def _sanitize_fts_query(query: str) -> str:
     """Strip FTS5 operators from a query string to prevent injection."""
     cleaned = _FTS5_OPERATORS.sub(" ", query)
@@ -131,7 +142,7 @@ def generate_chat_response(user_message: str) -> dict[str, Any]:
         Dict with "response" (str) and "tools" (list of matched tool dicts).
     """
     try:
-        with LLMObs.annotation_context(prompt=_PROMPT_TRACKING):
+        with LLMObs.annotation_context(prompt=_get_prompt_annotation()):
             result = Runner.run_sync(
                 _agent,
                 input=user_message,
