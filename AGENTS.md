@@ -6,7 +6,7 @@ This is a Flask-based web application that scrapes and aggregates startup/develo
 
 ```bash
 # Install dependencies (creates .venv and installs packages)
-bash setup.sh
+bash scripts/setup.sh
 
 # Activate the virtual environment
 source .venv/bin/activate
@@ -29,13 +29,13 @@ source .venv/bin/activate
 ## Running Tests
 
 ```bash
-bash run-tests.sh
+bash scripts/run-tests.sh
 ```
 
 With coverage:
 
 ```bash
-bash run-tests.sh --cov=. --cov-report=term-missing
+bash scripts/run-tests.sh --cov=. --cov-report=term-missing
 ```
 
 ## Building Docker Image
@@ -54,7 +54,7 @@ docker compose up -d
 
 ## Project Structure
 
-| File | Purpose |
+| File / Directory | Purpose |
 |------|---------|
 | `app_production.py` | Main Flask application with API routes |
 | `database.py` | SQLite database operations |
@@ -64,8 +64,16 @@ docker compose up -d
 | `scrape_producthunt_api.py` | Product Hunt API client |
 | `ai_classifier.py` | OpenAI-based classification |
 | `logging_config.py` | Structured JSON logging |
+| `observability.py` | Datadog tracing helpers |
+| `chatbot.py` | OpenAI Agents SDK chatbot |
 | `gunicorn.conf.py` | Gunicorn server configuration |
 | `tests/` | pytest test suite |
+| `scripts/` | Shell scripts (deploy, build, test, setup) |
+| `infra/` | Server configs (nginx, systemd, Datadog) |
+| `benchmarks/` | Performance measurement results |
+| `docs/` | Documentation (plans, tasks, operations, history) |
+| `templates/` | Jinja2 HTML templates |
+| `static/` | Frontend assets |
 
 ## Environment Variables
 

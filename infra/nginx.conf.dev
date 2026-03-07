@@ -19,5 +19,5 @@ http {
     keepalive_timeout 65;
     types_hash_max_size 2048;
 
-    include /root/devtoolscrape/nginx-devtools-scraper.conf;
+    include /root/devtoolscrape/infra/nginx-devtools-scraper.conf;
 }
