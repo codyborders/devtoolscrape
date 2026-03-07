@@ -104,7 +104,13 @@ def stub_external_sdks():
         def set_tag(self, *args, **kwargs):
             return None
 
+    class _FakeContextProvider:
+        def activate(self, *args, **kwargs):
+            pass
+
     class _FakeTracer:
+        context_provider = _FakeContextProvider()
+
         def trace(self, *args, **kwargs):
             return _FakeSpan()
 
