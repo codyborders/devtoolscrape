@@ -301,8 +301,13 @@ def get_related_startups(source: str, exclude_id: int, limit: int = 4) -> list[D
     return results
 
 
+_ALLOWED_WHERE_CLAUSES = frozenset(entry["where"] for entry in SOURCE_REGISTRY.values())
+
+
 def get_startups_by_sources(where_clause: str, params: Iterable, limit: Optional[int] = None, offset: Optional[int] = None) -> list[Dict[str, Any]]:
     """Query startups matching a dynamic WHERE clause with optional pagination."""
+    if where_clause not in _ALLOWED_WHERE_CLAUSES:
+        raise ValueError(f"Disallowed where_clause: {where_clause!r}")
     query = '''
         SELECT id, name, url, description, source, date_found
         FROM startups
@@ -330,6 +335,8 @@ def get_startups_by_sources(where_clause: str, params: Iterable, limit: Optional
 
 def count_startups_by_sources(where_clause: str, params: Iterable) -> int:
     """Count startups matching a dynamic WHERE clause."""
+    if where_clause not in _ALLOWED_WHERE_CLAUSES:
+        raise ValueError(f"Disallowed where_clause: {where_clause!r}")
     query = 'SELECT COUNT(*) FROM startups WHERE {}'.format(where_clause)
     with _db_connection() as conn:
         (count,) = conn.execute(query, params).fetchone()
