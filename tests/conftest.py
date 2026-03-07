@@ -117,10 +117,10 @@ def stub_external_sdks():
     sys.modules["ddtrace.llmobs"] = llmobs_module
     sys.modules["ddtrace.tracer"] = tracer_module
 
-    # Stub openai.OpenAI client
+    # Stub openai.OpenAI client -- Responses API shape
     openai_module = types.ModuleType("openai")
 
-    class _FakeCompletions:
+    class _FakeResponses:
         def __init__(self):
             self._responses = []
             self._should_raise = False
@@ -133,7 +133,7 @@ def stub_external_sdks():
         def raise_on_create(self):
             self._should_raise = True
 
-        def create(self, *_, **__):
+        def create(self, *_, **_kwargs):
             with self._lock:
                 self.calls += 1
                 if self._should_raise:
@@ -141,17 +141,11 @@ def stub_external_sdks():
                 content = self._responses.pop(0) if self._responses else "yes"
                 if isinstance(content, dict):
                     content = json.dumps(content)
-                message = types.SimpleNamespace(content=content)
-                choice = types.SimpleNamespace(message=message)
-                return types.SimpleNamespace(choices=[choice])
-
-    class _FakeChat:
-        def __init__(self):
-            self.completions = _FakeCompletions()
+                return types.SimpleNamespace(output_text=content)
 
     class _FakeOpenAI:
         def __init__(self, *args, **kwargs):
-            self.chat = _FakeChat()
+            self.responses = _FakeResponses()
 
     openai_module.OpenAI = _FakeOpenAI
     openai_module.AsyncOpenAI = _FakeOpenAI

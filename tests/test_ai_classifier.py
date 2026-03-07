@@ -1,4 +1,7 @@
+"""Tests for the ai_classifier module."""
+
 import importlib
+import json
 import time
 import types
 
@@ -47,17 +50,11 @@ def test_is_devtools_related_ai_pre_filter(reset_ai_classifier, monkeypatch):
 
     def fake_create(*args, **kwargs):
         calls["count"] += 1
-        return types.SimpleNamespace(
-            choices=[types.SimpleNamespace(message=types.SimpleNamespace(content="no"))]
-        )
+        return types.SimpleNamespace(output_text="no")
 
-    classifier.client.chat.completions.create = fake_create
+    classifier.client.responses.create = fake_create
     assert not classifier.is_devtools_related_ai("A travel planner")
     assert calls["count"] == 0
-
-    # Manually invoke to exercise stubbed function body for coverage
-    result = fake_create()
-    assert result.choices[0].message.content == "no"
 
 
 def test_is_devtools_related_ai_without_api_key_uses_fallback(reset_ai_classifier, monkeypatch):
@@ -72,11 +69,9 @@ def test_is_devtools_related_ai_with_invalid_response_falls_back(reset_ai_classi
     monkeypatch.setenv("OPENAI_API_KEY", "present")
 
     def fake_create(*args, **kwargs):
-        return types.SimpleNamespace(
-            choices=[types.SimpleNamespace(message=types.SimpleNamespace(content="maybe"))]
-        )
+        return types.SimpleNamespace(output_text="maybe")
 
-    classifier.client.chat.completions.create = fake_create
+    classifier.client.responses.create = fake_create
     assert classifier.is_devtools_related_ai("Developer utilities for CI pipelines")
 
 
@@ -87,7 +82,7 @@ def test_is_devtools_related_ai_handles_api_errors(reset_ai_classifier, monkeypa
     def failing_create(*args, **kwargs):
         raise RuntimeError("down")
 
-    classifier.client.chat.completions.create = failing_create
+    classifier.client.responses.create = failing_create
     assert classifier.is_devtools_related_ai("Developer monitoring with logs")
 
 
@@ -96,11 +91,9 @@ def test_is_devtools_related_ai_with_valid_response(reset_ai_classifier, monkeyp
     monkeypatch.setenv("OPENAI_API_KEY", "present")
 
     def fake_create(*args, **kwargs):
-        return types.SimpleNamespace(
-            choices=[types.SimpleNamespace(message=types.SimpleNamespace(content="yes"))]
-        )
+        return types.SimpleNamespace(output_text="yes")
 
-    classifier.client.chat.completions.create = fake_create
+    classifier.client.responses.create = fake_create
     assert classifier.is_devtools_related_ai("CLI deployment helper", "DeployTool")
 
 
@@ -115,11 +108,9 @@ def test_get_devtools_category_success(reset_ai_classifier, monkeypatch):
     monkeypatch.setenv("OPENAI_API_KEY", "present")
 
     def fake_create(*args, **kwargs):
-        return types.SimpleNamespace(
-            choices=[types.SimpleNamespace(message=types.SimpleNamespace(content="CLI Tool"))]
-        )
+        return types.SimpleNamespace(output_text="CLI Tool")
 
-    classifier.client.chat.completions.create = fake_create
+    classifier.client.responses.create = fake_create
     assert classifier.get_devtools_category("CLI utilities", "Tooler") == "CLI Tool"
 
 
@@ -136,19 +127,19 @@ def test_get_devtools_category_handles_exception(reset_ai_classifier, monkeypatc
     def failing_create(*args, **kwargs):
         raise RuntimeError("bad request")
 
-    classifier.client.chat.completions.create = failing_create
+    classifier.client.responses.create = failing_create
     assert classifier.get_devtools_category("API helper", "API Helper") is None
 
 
 def test_openai_stub_queue_and_raise(reset_ai_classifier):
     classifier = reset_ai_classifier
-    stub = classifier.client.chat.completions
+    stub = classifier.client.responses
     stub.queue_response("no")
     stub.queue_response("yes")
     first = stub.create(None)
-    assert first.choices[0].message.content == "no"
+    assert first.output_text == "no"
     second = stub.create(None)
-    assert second.choices[0].message.content == "yes"
+    assert second.output_text == "yes"
 
     stub.raise_on_create()
     with pytest.raises(Exception):
@@ -161,12 +152,11 @@ def test_classify_candidates_caches_results(monkeypatch):
     monkeypatch.setenv("AI_CLASSIFIER_MAX_CONCURRENCY", "2")
     monkeypatch.setenv("OPENAI_API_KEY", "present")
 
-    import importlib
     import ai_classifier
 
     importlib.reload(ai_classifier)
 
-    stub = ai_classifier.client.chat.completions
+    stub = ai_classifier.client.responses
     stub.queue_response({"results": {"a": "yes", "b": "no"}})
     stub.queue_response({"results": {"a": "no", "b": "yes"}})
 
@@ -198,7 +188,7 @@ def test_classify_candidates_cache_uses_cachetools_ttl(monkeypatch):
 
     assert isinstance(ai_classifier._classification_cache, cachetools.TTLCache)
 
-    stub = ai_classifier.client.chat.completions
+    stub = ai_classifier.client.responses
     stub.queue_response("yes")
     stub.queue_response("no")
 
@@ -227,27 +217,25 @@ def test_call_openai_retries_with_tenacity(monkeypatch):
     retry_instance = ai_classifier._build_openai_retry()
     assert isinstance(retry_instance, tenacity.Retrying)
 
-    stub = ai_classifier.client.chat.completions
+    stub = ai_classifier.client.responses
     calls = {"count": 0}
 
     def fake_create(self, *args, **kwargs):
         calls["count"] += 1
         if calls["count"] < 3:
             raise RuntimeError("rate limit exceeded")
-        message = types.SimpleNamespace(content="yes")
-        choice = types.SimpleNamespace(message=message)
-        return types.SimpleNamespace(choices=[choice])
+        return types.SimpleNamespace(output_text="yes")
 
     stub.create = types.MethodType(fake_create, stub)
     monkeypatch.setattr(tenacity.nap, "sleep", lambda *_, **__: None)
 
     response = ai_classifier._call_openai(
         [{"role": "user", "content": "hello"}],
-        max_tokens=5,
+        max_output_tokens=5,
     )
 
     assert calls["count"] == 3
-    assert response.choices[0].message.content == "yes"
+    assert response.output_text == "yes"
 
 
 def test_batch_max_tokens_sufficient_for_payload_size(monkeypatch):
@@ -266,7 +254,7 @@ def test_batch_max_tokens_sufficient_for_payload_size(monkeypatch):
 
     # Track the max_tokens value passed to the OpenAI API
     captured_kwargs = {}
-    original_create = ai_classifier.client.chat.completions.create
+    original_create = ai_classifier.client.responses.create
 
     def capturing_create(*args, **kwargs):
         captured_kwargs.update(kwargs)
@@ -276,12 +264,9 @@ def test_batch_max_tokens_sufficient_for_payload_size(monkeypatch):
                 f"item-{i}": "yes" for i in range(8)
             }
         }
-        import json as _json
-        message = types.SimpleNamespace(content=_json.dumps(result))
-        choice = types.SimpleNamespace(message=message)
-        return types.SimpleNamespace(choices=[choice])
+        return types.SimpleNamespace(output_text=json.dumps(result))
 
-    ai_classifier.client.chat.completions.create = capturing_create
+    ai_classifier.client.responses.create = capturing_create
 
     candidates = [
         {"id": f"item-{i}", "name": f"Tool {i}", "text": "developer CLI tool"}
@@ -293,9 +278,9 @@ def test_batch_max_tokens_sufficient_for_payload_size(monkeypatch):
     # With 8 items, the old formula gave 8*4=32 tokens. A minimal JSON response
     # for 8 items like {"results":{"item-0":"yes",...}} needs ~60+ tokens.
     # The fix should give at least len(payload)*20+50 = 210 tokens.
-    assert "max_tokens" in captured_kwargs, "max_tokens was not passed to the API"
-    assert captured_kwargs["max_tokens"] >= 60, (
-        f"max_tokens={captured_kwargs['max_tokens']} is too low for a batch of 8 items; "
+    assert "max_output_tokens" in captured_kwargs, "max_output_tokens was not passed to the API"
+    assert captured_kwargs["max_output_tokens"] >= 60, (
+        f"max_output_tokens={captured_kwargs['max_output_tokens']} is too low for a batch of 8 items; "
         f"expected at least 60 tokens to avoid JSON truncation"
     )
 
@@ -319,23 +304,20 @@ def test_partial_batch_response_falls_back_to_single_for_missing_ids(monkeypatch
 
     # The batch response only includes 2 of 4 items -- items "c" and "d" are missing
     def fake_create(*args, **kwargs):
-        call_log.append(kwargs.get("messages", args[0] if args else None))
-        messages = kwargs.get("messages", args[0] if args else [])
+        call_log.append(kwargs.get("input", args[0] if args else None))
+        messages = kwargs.get("input", args[0] if args else [])
 
         # First call is the batch call: return partial results (only a and b)
         if len(call_log) == 1:
-            import json as _json
             result = {"results": {"a": "yes", "b": "no"}}
-            content = _json.dumps(result)
+            content = json.dumps(result)
         else:
             # Subsequent calls are single-item fallbacks -- classify as "yes"
             content = "yes"
 
-        message = types.SimpleNamespace(content=content)
-        choice = types.SimpleNamespace(message=message)
-        return types.SimpleNamespace(choices=[choice])
+        return types.SimpleNamespace(output_text=content)
 
-    ai_classifier.client.chat.completions.create = fake_create
+    ai_classifier.client.responses.create = fake_create
 
     candidates = [
         {"id": "a", "name": "Tool A", "text": "developer CLI tool"},
