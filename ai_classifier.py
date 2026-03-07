@@ -544,7 +544,7 @@ def _classify_single(
         with _prompt_context(prompt, variables):
             response = _call_openai(
                 messages,
-                max_output_tokens=5,
+                max_output_tokens=16,
                 temperature=0.0,
             )
         answer = response.output_text.strip().lower()
@@ -606,7 +606,7 @@ def get_devtools_category(text: str, name: str = "") -> str | None:
         with _prompt_context(prompt, variables):
             response = _call_openai(
                 messages,
-                max_output_tokens=15,
+                max_output_tokens=16,
                 temperature=0.0,
             )
 
