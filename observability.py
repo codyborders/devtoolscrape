@@ -40,7 +40,13 @@ def trace_http_call(
 
     effective_service = service or DEFAULT_SERVICE
 
-    with tracer.trace(span_name, service=effective_service, resource=resource, span_type="http") as span:
+    try:
+        ctx = tracer.trace(span_name, service=effective_service, resource=resource, span_type="http")
+    except Exception:
+        yield None
+        return
+
+    with ctx as span:
         span.set_tag("http.method", method.upper())
         span.set_tag("http.url", url)
         yield span
@@ -64,7 +70,13 @@ def trace_external_call(
 
     effective_service = service or DEFAULT_SERVICE
 
-    with tracer.trace(span_name, service=effective_service, resource=resource, span_type=span_type) as span:
+    try:
+        ctx = tracer.trace(span_name, service=effective_service, resource=resource, span_type=span_type)
+    except Exception:
+        yield None
+        return
+
+    with ctx as span:
         if tags:
             for key, value in tags.items():
                 span.set_tag(key, value)
