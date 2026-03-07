@@ -533,13 +533,8 @@ def is_devtools_related_ai(text: str, name: str = "") -> bool:
     Use OpenAI to classify if content is devtools-related.
     Returns True if it's devtools, False otherwise.
     """
-    key = _cache_key(name, text)
-    cached = _cache_get(_classification_cache, key)
-    if cached is not None:
-        return cached
-    result = classify_candidates([{"id": "_single", "name": name, "text": text}]).get("_single", False)
-    _cache_set(_classification_cache, key, result)
-    return result
+    # classify_candidates handles caching internally; no outer cache layer needed
+    return classify_candidates([{"id": "_single", "name": name, "text": text}]).get("_single", False)
 
 
 def is_devtools_related_fallback(text: str) -> bool:

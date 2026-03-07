@@ -1,4 +1,5 @@
 import importlib
+import json
 import time
 import types
 
@@ -52,10 +53,6 @@ def test_is_devtools_related_ai_pre_filter(reset_ai_classifier, monkeypatch):
     classifier.client.responses.create = fake_create
     assert not classifier.is_devtools_related_ai("A travel planner")
     assert calls["count"] == 0
-
-    # Manually invoke to exercise stubbed function body for coverage
-    result = fake_create()
-    assert result.output_text == "no"
 
 
 def test_is_devtools_related_ai_without_api_key_uses_fallback(reset_ai_classifier, monkeypatch):
@@ -153,7 +150,6 @@ def test_classify_candidates_caches_results(monkeypatch):
     monkeypatch.setenv("AI_CLASSIFIER_MAX_CONCURRENCY", "2")
     monkeypatch.setenv("OPENAI_API_KEY", "present")
 
-    import importlib
     import ai_classifier
 
     importlib.reload(ai_classifier)
@@ -266,8 +262,7 @@ def test_batch_max_tokens_sufficient_for_payload_size(monkeypatch):
                 f"item-{i}": "yes" for i in range(8)
             }
         }
-        import json as _json
-        return types.SimpleNamespace(output_text=_json.dumps(result))
+        return types.SimpleNamespace(output_text=json.dumps(result))
 
     ai_classifier.client.responses.create = capturing_create
 
@@ -312,9 +307,8 @@ def test_partial_batch_response_falls_back_to_single_for_missing_ids(monkeypatch
 
         # First call is the batch call: return partial results (only a and b)
         if len(call_log) == 1:
-            import json as _json
             result = {"results": {"a": "yes", "b": "no"}}
-            content = _json.dumps(result)
+            content = json.dumps(result)
         else:
             # Subsequent calls are single-item fallbacks -- classify as "yes"
             content = "yes"

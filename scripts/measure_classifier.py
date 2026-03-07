@@ -7,15 +7,15 @@ import argparse
 import importlib
 import json
 import os
-import time
-from pathlib import Path
 import sys
+import threading
+import time
+import types
+from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
-import threading
-import types
 
 
 class _StubResponses:
@@ -45,12 +45,12 @@ class _StubResponses:
         else:
             content = "yes"
 
-        return types.SimpleNamespace(output_text=content)  # type: ignore[name-defined]
+        return types.SimpleNamespace(output_text=content)
 
 
 class _StubOpenAI:
     def __init__(self, delay: float = 0.0):
-        self.responses = _StubResponses(delay=delay)  # type: ignore[name-defined]
+        self.responses = _StubResponses(delay=delay)
 
 
 def _prepare_environment(disable_cache: bool, disable_batch: bool, concurrency: int):
