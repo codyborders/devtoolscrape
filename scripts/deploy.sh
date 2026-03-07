@@ -43,13 +43,13 @@ python3 -c "from database import init_db; init_db()"
 
 # Set up systemd service
 echo "⚙️  Setting up systemd service..."
-cp devtools-scraper.service /etc/systemd/system/
+cp infra/devtools-scraper.service /etc/systemd/system/
 systemctl daemon-reload
 systemctl enable devtools-scraper
 
 # Set up Nginx
 echo "🌐 Setting up Nginx..."
-cp nginx-devtools-scraper.conf /etc/nginx/sites-available/devtools-scraper
+cp infra/nginx-devtools-scraper.conf /etc/nginx/sites-available/devtools-scraper
 ln -sf /etc/nginx/sites-available/devtools-scraper /etc/nginx/sites-enabled/
 rm -f /etc/nginx/sites-enabled/default
 systemctl restart nginx
