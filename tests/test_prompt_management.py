@@ -12,10 +12,8 @@ import pytest
 
 
 def _fake_openai_response(content):
-    """Build a minimal OpenAI-shaped response with the given content string."""
-    return types.SimpleNamespace(
-        choices=[types.SimpleNamespace(message=types.SimpleNamespace(content=content))]
-    )
+    """Build a minimal OpenAI Responses API-shaped response."""
+    return types.SimpleNamespace(output_text=content)
 
 
 def _spy_get_prompt(classifier, monkeypatch):
@@ -94,7 +92,7 @@ class TestClassifierPromptManagement:
     def test_classify_single_calls_get_prompt(self, reset_ai_classifier, monkeypatch):
         classifier = reset_ai_classifier
         monkeypatch.setenv("OPENAI_API_KEY", "present")
-        classifier.client.chat.completions.create = lambda *a, **kw: _fake_openai_response("yes")
+        classifier.client.responses.create = lambda *a, **kw: _fake_openai_response("yes")
 
         prompt_ids = _spy_get_prompt(classifier, monkeypatch)
         assert classifier._classify_single("DevCLI", "developer CLI tool") is True
@@ -103,7 +101,7 @@ class TestClassifierPromptManagement:
     def test_get_devtools_category_calls_get_prompt(self, reset_ai_classifier, monkeypatch):
         classifier = reset_ai_classifier
         monkeypatch.setenv("OPENAI_API_KEY", "present")
-        classifier.client.chat.completions.create = lambda *a, **kw: _fake_openai_response("CLI Tool")
+        classifier.client.responses.create = lambda *a, **kw: _fake_openai_response("CLI Tool")
 
         prompt_ids = _spy_get_prompt(classifier, monkeypatch)
         assert classifier.get_devtools_category("CLI utils", "MyCLI") == "CLI Tool"

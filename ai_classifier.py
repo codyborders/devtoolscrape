@@ -297,10 +297,13 @@ def _build_openai_retry() -> Retrying:
 
 
 def _call_openai(messages: List[Dict[str, str]], max_tokens: int, temperature: float = 0.0, response_format: Optional[Dict[str, str]] = None) -> Any:
-    """Send a chat completion request to OpenAI with automatic retries."""
+    """Send a Responses API request to OpenAI with automatic retries."""
     openai_client = _get_openai_client()
     if openai_client is None:
         raise RuntimeError("OPENAI_API_KEY is missing or OpenAI client failed to initialize")
+
+    # Translate legacy response_format to Responses API text.format
+    text_format = {"format": response_format} if response_format else None
 
     retrying = _build_openai_retry()
     for attempt in retrying:
@@ -318,28 +321,30 @@ def _call_openai(messages: List[Dict[str, str]], max_tokens: int, temperature: f
             )
             try:
                 with trace_external_call(
-                    "openai.chat.completion",
+                    "openai.responses.create",
                     resource="classifier.batch",
                     span_type="llm",
                     tags={
                         "openai.model": _OPENAI_MODEL,
                         "openai.attempt": attempt_number,
-                        "openai.max_tokens": max_tokens,
+                        "openai.max_output_tokens": max_tokens,
                         "openai.temperature": temperature,
-                        "openai.response_format": bool(response_format),
-                        "openai.message_count": len(messages),
+                        "openai.text_format": bool(text_format),
+                        "openai.input_count": len(messages),
                     },
                 ) as span:
                     if span:
                         span.set_tag("span.kind", "client")
                         span.set_tag("component", "openai")
-                    response = openai_client.chat.completions.create(
-                        model=_OPENAI_MODEL,
-                        messages=messages,
-                        max_tokens=max_tokens,
-                        temperature=temperature,
-                        response_format=response_format,
-                    )
+                    kwargs = {
+                        "model": _OPENAI_MODEL,
+                        "input": messages,
+                        "max_output_tokens": max_tokens,
+                        "temperature": temperature,
+                    }
+                    if text_format:
+                        kwargs["text"] = text_format
+                    response = openai_client.responses.create(**kwargs)
                     if span and getattr(response, "usage", None):
                         usage = response.usage
                         span.set_tag("openai.prompt_tokens", getattr(usage, "prompt_tokens", 0))
@@ -431,7 +436,7 @@ def classify_candidates(candidates: Iterable[Dict[str, str]]) -> Dict[str, bool]
                     temperature=0.0,
                     response_format={"type": "json_object"},
                 )
-            content = response.choices[0].message.content.strip()
+            content = response.output_text.strip()
             data = json.loads(content)
             result_map = data.get("results", {})
         except Exception as exc:
@@ -502,7 +507,7 @@ def _classify_single(name: str, text: str) -> bool:
                 max_tokens=5,
                 temperature=0.0,
             )
-        answer = response.choices[0].message.content.strip().lower()
+        answer = response.output_text.strip().lower()
         if answer not in {"yes", "no"}:
             logger.warning(
                 "classifier.unexpected_answer",
@@ -568,7 +573,7 @@ def get_devtools_category(text: str, name: str = "") -> Optional[str]:
                 temperature=0.0,
             )
 
-        category = response.choices[0].message.content.strip()
+        category = response.output_text.strip()
         _cache_set(_category_cache, key, category)
         logger.debug(
             "classifier.category",

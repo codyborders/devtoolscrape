@@ -18,7 +18,7 @@ import threading
 import types
 
 
-class _StubChatCompletions:
+class _StubResponses:
     def __init__(self, delay: float = 0.0):
         self.delay = delay
         self.calls = 0
@@ -28,8 +28,8 @@ class _StubChatCompletions:
         time.sleep(self.delay)
         with self._lock:
             self.calls += 1
-        if kwargs.get("response_format"):
-            payload = kwargs.get("messages", [])
+        if kwargs.get("text"):
+            payload = kwargs.get("input", [])
             if payload:
                 try:
                     data = json.loads(payload[-1]["content"])
@@ -45,14 +45,12 @@ class _StubChatCompletions:
         else:
             content = "yes"
 
-        message = types.SimpleNamespace(content=content)  # type: ignore[name-defined]
-        choice = types.SimpleNamespace(message=message)  # type: ignore[name-defined]
-        return types.SimpleNamespace(choices=[choice])  # type: ignore[name-defined]
+        return types.SimpleNamespace(output_text=content)  # type: ignore[name-defined]
 
 
 class _StubOpenAI:
     def __init__(self, delay: float = 0.0):
-        self.chat = types.SimpleNamespace(completions=_StubChatCompletions(delay=delay))  # type: ignore[name-defined]
+        self.responses = _StubResponses(delay=delay)  # type: ignore[name-defined]
 
 
 def _prepare_environment(disable_cache: bool, disable_batch: bool, concurrency: int):
@@ -83,7 +81,7 @@ def run_scenario(name: str, disable_cache: bool, disable_batch: bool, concurrenc
         "scenario": name,
         "records": records,
         "elapsed_ms": elapsed * 1000,
-        "openai_calls": ai_classifier.client.chat.completions.calls,
+        "openai_calls": ai_classifier.client.responses.calls,
         "classified": sum(1 for value in results.values() if value),
     }
 
