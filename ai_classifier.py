@@ -1,12 +1,17 @@
 """OpenAI-powered classifier for identifying developer tools from scraped content."""
 
+from __future__ import annotations
+
+import hashlib
 import json
 import os
+import re
 import threading
+from collections.abc import Iterable
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from contextlib import contextmanager
 from pathlib import Path
-from typing import Any, Dict, Iterable, List, Optional
+from typing import Any, Iterator
 
 from cachetools import TTLCache
 from dotenv import load_dotenv
@@ -26,14 +31,14 @@ if not os.getenv("DD_API_KEY") and os.getenv("DATADOG_API_KEY"):
 
 try:
     from ddtrace.llmobs import LLMObs as _LLMObs
-except Exception:
+except (ImportError, ModuleNotFoundError):
     _LLMObs = None
 
 # Set up OpenAI client — LLM Observability is handled by ddtrace-run at process
 # startup (DD_LLMOBS_ENABLED=1); calling LLMObs.enable() again here would
 # conflict with the auto-instrumented session and suppress OpenAI LLM Obs spans.
 logger = get_logger("devtools.ai")
-client: Optional[Any] = None
+client: Any | None = None
 _client_lock = threading.Lock()
 _OPENAI_MODEL = os.getenv("OPENAI_MODEL", "gpt-4o-mini")
 
@@ -46,33 +51,36 @@ _BATCH_SIZE = max(1, int(os.getenv("AI_CLASSIFIER_BATCH_SIZE", "8")))
 _MAX_CONCURRENCY = max(1, int(os.getenv("AI_CLASSIFIER_MAX_CONCURRENCY", "4")))
 _MAX_RETRIES = max(1, int(os.getenv("AI_CLASSIFIER_MAX_RETRIES", "3")))
 
+# Input sanitization limits
+_MAX_NAME_LENGTH = 200
+_MAX_TEXT_LENGTH = 2000
+
 
 def _has_openai_key() -> bool:
     """Return True when an OpenAI API key is configured."""
     return bool(os.getenv('OPENAI_API_KEY'))
 
 
-def _get_openai_client() -> Optional[Any]:
+def _get_openai_client() -> Any | None:
     """Lazily create the OpenAI client when an API key is available."""
     global client
-    if client is not None:
-        return client
-
-    api_key = os.getenv("OPENAI_API_KEY")
-    if not api_key:
-        return None
-
     with _client_lock:
-        if client is None:
-            try:
-                client = openai.OpenAI(api_key=api_key)
-            except Exception:
-                logger.exception(
-                    "classifier.client_init_failed",
-                    extra={"event": "classifier.client_init_failed"},
-                )
-                return None
-    return client
+        if client is not None:
+            return client
+
+        api_key = os.getenv("OPENAI_API_KEY")
+        if not api_key:
+            return None
+
+        try:
+            client = openai.OpenAI(api_key=api_key)
+        except Exception:
+            logger.exception(
+                "classifier.client_init_failed",
+                extra={"event": "classifier.client_init_failed"},
+            )
+            return None
+        return client
 
 
 if _has_openai_key():
@@ -84,7 +92,7 @@ _category_cache = TTLCache(_CACHE_SIZE, _CACHE_TTL)
 _cache_lock = threading.RLock()
 
 
-def _cache_get(cache: TTLCache, key: str) -> Optional[Any]:
+def _cache_get(cache: TTLCache, key: str) -> Any | None:
     """Look up a cached value, returning None on miss or when caching is disabled."""
     if not _CACHE_ENABLED:
         return None
@@ -99,16 +107,17 @@ def _cache_set(cache: TTLCache, key: str, value: Any) -> None:
     with _cache_lock:
         cache[key] = value
 
-DEVTOOLS_KEYWORDS = [
+DEVTOOLS_KEYWORDS = (
     "developer", "devtool", "CLI", "SDK", "API", "code", "coding", "debug", "git",
     "CI", "CD", "DevOps", "terminal", "IDE", "framework", "testing", "monitoring",
     "observability", "build", "deploy", "infra", "cloud-native", "backend", "log",
     "linter", "formatter", "package manager", "dependency", "compiler", "interpreter",
     "container", "kubernetes", "docker", "microservice", "serverless", "database",
     "query", "schema", "migration", "deployment", "orchestration", "automation",
-]
+)
 
-_DEVTOOLS_KEYWORDS_LOWER = [kw.lower() for kw in DEVTOOLS_KEYWORDS]
+_DEVTOOLS_KEYWORDS_LOWER = tuple(kw.lower() for kw in DEVTOOLS_KEYWORDS)
+_DEVTOOLS_PATTERN = re.compile("|".join(re.escape(kw) for kw in _DEVTOOLS_KEYWORDS_LOWER))
 
 # ---------------------------------------------------------------------------
 # Prompt Management: fallback chat templates used when Datadog prompts are
@@ -220,13 +229,13 @@ _CATEGORY_CLASSIFIER_FALLBACK = [
 class _LocalPrompt:
     """Minimal ManagedPrompt stand-in when ddtrace is unavailable."""
 
-    def __init__(self, prompt_id, template):
+    def __init__(self, prompt_id: str, template: list[dict[str, str]]) -> None:
         self.id = prompt_id
         self.version = "fallback"
         self.label = "local"
         self._template = template
 
-    def format(self, **variables):
+    def format(self, **variables: str) -> list[dict[str, str]]:
         result = []
         for msg in self._template:
             content = msg["content"]
@@ -235,7 +244,7 @@ class _LocalPrompt:
             result.append({"role": msg["role"], "content": content})
         return result
 
-    def to_annotation_dict(self, **variables):
+    def to_annotation_dict(self, **variables: str) -> dict[str, Any]:
         return {
             "id": self.id,
             "version": self.version,
@@ -244,7 +253,7 @@ class _LocalPrompt:
         }
 
 
-def _get_prompt(prompt_id, fallback):
+def _get_prompt(prompt_id: str, fallback: list[dict[str, str]]) -> Any:
     """Fetch a managed prompt from Datadog, falling back to local template."""
     if _LLMObs is not None:
         try:
@@ -258,7 +267,7 @@ def _get_prompt(prompt_id, fallback):
 
 
 @contextmanager
-def _prompt_context(prompt, variables):
+def _prompt_context(prompt: Any, variables: dict[str, str]) -> Iterator[None]:
     """Wrap a block in LLMObs.annotation_context when available."""
     if _LLMObs is not None:
         with _LLMObs.annotation_context(prompt=prompt.to_annotation_dict(**variables)):
@@ -270,18 +279,17 @@ def _prompt_context(prompt, variables):
 def has_devtools_keywords(text: str, name: str = "") -> bool:
     """Quick keyword pre-filter to avoid unnecessary API calls."""
     combined_text = f"{name} {text}".lower()
-    return any(keyword in combined_text for keyword in _DEVTOOLS_KEYWORDS_LOWER)
+    return bool(_DEVTOOLS_PATTERN.search(combined_text))
 
 
 def _cache_key(name: str, text: str) -> str:
-    """Build a normalised cache key from a tool name and description."""
-    return f"{name.strip().lower()}|{text.strip().lower()}"
+    """Build a normalised, collision-resistant cache key."""
+    raw = f"{name.strip().lower()}\x00{text.strip().lower()}"
+    return hashlib.sha256(raw.encode()).hexdigest()
 
 
-def _is_retryable_error(exc: Exception) -> bool:
+def _is_retryable_error(exc: BaseException) -> bool:
     """Return True for transient OpenAI errors worth retrying."""
-    if exc is None:
-        return False
     message = str(exc).lower()
     return any(keyword in message for keyword in ("rate limit", "timeout", "429"))
 
@@ -296,14 +304,19 @@ def _build_openai_retry() -> Retrying:
     )
 
 
-def _call_openai(messages: List[Dict[str, str]], max_tokens: int, temperature: float = 0.0, response_format: Optional[Dict[str, str]] = None) -> Any:
+def _call_openai(
+    input_messages: list[dict[str, str]],
+    max_output_tokens: int,
+    temperature: float = 0.0,
+    text_format: dict[str, str] | None = None,
+) -> Any:
     """Send a Responses API request to OpenAI with automatic retries."""
     openai_client = _get_openai_client()
     if openai_client is None:
         raise RuntimeError("OPENAI_API_KEY is missing or OpenAI client failed to initialize")
 
-    # Translate legacy response_format to Responses API text.format
-    text_format = {"format": response_format} if response_format else None
+    # Wrap caller-provided format spec for the Responses API text parameter
+    text_param = {"format": text_format} if text_format else None
 
     retrying = _build_openai_retry()
     for attempt in retrying:
@@ -314,9 +327,9 @@ def _call_openai(messages: List[Dict[str, str]], max_tokens: int, temperature: f
                 extra={
                     "event": "openai.request",
                     "attempt": attempt_number,
-                    "max_tokens": max_tokens,
+                    "max_output_tokens": max_output_tokens,
                     "temperature": temperature,
-                    "response_format": bool(response_format),
+                    "text_format": bool(text_format),
                 },
             )
             try:
@@ -327,29 +340,31 @@ def _call_openai(messages: List[Dict[str, str]], max_tokens: int, temperature: f
                     tags={
                         "openai.model": _OPENAI_MODEL,
                         "openai.attempt": attempt_number,
-                        "openai.max_output_tokens": max_tokens,
+                        "openai.max_output_tokens": max_output_tokens,
                         "openai.temperature": temperature,
-                        "openai.text_format": bool(text_format),
-                        "openai.input_count": len(messages),
+                        "openai.text_format": bool(text_param),
+                        "openai.input_count": len(input_messages),
                     },
                 ) as span:
                     if span:
                         span.set_tag("span.kind", "client")
                         span.set_tag("component", "openai")
-                    kwargs = {
+                    kwargs: dict[str, Any] = {
                         "model": _OPENAI_MODEL,
-                        "input": messages,
-                        "max_output_tokens": max_tokens,
+                        "input": input_messages,
+                        "max_output_tokens": max_output_tokens,
                         "temperature": temperature,
                     }
-                    if text_format:
-                        kwargs["text"] = text_format
+                    if text_param:
+                        kwargs["text"] = text_param
                     response = openai_client.responses.create(**kwargs)
                     if span and getattr(response, "usage", None):
                         usage = response.usage
-                        span.set_tag("openai.prompt_tokens", getattr(usage, "prompt_tokens", 0))
-                        span.set_tag("openai.completion_tokens", getattr(usage, "completion_tokens", 0))
-                        span.set_tag("openai.total_tokens", getattr(usage, "total_tokens", 0))
+                        input_t = getattr(usage, "input_tokens", 0)
+                        output_t = getattr(usage, "output_tokens", 0)
+                        span.set_tag("openai.input_tokens", input_t)
+                        span.set_tag("openai.output_tokens", output_t)
+                        span.set_tag("openai.total_tokens", input_t + output_t)
                     return response
             except Exception as exc:  # pragma: no cover - relies on API behaviour
                 # Intentionally broad: log any API error and let tenacity decide whether to retry
@@ -358,13 +373,13 @@ def _call_openai(messages: List[Dict[str, str]], max_tokens: int, temperature: f
                     extra={
                         "event": "openai.error",
                         "attempt": attempt_number,
-                        "error": str(exc),
+                        "error": type(exc).__name__,
                     },
                 )
                 raise
 
 
-def classify_candidates(candidates: Iterable[Dict[str, str]]) -> Dict[str, bool]:
+def classify_candidates(candidates: Iterable[dict[str, str]]) -> dict[str, bool]:
     """
     Batch classify multiple candidates. Each candidate must contain keys:
     - id: unique identifier
@@ -372,8 +387,8 @@ def classify_candidates(candidates: Iterable[Dict[str, str]]) -> Dict[str, bool]
     - text: description
     """
     candidates = list(candidates)
-    results: Dict[str, bool] = {}
-    pending: List[Dict[str, str]] = []
+    results: dict[str, bool] = {}
+    pending: list[dict[str, str]] = []
 
     for candidate in candidates:
         cid = candidate["id"]
@@ -407,34 +422,42 @@ def classify_candidates(candidates: Iterable[Dict[str, str]]) -> Dict[str, bool]
     if not pending:
         return results
 
+    # Fetch prompts once per invocation instead of per-chunk
+    single_prompt = _get_prompt("devtools-binary-classifier", _BINARY_CLASSIFIER_FALLBACK)
+
     if not _has_openai_key() or not _USE_BATCH or len(pending) == 1:
         for candidate in pending:
-            outcome = _classify_single(candidate.get("name", ""), candidate.get("text", ""))
+            outcome = _classify_single(
+                candidate.get("name", ""),
+                candidate.get("text", ""),
+                prompt=single_prompt,
+            )
             _cache_set(_classification_cache, candidate["_cache_key"], outcome)
             results[candidate["id"]] = outcome
         return results
 
+    batch_prompt = _get_prompt("devtools-batch-classifier", _BATCH_CLASSIFIER_FALLBACK)
     chunks = [pending[i:i + _BATCH_SIZE] for i in range(0, len(pending), _BATCH_SIZE)]
 
-    def worker(chunk):
+    def worker(chunk: list[dict[str, str]]) -> dict[str, bool]:
+        local_results: dict[str, bool] = {}
         payload = [
             {
                 "item_id": candidate["id"],
-                "name": candidate.get("name", ""),
-                "description": candidate.get("text", ""),
+                "name": candidate.get("name", "")[:_MAX_NAME_LENGTH],
+                "description": candidate.get("text", "")[:_MAX_TEXT_LENGTH],
             }
             for candidate in chunk
         ]
-        batch_prompt = _get_prompt("devtools-batch-classifier", _BATCH_CLASSIFIER_FALLBACK)
         batch_variables = {"items_json": json.dumps(payload)}
         batch_messages = batch_prompt.format(**batch_variables)
         try:
             with _prompt_context(batch_prompt, batch_variables):
                 response = _call_openai(
                     batch_messages,
-                    max_tokens=len(payload) * 20 + 50,
+                    max_output_tokens=len(payload) * 20 + 50,
                     temperature=0.0,
-                    response_format={"type": "json_object"},
+                    text_format={"type": "json_object"},
                 )
             content = response.output_text.strip()
             data = json.loads(content)
@@ -443,16 +466,20 @@ def classify_candidates(candidates: Iterable[Dict[str, str]]) -> Dict[str, bool]
             # Intentionally broad: any batch failure falls back to per-item classification
             logger.exception(
                 "classifier.batch_failure",
-                extra={"event": "classifier.batch_failure", "error": str(exc)},
+                extra={"event": "classifier.batch_failure", "error": type(exc).__name__},
             )
             result_map = {}
 
         if not result_map:
             for candidate in chunk:
                 with logging_context(candidate_id=candidate["id"], candidate_name=candidate.get("name")):
-                    outcome = _classify_single(candidate.get("name", ""), candidate.get("text", ""))
+                    outcome = _classify_single(
+                        candidate.get("name", ""),
+                        candidate.get("text", ""),
+                        prompt=single_prompt,
+                    )
                     _cache_set(_classification_cache, candidate["_cache_key"], outcome)
-                    results[candidate["id"]] = outcome
+                    local_results[candidate["id"]] = outcome
         else:
             for candidate in chunk:
                 with logging_context(candidate_id=candidate["id"], candidate_name=candidate.get("name")):
@@ -465,7 +492,11 @@ def classify_candidates(candidates: Iterable[Dict[str, str]]) -> Dict[str, bool]
                                 "candidate_id": candidate["id"],
                             },
                         )
-                        outcome = _classify_single(candidate.get("name", ""), candidate.get("text", ""))
+                        outcome = _classify_single(
+                            candidate.get("name", ""),
+                            candidate.get("text", ""),
+                            prompt=single_prompt,
+                        )
                     else:
                         outcome = str(answer).strip().lower() == "yes"
                     logger.debug(
@@ -476,20 +507,25 @@ def classify_candidates(candidates: Iterable[Dict[str, str]]) -> Dict[str, bool]
                         },
                     )
                     _cache_set(_classification_cache, candidate["_cache_key"], outcome)
-                    results[candidate["id"]] = outcome
+                    local_results[candidate["id"]] = outcome
+
+        return local_results
 
     with ThreadPoolExecutor(max_workers=min(_MAX_CONCURRENCY, len(chunks))) as executor:
         futures = [executor.submit(worker, chunk) for chunk in chunks]
         for future in as_completed(futures):
-            future.result()
+            results.update(future.result())
 
     return results
 
 
-def _classify_single(name: str, text: str) -> bool:
+def _classify_single(
+    name: str,
+    text: str,
+    *,
+    prompt: Any | None = None,
+) -> bool:
     """Classify a single candidate via the OpenAI API, falling back to keywords."""
-    if not has_devtools_keywords(text, name):
-        return False
     if not _has_openai_key():
         logger.warning(
             "classifier.no_api_key",
@@ -497,14 +533,18 @@ def _classify_single(name: str, text: str) -> bool:
         )
         return is_devtools_related_fallback(text)
 
-    prompt = _get_prompt("devtools-binary-classifier", _BINARY_CLASSIFIER_FALLBACK)
-    variables = {"name": name, "description": text}
+    if prompt is None:
+        prompt = _get_prompt("devtools-binary-classifier", _BINARY_CLASSIFIER_FALLBACK)
+    variables = {
+        "name": name[:_MAX_NAME_LENGTH],
+        "description": text[:_MAX_TEXT_LENGTH],
+    }
     messages = prompt.format(**variables)
     try:
         with _prompt_context(prompt, variables):
             response = _call_openai(
                 messages,
-                max_tokens=5,
+                max_output_tokens=5,
                 temperature=0.0,
             )
         answer = response.output_text.strip().lower()
@@ -519,7 +559,7 @@ def _classify_single(name: str, text: str) -> bool:
             )
             return is_devtools_related_fallback(text)
         return answer == "yes"
-    except Exception as exc:
+    except Exception:
         # Intentionally broad: any classification failure degrades to keyword matching
         logger.exception(
             "classifier.single_error",
@@ -539,11 +579,10 @@ def is_devtools_related_ai(text: str, name: str = "") -> bool:
 
 def is_devtools_related_fallback(text: str) -> bool:
     """Fallback keyword-based classifier when AI is unavailable."""
-    text_lower = text.lower()
-    return any(keyword in text_lower for keyword in _DEVTOOLS_KEYWORDS_LOWER)
+    return has_devtools_keywords(text)
 
 
-def get_devtools_category(text: str, name: str = "") -> Optional[str]:
+def get_devtools_category(text: str, name: str = "") -> str | None:
     """
     Get a more specific category for the devtool.
     Returns category like 'IDE', 'CLI Tool', 'Testing', etc.
@@ -555,16 +594,19 @@ def get_devtools_category(text: str, name: str = "") -> Optional[str]:
     cached = _cache_get(_category_cache, key)
     if cached is not None:
         return cached
-    
+
     prompt = _get_prompt("devtools-category-classifier", _CATEGORY_CLASSIFIER_FALLBACK)
-    variables = {"name": name, "description": text}
+    variables = {
+        "name": name[:_MAX_NAME_LENGTH],
+        "description": text[:_MAX_TEXT_LENGTH],
+    }
     messages = prompt.format(**variables)
 
     try:
         with _prompt_context(prompt, variables):
             response = _call_openai(
                 messages,
-                max_tokens=15,
+                max_output_tokens=15,
                 temperature=0.0,
             )
 

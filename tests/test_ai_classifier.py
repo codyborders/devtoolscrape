@@ -1,3 +1,5 @@
+"""Tests for the ai_classifier module."""
+
 import importlib
 import json
 import time
@@ -229,7 +231,7 @@ def test_call_openai_retries_with_tenacity(monkeypatch):
 
     response = ai_classifier._call_openai(
         [{"role": "user", "content": "hello"}],
-        max_tokens=5,
+        max_output_tokens=5,
     )
 
     assert calls["count"] == 3

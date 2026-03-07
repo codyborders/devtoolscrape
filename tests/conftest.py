@@ -133,7 +133,7 @@ def stub_external_sdks():
         def raise_on_create(self):
             self._should_raise = True
 
-        def create(self, *_, **__):
+        def create(self, *_, **_kwargs):
             with self._lock:
                 self.calls += 1
                 if self._should_raise:
