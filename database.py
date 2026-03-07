@@ -1,6 +1,7 @@
 """SQLite persistence layer with FTS5 full-text search for developer tools."""
 
 import os
+import re
 import sqlite3
 import time
 from contextlib import contextmanager
@@ -11,6 +12,17 @@ from typing import Any, Dict, Iterable, Iterator, Optional
 from logging_config import get_logger
 
 logger = get_logger("devtools.db")
+
+# FTS5 special-character and keyword patterns for query sanitization
+_FTS5_OPERATORS = re.compile(r'["\*\(\)\+\-\^:/\{\}]')
+_FTS5_KEYWORDS = re.compile(r'\b(AND|OR|NOT|NEAR)\b', re.IGNORECASE)
+
+
+def _sanitize_fts_query(query: str) -> str:
+    """Strip FTS5 operators from a query string to prevent OperationalError."""
+    cleaned = _FTS5_OPERATORS.sub(' ', query)
+    cleaned = _FTS5_KEYWORDS.sub(' ', cleaned)
+    return ' '.join(cleaned.split())
 
 
 SOURCE_REGISTRY: dict[str, dict] = {
@@ -37,6 +49,8 @@ SOURCE_REGISTRY: dict[str, dict] = {
 
 def classify_source(source: str) -> str:
     """Classify a source string into a registry key, or 'other'."""
+    if not source:
+        return "other"
     for key, info in SOURCE_REGISTRY.items():
         if info["match"](source):
             return key
@@ -444,6 +458,10 @@ def search_startups(query: str, limit: int = 20, offset: int = 0) -> list[Dict[s
     if not query:
         return []
 
+    sanitized = _sanitize_fts_query(query)
+    if not sanitized:
+        return []
+
     with _db_connection() as conn:
         rows = conn.execute(
             '''
@@ -454,7 +472,7 @@ def search_startups(query: str, limit: int = 20, offset: int = 0) -> list[Dict[s
             ORDER BY rank
             LIMIT ? OFFSET ?
             ''',
-            (query, limit, offset),
+            (sanitized, limit, offset),
         ).fetchall()
 
     results = [dict(row) for row in rows]
@@ -475,13 +493,16 @@ def count_search_results(query: str) -> int:
     """Count FTS matches for the given query string."""
     if not query:
         return 0
+    sanitized = _sanitize_fts_query(query)
+    if not sanitized:
+        return 0
     with _db_connection() as conn:
         (count,) = conn.execute(
             '''
             SELECT COUNT(*) FROM startups_fts
             WHERE startups_fts MATCH ?
             ''',
-            (query,),
+            (sanitized,),
         ).fetchone()
     logger.debug(
         "db.count_search_results",
