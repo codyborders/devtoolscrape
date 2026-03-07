@@ -20,10 +20,20 @@ if str(ROOT) not in sys.path:
 @pytest.fixture(scope="session", autouse=True)
 def stub_external_sdks():
     """Provide stub implementations for third-party SDKs used at import time."""
-    # Stub ddtrace.llmobs.LLMObs.enable
-    ddtrace_module = types.ModuleType("ddtrace")
-    llmobs_module = types.ModuleType("ddtrace.llmobs")
-    tracer_module = types.ModuleType("ddtrace.tracer")
+    # Use real ddtrace if installed (CI with Test Visibility), otherwise stub
+    _ddtrace_installed = "ddtrace" in sys.modules or importlib.util.find_spec("ddtrace") is not None
+    if _ddtrace_installed:
+        import ddtrace as ddtrace_module
+        try:
+            import ddtrace.llmobs as llmobs_module
+        except ImportError:
+            llmobs_module = types.ModuleType("ddtrace.llmobs")
+        tracer_module = types.ModuleType("ddtrace.tracer")
+        tracer_module.trace = ddtrace_module.tracer.trace
+    else:
+        ddtrace_module = types.ModuleType("ddtrace")
+        llmobs_module = types.ModuleType("ddtrace.llmobs")
+        tracer_module = types.ModuleType("ddtrace.tracer")
 
     class _FakeAnnotationContext:
         """Stub for LLMObs.annotation_context() context manager."""
@@ -116,9 +126,10 @@ def stub_external_sdks():
 
     llmobs_module.LLMObs = _FakeLLMObs
     ddtrace_module.llmobs = llmobs_module
-    fake_tracer = _FakeTracer()
-    ddtrace_module.tracer = fake_tracer
-    tracer_module.trace = fake_tracer.trace
+    if not _ddtrace_installed:
+        fake_tracer = _FakeTracer()
+        ddtrace_module.tracer = fake_tracer
+        tracer_module.trace = fake_tracer.trace
     sys.modules["ddtrace"] = ddtrace_module
     sys.modules["ddtrace.llmobs"] = llmobs_module
     sys.modules["ddtrace.tracer"] = tracer_module
