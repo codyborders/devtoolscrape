@@ -16,7 +16,7 @@ Scrapers collect developer tools from three sources:
 - **Hacker News** -- Show HN posts and articles about developer tools
 - **Product Hunt** -- new product launches in the developer tools category
 
-`scrape_all.py` orchestrates the scrapers and stores results in a SQLite database with FTS5 full-text search indexing. An OpenAI-powered classifier (`ai_classifier.py`) categorizes each tool by type (DevOps, Testing, Build/Deploy, etc.).
+`scrape_all.py` orchestrates the scrapers and stores results in a SQLite database with FTS5 full-text search indexing. An OpenAI-powered classifier using the Responses API (`ai_classifier.py`) categorizes each tool by type (DevOps, Testing, Build/Deploy, etc.).
 
 ### Web Application
 
