@@ -531,7 +531,7 @@ def _classify_single(
             "classifier.no_api_key",
             extra={"event": "classifier.no_api_key"},
         )
-        return is_devtools_related_fallback(text)
+        return is_devtools_related_fallback(text, name)
 
     if prompt is None:
         prompt = _get_prompt("devtools-binary-classifier", _BINARY_CLASSIFIER_FALLBACK)
@@ -557,7 +557,7 @@ def _classify_single(
                     "tool_name": name,
                 },
             )
-            return is_devtools_related_fallback(text)
+            return is_devtools_related_fallback(text, name)
         return answer == "yes"
     except Exception:
         # Intentionally broad: any classification failure degrades to keyword matching
@@ -565,7 +565,7 @@ def _classify_single(
             "classifier.single_error",
             extra={"event": "classifier.single_error", "tool_name": name},
         )
-        return is_devtools_related_fallback(text)
+        return is_devtools_related_fallback(text, name)
 
 
 def is_devtools_related_ai(text: str, name: str = "") -> bool:
@@ -577,9 +577,9 @@ def is_devtools_related_ai(text: str, name: str = "") -> bool:
     return classify_candidates([{"id": "_single", "name": name, "text": text}]).get("_single", False)
 
 
-def is_devtools_related_fallback(text: str) -> bool:
+def is_devtools_related_fallback(text: str, name: str = "") -> bool:
     """Fallback keyword-based classifier when AI is unavailable."""
-    return has_devtools_keywords(text)
+    return has_devtools_keywords(text, name)
 
 
 def get_devtools_category(text: str, name: str = "") -> str | None:

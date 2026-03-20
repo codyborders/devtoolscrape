@@ -44,6 +44,7 @@ def run_scraper(module_name: str, description: str) -> bool:
                     "runner.missing_entrypoint",
                     extra={"event": "runner.missing_entrypoint"},
                 )
+                return False
         except Exception:
             # Intentionally broad: scraper modules may raise arbitrary exceptions
             logger.exception(

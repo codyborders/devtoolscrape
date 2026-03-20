@@ -205,11 +205,13 @@ def _scrape_hn_feed(
                 category = get_devtools_category(full_text, title)
                 description = _build_description(title, text, category)
 
+                story_time = story.get('time')
+                timestamp = story_time if story_time is not None else datetime.now().timestamp()
                 startup = {
                     "name": title,
                     "url": url,
                     "description": description,
-                    "date_found": datetime.fromtimestamp(story.get('time') or datetime.now().timestamp()),
+                    "date_found": datetime.fromtimestamp(timestamp),
                     "source": f"{source_label} (score: {score})"
                 }
 
