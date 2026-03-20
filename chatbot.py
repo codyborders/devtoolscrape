@@ -22,7 +22,10 @@ logger = get_logger("devtools.chatbot")
 
 _CHATBOT_MODEL = os.getenv("CHATBOT_MODEL", "gpt-4o-mini")
 _CHATBOT_MAX_TURNS = max(1, int(os.getenv("CHATBOT_MAX_TURNS", "3")))
-_MAX_TOOLS_IN_CONTEXT = int(os.getenv("CHATBOT_MAX_TOOLS", "10"))
+try:
+    _MAX_TOOLS_IN_CONTEXT = max(1, int(os.getenv("CHATBOT_MAX_TOOLS", "10")))
+except ValueError:
+    _MAX_TOOLS_IN_CONTEXT = 10
 
 # FTS5 operator pattern to sanitize user-supplied queries
 _FTS5_OPERATORS = re.compile(r'["\*\(\)\+\-\^:/\{\}]')

@@ -125,8 +125,8 @@ def scrape_producthunt_api():
             )
             
             data = resp.json()
-            posts = (data.get('data') or {}).get('posts', None)
-            posts = (posts or {}).get('edges', [])
+            posts_node = (data.get('data') or {}).get('posts') or {}
+            posts = posts_node.get('edges', [])
             logger.info(
                 "scraper.posts_found",
                 extra={"event": "scraper.posts_found", "count": len(posts)},
@@ -134,15 +134,24 @@ def scrape_producthunt_api():
             
             candidates = []
             post_map = {}
+            seen_ids = set()
             for post_edge in posts:
                 post = post_edge['node']
                 name = post['name']
                 tagline = post.get('tagline', '')
                 description = post.get('description', '')
                 full_text = f"{name} {tagline} {description}"
-                post_id_val = post.get('id')
-                post_identifier = post_id_val if post_id_val is not None else (post.get('url') or name)
-                post_id = str(post_identifier)
+                # Prefer API id, fall back to URL, then name for deduplication.
+                # Use explicit None check so a zero-valued id is still used.
+                raw_id = post.get('id')
+                post_id = str(raw_id if raw_id is not None else (post.get('url') or name))
+                if post_id in seen_ids:
+                    logger.warning(
+                        "scraper.duplicate_post_id",
+                        extra={"event": "scraper.duplicate_post_id", "post_id": post_id},
+                    )
+                    continue
+                seen_ids.add(post_id)
                 post_map[post_id] = (post, name, tagline, description, full_text)
                 candidates.append({"id": post_id, "name": name, "text": full_text})
 

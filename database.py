@@ -88,7 +88,6 @@ def _db_connection() -> Iterator[sqlite3.Connection]:
         conn.close()
 
 
-
 def _append_pagination(query: str, params: list, limit: Optional[int], offset: Optional[int]) -> tuple[str, list]:
     """Append LIMIT/OFFSET clauses to a SQL query string, returning the updated query and params."""
     if limit is not None:
@@ -178,7 +177,16 @@ def is_duplicate(name: str, url: str) -> bool:
     """Check if a startup already exists by name or URL."""
     with _db_connection() as conn:
         cursor = conn.cursor()
-        cursor.execute("SELECT COUNT(*) FROM startups WHERE name = ? OR url = ?", (name, url))
+        if url is None:
+            cursor.execute(
+                "SELECT COUNT(*) FROM startups WHERE name = ? OR url IS NULL",
+                (name,),
+            )
+        else:
+            cursor.execute(
+                "SELECT COUNT(*) FROM startups WHERE name = ? OR url = ?",
+                (name, url),
+            )
         count = cursor.fetchone()[0]
     logger.debug(
         "db.is_duplicate",

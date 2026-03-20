@@ -126,18 +126,8 @@ def scrape_github_trending() -> None:
                 devtools_count += 1
 
                 description = candidate["text"]
-                try:
-                    category = get_devtools_category(description, candidate["name"])
-                except (KeyError, TypeError, ValueError, AttributeError):
-                    logger.exception(
-                        "scraper.categorize_error",
-                        extra={
-                            "event": "scraper.categorize_error",
-                            "name": candidate.get("name"),
-                            "url": candidate.get("url"),
-                        },
-                    )
-                    category = None
+                # get_devtools_category handles its own exceptions and returns None on failure
+                category = get_devtools_category(description, candidate["name"])
                 if category:
                     description = f"[{category}] {description}" if description else f"[{category}]"
 
@@ -162,7 +152,7 @@ def scrape_github_trending() -> None:
             
         except requests.RequestException:
             logger.exception("scraper.request_failed", extra={"event": "scraper.request_failed"})
-        except (KeyError, TypeError, ValueError, AttributeError):
+        except (KeyError, TypeError, ValueError, AttributeError, sqlite3.Error):
             logger.exception("scraper.parse_error", extra={"event": "scraper.parse_error"})
 
 if __name__ == "__main__":

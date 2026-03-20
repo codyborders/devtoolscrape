@@ -47,8 +47,11 @@ def trace_http_call(
         return
 
     with ctx as span:
-        span.set_tag("http.method", method.upper())
-        span.set_tag("http.url", url)
+        try:
+            span.set_tag("http.method", method.upper())
+            span.set_tag("http.url", url)
+        except Exception:
+            span = None
         yield span
 
 
@@ -77,7 +80,10 @@ def trace_external_call(
         return
 
     with ctx as span:
-        if tags:
-            for key, value in tags.items():
-                span.set_tag(key, value)
+        try:
+            if tags:
+                for key, value in tags.items():
+                    span.set_tag(key, value)
+        except Exception:
+            span = None
         yield span

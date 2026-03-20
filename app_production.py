@@ -210,7 +210,8 @@ def _teardown_request_logging(exc):
 
 def _parse_pagination(default_per_page: int = 20, max_per_page: int = 100):
     """Parse page and per_page from request args, returning (page, per_page, offset)."""
-    per_page = min(max(_safe_int(request.args.get('per_page', default_per_page), default_per_page), 1), max_per_page)
+    raw_per_page = _safe_int(request.args.get('per_page', default_per_page), default_per_page)
+    per_page = min(max(raw_per_page, 1), max_per_page)
     page = max(_safe_int(request.args.get('page', 1), 1), 1)
     offset = (page - 1) * per_page
     return page, per_page, offset
@@ -456,8 +457,6 @@ def api_chat():
             'response': 'You are sending messages too quickly. Please wait a moment and try again.',
             'tools': [],
         }), 429
-    _chat_rate_limits[client_ip].append(now)
-
     data = request.get_json(silent=True)
     user_message = (data.get("message", "") if data else "").strip()
     if not user_message:
@@ -465,6 +464,7 @@ def api_chat():
     if len(user_message) > 500:
         return jsonify({"error": "Message too long (max 500 characters)"}), 400
 
+    _chat_rate_limits[client_ip].append(now)
     result = generate_chat_response(user_message)
     logger.info(
         "api.chat",

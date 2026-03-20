@@ -57,7 +57,7 @@ def test_run_scraper_variants(monkeypatch):
     assert scrape_all.run_scraper("scrape_github_trending", "GitHub")
     assert scrape_all.run_scraper("scrape_hackernews", "HN")
     assert scrape_all.run_scraper("scrape_producthunt_api", "PH")
-    assert scrape_all.run_scraper("missing_main", "No main")
+    assert not scrape_all.run_scraper("missing_main", "No main")
     assert not scrape_all.run_scraper("broken", "Broken")
 
     assert calls == ["github", "hn-top", "hn-show", "ph"]
@@ -135,7 +135,7 @@ def test_run_scraper_unknown_module_logs_warning(monkeypatch):
     }
     configure_loader(monkeypatch, factories)
 
-    assert scrape_all.run_scraper("unknown_scraper", "Unknown")
+    assert not scrape_all.run_scraper("unknown_scraper", "Unknown")
 
 
 def test_scrape_all_main_guard(monkeypatch):
