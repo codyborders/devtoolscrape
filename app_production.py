@@ -28,6 +28,7 @@ from database import (
 )
 from chatbot import generate_chat_response
 from logging_config import bind_context, get_logger, unbind_context
+from observability import generate_trace_id_w3c, replace_root_span_trace_id
 
 # Load environment variables
 load_dotenv()
@@ -63,6 +64,9 @@ def _safe_float_env(var_name: str, default: float) -> float:
         return float(raw_value)
     except (TypeError, ValueError):
         return default
+
+
+_CUSTOM_TRACE_ID_ENABLED = _truthy_env("CUSTOM_TRACE_ID_ENABLED", default=False)
 
 
 def _parse_csv_env(var_name: str) -> list[str]:
@@ -156,6 +160,37 @@ if not app.debug:
     from werkzeug.middleware.proxy_fix import ProxyFix
     app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1)
 
+def _apply_custom_trace_id():
+    """Generate and apply a W3C trace ID to the current root span.
+
+    Stores the custom trace ID on ``flask.g`` and in the logging context so
+    that downstream log lines and the Datadog trace share the same identifier.
+    """
+    custom_trace_id_hex = generate_trace_id_w3c()
+    original_trace_id = replace_root_span_trace_id(custom_trace_id_hex)
+
+    if original_trace_id is None:
+        logger.debug(
+            "trace.custom_id_skipped",
+            extra={
+                "event": "trace.custom_id_skipped",
+                "reason": "no_root_span",
+            },
+        )
+        return
+
+    g.custom_trace_id = custom_trace_id_hex
+    bind_context(custom_trace_id=custom_trace_id_hex)
+    logger.debug(
+        "trace.custom_id_applied",
+        extra={
+            "event": "trace.custom_id_applied",
+            "custom_trace_id": custom_trace_id_hex,
+            "original_trace_id": str(original_trace_id),
+        },
+    )
+
+
 @app.before_request
 def _start_request_logging():
     request_id = request.headers.get("X-Request-ID") or str(uuid.uuid4())
@@ -168,6 +203,10 @@ def _start_request_logging():
         http_path=request.path,
         client_ip=client_ip,
     )
+
+    if _CUSTOM_TRACE_ID_ENABLED:
+        _apply_custom_trace_id()
+
     logger.debug(
         "request.start",
         extra={
@@ -206,7 +245,10 @@ def _teardown_request_logging(exc):
                 "error_type": exc.__class__.__name__,
             },
         )
-    unbind_context("request_id", "http_method", "http_path", "client_ip")
+    keys_to_unbind = ["request_id", "http_method", "http_path", "client_ip"]
+    if hasattr(g, "custom_trace_id"):
+        keys_to_unbind.append("custom_trace_id")
+    unbind_context(*keys_to_unbind)
 
 def _parse_pagination(default_per_page: int = 20, max_per_page: int = 100):
     """Parse page and per_page from request args, returning (page, per_page, offset)."""

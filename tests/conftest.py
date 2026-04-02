@@ -105,6 +105,9 @@ def stub_external_sdks():
             return _FakeManagedPrompt(prompt_id, [], label=label)
 
     class _FakeSpan:
+        trace_id = 0
+        span_id = 0
+
         def __enter__(self):
             return self
 
@@ -120,9 +123,13 @@ def stub_external_sdks():
 
     class _FakeTracer:
         context_provider = _FakeContextProvider()
+        _root_span = None
 
         def trace(self, *args, **kwargs):
             return _FakeSpan()
+
+        def current_root_span(self):
+            return self._root_span
 
     llmobs_module.LLMObs = _FakeLLMObs
     ddtrace_module.llmobs = llmobs_module
