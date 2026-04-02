@@ -527,10 +527,27 @@ def api_chat():
 def health_check():
     """Health check endpoint for monitoring"""
     logger.debug("health_check", extra={"event": "health_check"})
+
+    # Temporary diagnostic: check if trace filter is installed in this worker.
+    filter_status = "unknown"
+    if _CUSTOM_TRACE_ID_ENABLED:
+        try:
+            from ddtrace import tracer as _dt
+            agg = getattr(_dt, "_span_aggregator", None)
+            if agg is not None:
+                user_procs = getattr(agg, "user_processors", [])
+                filter_names = [type(p).__name__ for p in user_procs]
+                filter_status = f"installed({','.join(filter_names)})" if filter_names else "empty"
+            else:
+                filter_status = "no_aggregator"
+        except Exception as exc:
+            filter_status = f"error:{exc}"
+
     return jsonify({
         'status': 'healthy',
         'timestamp': datetime.now().isoformat(),
-        'database': 'connected'
+        'database': 'connected',
+        'trace_filter': filter_status,
     })
 
 
