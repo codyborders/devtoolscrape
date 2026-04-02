@@ -28,7 +28,11 @@ from database import (
 )
 from chatbot import generate_chat_response
 from logging_config import bind_context, get_logger, unbind_context
-from observability import generate_trace_id_w3c, replace_root_span_trace_id
+from observability import (
+    generate_trace_id_w3c,
+    install_custom_trace_id_filter,
+    tag_root_span_with_custom_trace_id,
+)
 
 # Load environment variables
 load_dotenv()
@@ -167,7 +171,7 @@ def _apply_custom_trace_id():
     that downstream log lines and the Datadog trace share the same identifier.
     """
     custom_trace_id_hex = generate_trace_id_w3c()
-    original_trace_id = replace_root_span_trace_id(custom_trace_id_hex)
+    original_trace_id = tag_root_span_with_custom_trace_id(custom_trace_id_hex)
 
     if original_trace_id is None:
         logger.debug(
@@ -223,38 +227,6 @@ def _complete_request_logging(response):
     duration_ms = None
     if hasattr(g, "request_start_time"):
         duration_ms = round((time.perf_counter() - g.request_start_time) * 1000, 2)
-
-    # Verify span tags are present before the span finishes.
-    if _CUSTOM_TRACE_ID_ENABLED:
-        try:
-            from ddtrace import tracer as _tracer
-            root = _tracer.current_root_span()
-            if root is not None:
-                span_meta = dict(root._meta) if hasattr(root, "_meta") else {}
-                has_custom_tag = "custom.trace_id" in span_meta
-                has_original_tag = "original.trace_id" in span_meta
-                logger.info(
-                    "trace.tag_audit",
-                    extra={
-                        "event": "trace.tag_audit",
-                        "has_custom_tag": has_custom_tag,
-                        "has_original_tag": has_original_tag,
-                        "span_name": root.name,
-                        "span_trace_id": str(root.trace_id),
-                        "span_meta_keys": list(span_meta.keys()),
-                    },
-                )
-            else:
-                logger.info(
-                    "trace.tag_audit",
-                    extra={
-                        "event": "trace.tag_audit",
-                        "root_span": "None",
-                    },
-                )
-        except Exception as exc:
-            logger.warning("trace.tag_audit_error", extra={"error": str(exc)})
-
     logger.info(
         "request.complete",
         extra={

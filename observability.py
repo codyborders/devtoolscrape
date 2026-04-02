@@ -4,10 +4,11 @@ outbound calls even when ddtrace isn't available (e.g., in tests).
 """
 from __future__ import annotations
 
+import logging
 import os
 import secrets
 from contextlib import contextmanager
-from typing import TYPE_CHECKING, Any, Dict, Iterator, Optional
+from typing import TYPE_CHECKING, Any, Dict, Iterator, List, Optional
 
 if TYPE_CHECKING:  # pragma: no cover - typing aid only
     from ddtrace.span import Span  # type: ignore
@@ -16,6 +17,8 @@ try:  # pragma: no cover - ddtrace may not be installed in all environments
     from ddtrace import tracer  # type: ignore
 except Exception:  # pragma: no cover - fallback to no-op tracing
     tracer = None  # type: ignore
+
+logger = logging.getLogger("devtools.observability")
 
 DEFAULT_SERVICE = os.getenv("DD_SERVICE", "devtoolscrape")
 
@@ -110,13 +113,16 @@ def generate_trace_id_w3c() -> str:
     return trace_id_hex
 
 
-def replace_root_span_trace_id(trace_id_hex: str) -> Optional[int]:
-    """Replace the trace ID on the current root span with a custom W3C trace ID.
+def tag_root_span_with_custom_trace_id(trace_id_hex: str) -> Optional[int]:
+    """Tag the current root span with a custom W3C trace ID.
 
-    Stores the original ddtrace-assigned trace ID as a span tag so it can be
-    cross-referenced in Datadog.
+    Sets custom.trace_id and original.trace_id as span tags on the root span.
+    The actual trace_id rewrite happens later in CustomTraceIdFilter, which
+    rewrites ALL spans in the trace consistently before they are sent to the
+    dd-agent. This avoids fragmenting the trace by changing only the root span's
+    trace_id while child spans retain the original.
 
-    Returns the original trace ID (as int) if replacement succeeded, None otherwise.
+    Returns the original trace ID (as int) if tagging succeeded, None otherwise.
     """
     assert isinstance(trace_id_hex, str), (
         f"trace_id_hex must be str, got {type(trace_id_hex)}"
@@ -140,12 +146,88 @@ def replace_root_span_trace_id(trace_id_hex: str) -> Optional[int]:
     original_trace_id = root_span.trace_id
     original_trace_id_hex = format(original_trace_id, "032x")
 
-    # Replace the trace ID before setting tags. ddtrace indexes tags by the
-    # span's current trace ID, so setting tags while the old ID is active can
-    # cause them to be associated with the wrong trace in the Datadog backend.
-    root_span.trace_id = int(trace_id_hex, 16)
-
+    # Only set tags here. The TraceFilter rewrites trace_ids on all spans at
+    # send time so every span in the trace shares the same custom trace_id.
     root_span.set_tag("custom.trace_id", trace_id_hex)
     root_span.set_tag("original.trace_id", original_trace_id_hex)
 
     return original_trace_id
+
+
+class CustomTraceIdFilter:
+    """ddtrace TraceFilter that rewrites trace IDs on all spans in a trace.
+
+    When a root span carries the custom.trace_id tag, this filter replaces
+    the trace_id on every span in the trace with the custom value. This
+    ensures the dd-agent sees a coherent trace under the new ID, not a
+    fragmented one where root and children have different IDs.
+    """
+
+    def process_trace(self, trace: List["Span"]) -> Optional[List["Span"]]:
+        """Rewrite trace IDs if the root span has a custom.trace_id tag."""
+        if not trace:
+            return trace
+
+        # Find the root span (parent_id == 0 or None).
+        root_span = None
+        for span in trace:
+            if span.parent_id is None or span.parent_id == 0:
+                root_span = span
+                break
+
+        if root_span is None:
+            return trace
+
+        custom_trace_id_hex = root_span.get_tag("custom.trace_id")
+        if custom_trace_id_hex is None:
+            return trace
+
+        new_trace_id = int(custom_trace_id_hex, 16)
+
+        # Rewrite every span's trace_id so the entire trace is coherent.
+        for span in trace:
+            span.trace_id = new_trace_id
+
+        logger.debug(
+            "trace.filter_rewrite",
+            extra={
+                "event": "trace.filter_rewrite",
+                "span_count": len(trace),
+                "custom_trace_id": custom_trace_id_hex,
+            },
+        )
+
+        return trace
+
+
+def install_custom_trace_id_filter() -> bool:
+    """Install the CustomTraceIdFilter on the global tracer.
+
+    Safe to call multiple times; checks if a filter is already installed.
+    Returns True if the filter was installed, False otherwise.
+    """
+    if tracer is None:
+        return False
+
+    try:
+        existing_filters = tracer._filters
+    except AttributeError:
+        logger.warning(
+            "trace.filter_install_failed",
+            extra={"reason": "tracer has no _filters attribute"},
+        )
+        return False
+
+    # Do not install twice.
+    for existing_filter in existing_filters:
+        if isinstance(existing_filter, CustomTraceIdFilter):
+            return True
+
+    existing_filters.append(CustomTraceIdFilter())
+    tracer._filters = existing_filters
+
+    logger.info(
+        "trace.filter_installed",
+        extra={"event": "trace.filter_installed"},
+    )
+    return True
