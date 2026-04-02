@@ -223,6 +223,38 @@ def _complete_request_logging(response):
     duration_ms = None
     if hasattr(g, "request_start_time"):
         duration_ms = round((time.perf_counter() - g.request_start_time) * 1000, 2)
+
+    # Verify span tags are present before the span finishes.
+    if _CUSTOM_TRACE_ID_ENABLED:
+        try:
+            from ddtrace import tracer as _tracer
+            root = _tracer.current_root_span()
+            if root is not None:
+                span_meta = dict(root._meta) if hasattr(root, "_meta") else {}
+                has_custom_tag = "custom.trace_id" in span_meta
+                has_original_tag = "original.trace_id" in span_meta
+                logger.info(
+                    "trace.tag_audit",
+                    extra={
+                        "event": "trace.tag_audit",
+                        "has_custom_tag": has_custom_tag,
+                        "has_original_tag": has_original_tag,
+                        "span_name": root.name,
+                        "span_trace_id": str(root.trace_id),
+                        "span_meta_keys": list(span_meta.keys()),
+                    },
+                )
+            else:
+                logger.info(
+                    "trace.tag_audit",
+                    extra={
+                        "event": "trace.tag_audit",
+                        "root_span": "None",
+                    },
+                )
+        except Exception as exc:
+            logger.warning("trace.tag_audit_error", extra={"error": str(exc)})
+
     logger.info(
         "request.complete",
         extra={
