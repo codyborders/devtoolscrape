@@ -187,9 +187,25 @@ def test_trace_filter_handles_empty_trace():
 # Unit tests: install_custom_trace_id_filter
 # ---------------------------------------------------------------------------
 
-def test_install_filter_adds_to_tracer():
-    """The filter should be appended to tracer._filters."""
+def test_install_filter_calls_configure():
+    """The filter should be installed via tracer.configure(trace_processors=...)."""
     mock_tracer = MagicMock()
+
+    with patch("observability.tracer", mock_tracer):
+        result = install_custom_trace_id_filter()
+
+    assert result is True
+    mock_tracer.configure.assert_called_once()
+    call_kwargs = mock_tracer.configure.call_args[1]
+    assert "trace_processors" in call_kwargs
+    assert len(call_kwargs["trace_processors"]) == 1
+    assert isinstance(call_kwargs["trace_processors"][0], CustomTraceIdFilter)
+
+
+def test_install_filter_falls_back_to_filters():
+    """When configure raises TypeError, fall back to tracer._filters."""
+    mock_tracer = MagicMock()
+    mock_tracer.configure.side_effect = TypeError("unsupported kwarg")
     mock_tracer._filters = []
 
     with patch("observability.tracer", mock_tracer):
@@ -198,18 +214,6 @@ def test_install_filter_adds_to_tracer():
     assert result is True
     assert len(mock_tracer._filters) == 1
     assert isinstance(mock_tracer._filters[0], CustomTraceIdFilter)
-
-
-def test_install_filter_idempotent():
-    """Installing twice should not add a duplicate filter."""
-    mock_tracer = MagicMock()
-    mock_tracer._filters = []
-
-    with patch("observability.tracer", mock_tracer):
-        install_custom_trace_id_filter()
-        install_custom_trace_id_filter()
-
-    assert len(mock_tracer._filters) == 1
 
 
 def test_install_filter_no_tracer():

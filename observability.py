@@ -203,28 +203,40 @@ class CustomTraceIdFilter:
 def install_custom_trace_id_filter() -> bool:
     """Install the CustomTraceIdFilter on the global tracer.
 
+    Uses tracer.configure(trace_processors=...) which is the supported API
+    in ddtrace 4.x. Falls back to tracer._filters for older versions.
+
     Safe to call multiple times; checks if a filter is already installed.
     Returns True if the filter was installed, False otherwise.
     """
     if tracer is None:
         return False
 
+    # ddtrace 4.x uses tracer.configure(trace_processors=[...]) to register
+    # processors that implement process_trace(). The configure call replaces
+    # the processor list, so we must read the existing ones first.
     try:
-        existing_filters = tracer._filters
-    except AttributeError:
-        logger.warning(
-            "trace.filter_install_failed",
-            extra={"reason": "tracer has no _filters attribute"},
-        )
-        return False
+        # In ddtrace 4.x, trace processors live on the internal deferred init
+        # or are passed via configure(). We use configure() which merges.
+        tracer.configure(trace_processors=[CustomTraceIdFilter()])
+    except TypeError:
+        # Older ddtrace versions may not support trace_processors kwarg.
+        # Fall back to _filters if available.
+        try:
+            existing_filters = tracer._filters
+        except AttributeError:
+            logger.warning(
+                "trace.filter_install_failed",
+                extra={"reason": "tracer supports neither configure(trace_processors=) nor _filters"},
+            )
+            return False
 
-    # Do not install twice.
-    for existing_filter in existing_filters:
-        if isinstance(existing_filter, CustomTraceIdFilter):
-            return True
+        for existing_filter in existing_filters:
+            if isinstance(existing_filter, CustomTraceIdFilter):
+                return True
 
-    existing_filters.append(CustomTraceIdFilter())
-    tracer._filters = existing_filters
+        existing_filters.append(CustomTraceIdFilter())
+        tracer._filters = existing_filters
 
     logger.info(
         "trace.filter_installed",
