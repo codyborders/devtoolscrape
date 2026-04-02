@@ -188,12 +188,13 @@ class CustomTraceIdFilter:
         for span in trace:
             span.trace_id = new_trace_id
 
-        logger.debug(
+        logger.info(
             "trace.filter_rewrite",
             extra={
                 "event": "trace.filter_rewrite",
                 "span_count": len(trace),
                 "custom_trace_id": custom_trace_id_hex,
+                "original_trace_id": root_span.get_tag("original.trace_id"),
             },
         )
 
