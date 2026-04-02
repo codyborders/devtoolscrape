@@ -9,6 +9,7 @@ Verifies that:
 import importlib
 import re
 import sys
+from unittest.mock import ANY
 
 import pytest
 from unittest.mock import MagicMock, patch
@@ -80,7 +81,10 @@ def test_replace_root_span_succeeds():
         result = replace_root_span_trace_id(custom_hex)
 
     assert result == original_id
-    span.set_tag.assert_called_once_with("original.trace_id", str(original_id))
+    original_id_hex = format(original_id, "032x")
+    span.set_tag.assert_any_call("custom.trace_id", custom_hex)
+    span.set_tag.assert_any_call("original.trace_id", original_id_hex)
+    assert span.set_tag.call_count == 2
     assert span.trace_id == expected_new_id
 
 
@@ -170,7 +174,10 @@ def test_before_request_applies_custom_trace_id_when_enabled(app_module, monkeyp
     assert response.status_code == 200
     # The span's trace_id should have been changed from the original.
     assert span.trace_id != original_id
-    span.set_tag.assert_called_once_with("original.trace_id", str(original_id))
+    original_id_hex = format(original_id, "032x")
+    span.set_tag.assert_any_call("original.trace_id", original_id_hex)
+    span.set_tag.assert_any_call("custom.trace_id", ANY)
+    assert span.set_tag.call_count == 2
 
 
 def test_before_request_skips_when_disabled(app_module, monkeypatch):
