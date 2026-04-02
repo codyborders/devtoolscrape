@@ -139,8 +139,13 @@ def replace_root_span_trace_id(trace_id_hex: str) -> Optional[int]:
 
     original_trace_id = root_span.trace_id
     original_trace_id_hex = format(original_trace_id, "032x")
+
+    # Replace the trace ID before setting tags. ddtrace indexes tags by the
+    # span's current trace ID, so setting tags while the old ID is active can
+    # cause them to be associated with the wrong trace in the Datadog backend.
+    root_span.trace_id = int(trace_id_hex, 16)
+
     root_span.set_tag("custom.trace_id", trace_id_hex)
     root_span.set_tag("original.trace_id", original_trace_id_hex)
-    root_span.trace_id = int(trace_id_hex, 16)
 
     return original_trace_id
