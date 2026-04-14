@@ -511,7 +511,8 @@ def api_chat():
         return jsonify({"error": "Message too long (max 500 characters)"}), 400
 
     _chat_rate_limits[client_ip].append(now)
-    result = generate_chat_response(user_message)
+    session_id = (data.get("session_id") if data else None)
+    result = generate_chat_response(user_message, session_id=session_id)
     logger.info(
         "api.chat",
         extra={

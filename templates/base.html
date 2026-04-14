@@ -227,10 +227,15 @@
             document.getElementById('chat-send').disabled = true;
             showLoading();
             try {
+                var rumContext = window.DD_RUM && window.DD_RUM.getInternalContext();
+                var body = { message: message };
+                if (rumContext && rumContext.session_id) {
+                    body.session_id = rumContext.session_id;
+                }
                 var response = await fetch('/api/chat', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ message: message }),
+                    body: JSON.stringify(body),
                 });
                 var data = await response.json();
                 if (data.response) {

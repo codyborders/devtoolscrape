@@ -131,15 +131,17 @@ _agent = Agent(
 )
 
 
-def generate_chat_response(user_message: str) -> dict[str, Any]:
+def generate_chat_response(user_message: str, session_id: str | None = None) -> dict[str, Any]:
     """Generate a chatbot response for a user's natural language question.
 
     Wraps the agent run in an ``LLMObs.annotation_context`` so that
     the prompt template, version, and variables are tracked alongside
-    the LLM spans in Datadog LLM Observability.
+    the LLM spans in Datadog LLM Observability.  When a RUM session_id
+    is provided it is attached to the LLM span via ``LLMObs.annotate``.
 
     Args:
         user_message: The user's question (should be pre-validated by caller).
+        session_id: Optional Datadog RUM session ID for correlating with browser sessions.
 
     Returns:
         Dict with "response" (str) and "tools" (list of matched tool dicts).
@@ -151,6 +153,12 @@ def generate_chat_response(user_message: str) -> dict[str, Any]:
                 input=user_message,
                 max_turns=_CHATBOT_MAX_TURNS,
             )
+            # Annotate the LLM span with the RUM session ID while the span is still active.
+            if session_id:
+                try:
+                    LLMObs.annotate(span=None, tags={"session_id": session_id})
+                except Exception:
+                    pass
 
         response_text = result.final_output or ""
         tools = _collect_tools(result)
