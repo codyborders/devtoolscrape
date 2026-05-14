@@ -1,50 +1,36 @@
 # DevTools Scrape
 
-A developer tools discovery platform that scrapes, classifies, and surfaces developer tools from multiple sources. Users can browse, search, and get AI-powered recommendations through a conversational chatbot.
+DevTools Scrape collects developer-tool listings from GitHub Trending, Hacker News, and Product Hunt. It stores each entry in SQLite, classifies it with OpenAI, and exposes browse pages, search, detail pages, and a chatbot for tool recommendations.
 
 ## Disclaimer
 
-This project is a **playground for experimenting with AI tooling, observability workflows, and deployment pipelines**. It is not intended for production use by others. The codebase prioritizes learning and experimentation over polish -- expect rough edges, evolving architecture, and occasional breakage as new integrations are tested.
+This repository is a playground for AI tooling, Datadog observability, and deployment experiments. It is not packaged or maintained for outside production use. Expect rough edges, changing architecture, and occasional breakage while integrations are being tested.
 
 ## How It Works
 
 ### Data Pipeline
 
-Scrapers collect developer tools from three sources:
+The scraper layer pulls from GitHub Trending developer-tool repositories, Show HN posts and developer-tool articles, and Product Hunt launches in the developer-tools category.
 
-- **GitHub Trending** -- trending repositories tagged as developer tools
-- **Hacker News** -- Show HN posts and articles about developer tools
-- **Product Hunt** -- new product launches in the developer tools category
-
-`scrape_all.py` orchestrates the scrapers and stores results in a SQLite database with FTS5 full-text search indexing. An OpenAI-powered classifier using the Responses API (`ai_classifier.py`) categorizes each tool by type (DevOps, Testing, Build/Deploy, etc.).
+`scrape_all.py` runs each scraper and writes results to SQLite with FTS5 indexing. `ai_classifier.py` calls the OpenAI Responses API to assign categories. The category set includes DevOps and Testing, with Build/Deploy covering release tooling.
 
 ### Web Application
 
-A Flask app (`app_production.py`) serves:
-
-- **Browse** -- paginated listing of all discovered tools, filterable by source
-- **Search** -- full-text search powered by SQLite FTS5
-- **Tool detail pages** -- individual tool pages with related tool recommendations
-- **Chatbot** (`/api/chat`) -- an OpenAI Agents SDK chatbot that recommends tools based on natural language questions
+`app_production.py` is the Flask entry point. It provides paginated browsing with source filters, SQLite FTS5 search, detail pages with related-tool recommendations, and `/api/chat`, an OpenAI Agents SDK endpoint that answers natural language recommendation questions.
 
 ### Infrastructure
 
-- **Runtime**: gunicorn behind nginx on a DigitalOcean droplet
-- **Container**: Docker image built with Depot, published to GHCR
-- **CI/CD**: GitHub Actions (test -> Depot build -> SSH deploy)
-- **Observability**: Datadog APM, profiling, ASM/IAST, LLM Observability
+| Area | Setup |
+| --- | --- |
+| Runtime | `gunicorn` behind nginx on a DigitalOcean droplet |
+| Container | Docker image built with Depot and published to GHCR |
+| CI/CD | GitHub Actions runs tests, builds with Depot, and deploys over SSH |
+| Observability | Datadog APM, profiling, ASM/IAST, and LLM Observability |
 
 ### Observability Stack
 
-The app is heavily instrumented with Datadog as a testbed for their observability products:
+Datadog instrumentation makes the app a testbed for traces from Flask traffic, scraper jobs, and LLM calls. Coverage spans distributed tracing, continuous profiling, AppSec, IAST scanning, LLM Observability, prompt tracking through `annotation_context`, Dynamic Instrumentation for live debugging and exception replay, Code Origin for Spans, and CI test visibility through `ddtrace-run pytest`. The profilers capture timeline and memory data, plus heap snapshots, stack samples, and lock contention.
 
-- **APM & Tracing** -- distributed traces across web requests, scraper jobs, and LLM calls
-- **Profiling** -- continuous profiling with timeline, memory, heap, stack, and lock profilers
-- **Application Security** -- AppSec and IAST vulnerability scanning
-- **LLM Observability** -- agent workflow traces linking the chatbot's tool calls and LLM responses, with prompt tracking via `annotation_context`
-- **Dynamic Instrumentation** -- live debugging and exception replay
-- **Code Origin for Spans** -- source code links in traces
-- **Test Optimization** -- CI test visibility with `ddtrace-run pytest`
 ## Project Structure
 
 ```
@@ -92,8 +78,12 @@ pytest tests/
 
 ## Caveats
 
-- **Experimental**: this project exists to test AI-assisted development workflows, Datadog integrations, and deployment automation. It is not designed or maintained as a reliable service.
-- **API keys required**: the chatbot and classifier require an OpenAI API key. Datadog instrumentation requires a Datadog API key. Without these, only the browse/search features work.
-- **Pre-release dependencies**: the project currently pins `ddtrace==4.5.0rc1` from a Datadog pre-release S3 bucket. This is intentional for testing unreleased features and may break without notice.
-- **Single-server deployment**: the production stack runs on a single small droplet. Deploys cause brief downtime during container restarts.
-- **No authentication**: the app has no user accounts or access control. It serves public, scraped data.
+This project exists to test AI-assisted development workflows, Datadog integrations, and deployment automation. It is not designed or maintained as a reliable service.
+
+The chatbot and classifier require an OpenAI API key. Datadog instrumentation requires a Datadog API key. Without those keys, only the browse and search features work.
+
+The project currently pins `ddtrace==4.5.0rc1` from a Datadog pre-release S3 bucket. That pin is intentional for testing unreleased features and may break without notice.
+
+The production stack runs on a single small droplet. Deploys cause brief downtime during container restarts.
+
+The app has no user accounts or access control. It serves public, scraped data.
