@@ -1,0 +1,52 @@
+{
+  "cli_version": "dev",
+  "checkpoint_id": "62d136b04058",
+  "session_id": "019e228e-8db5-7133-9745-6a02907be339",
+  "strategy": "manual-commit",
+  "created_at": "2026-05-14T19:40:56.356553Z",
+  "branch": "readme-slopguard-cleanup",
+  "checkpoints_count": 0,
+  "files_touched": [
+    "README.md"
+  ],
+  "agent": "Pi",
+  "model": "openai-codex/gpt-5.5",
+  "turn_id": "58d0b94c671f",
+  "token_usage": {
+    "input_tokens": 104912,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 721408,
+    "output_tokens": 12198,
+    "api_call_count": 25
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-05-14T19:40:56.348754Z",
+    "agent_lines": 0,
+    "agent_removed": 0,
+    "human_added": 0,
+    "human_modified": 0,
+    "human_removed": 31,
+    "total_committed": 0,
+    "total_lines_changed": 31,
+    "agent_percentage": 0,
+    "metric_version": 2
+  },
+  "prompt_attributions": [
+    {
+      "checkpoint_number": 1,
+      "user_lines_added": 1253,
+      "user_lines_removed": 31,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0,
+      "user_added_per_file": {
+        ".claude/settings.json": 84,
+        ".claude/tdd-guard/data/test.json": 1004,
+        "CLASSIFIER_OPTIMIZATION.md": 144,
+        "README.md": 21
+      },
+      "user_removed_per_file": {
+        "README.md": 31
+      }
+    }
+  ]
+}
