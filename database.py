@@ -526,22 +526,6 @@ def count_search_results(query: str) -> int:
     return count
 
 
-def get_startup_by_url(url: str) -> Optional[Dict[str, Any]]:
-    """Fetch a single startup by its URL."""
-    with _db_connection() as conn:
-        row = conn.execute('''
-            SELECT id, name, url, description, source, date_found
-            FROM startups WHERE url = ?
-        ''', (url,)).fetchone()
-
-    result = dict(row) if row else None
-    logger.debug(
-        "db.get_startup_by_url",
-        extra={"event": "db.get_startup_by_url", "url": url, "found": bool(result)},
-    )
-    return result
-
-
 def record_scrape_completion(scrapers_run: Optional[str] = None) -> None:
     """Record that a scrape has completed, replacing any previous entry."""
     with _db_connection() as conn:

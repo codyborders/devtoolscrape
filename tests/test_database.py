@@ -55,9 +55,6 @@ def test_save_and_retrieve_startups(fresh_db):
 
     assert fresh_db.count_all_startups() == len(all_startups)
 
-    by_url = fresh_db.get_startup_by_url("https://example.com")
-    assert by_url["id"] == stored["id"]
-
 
 def test_is_duplicate_and_integrity_handling(fresh_db):
     now = datetime.now()
@@ -152,10 +149,6 @@ def test_init_db_recovers_from_partial_database(tmp_path, monkeypatch):
     tables = _fetch_all(conn, "SELECT name FROM sqlite_master WHERE type='table'")
     conn.close()
     assert "startups" in {name for (name,) in tables}
-
-
-def test_get_startup_by_url_missing(fresh_db):
-    assert fresh_db.get_startup_by_url("https://missing.example.com") is None
 
 
 def test_init_db_handles_initial_connect_failure(tmp_path, monkeypatch):

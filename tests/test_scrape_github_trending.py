@@ -243,8 +243,7 @@ def test_scrape_github_trending_integration_duplicate_with_temp_db(monkeypatch, 
         logger.setLevel(previous_level)
 
     # Ensure only one row exists for the URL (no duplicate insert)
-    found = database.get_startup_by_url("https://github.com/owner/dupe")
-    assert found is not None
+    assert database.count_all_startups() == 1
     assert "scraper.skip_duplicate" in log_buffer.getvalue()
 
 
